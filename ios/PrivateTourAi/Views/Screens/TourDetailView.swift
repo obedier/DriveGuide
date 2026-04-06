@@ -3,6 +3,7 @@ import MapKit
 
 struct TourDetailView: View {
     let tour: Tour
+    @EnvironmentObject var tourVM: TourViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStop: TourStop?
 
@@ -70,7 +71,7 @@ struct TourDetailView: View {
                             .tint(.blue)
 
                             Button {
-                                // TODO: Start guided tour (Sprint S5)
+                                tourVM.startTour()
                             } label: {
                                 HStack {
                                     Image(systemName: "play.fill")

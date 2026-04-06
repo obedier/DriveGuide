@@ -12,7 +12,7 @@ struct ContentView: View {
                 }
                 .tag(0)
 
-            LibraryPlaceholderView()
+            LibraryView()
                 .tabItem {
                     Label("Library", systemImage: "books.vertical.fill")
                 }
@@ -28,19 +28,67 @@ struct ContentView: View {
     }
 }
 
-struct LibraryPlaceholderView: View {
+struct LibraryView: View {
+    @EnvironmentObject var tourVM: TourViewModel
+    @State private var showDetail = false
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "books.vertical")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.secondary)
-                Text("Your Tours")
-                    .font(.title2.bold())
-                Text("Tours you create will appear here")
-                    .foregroundStyle(.secondary)
+            Group {
+                if tourVM.savedTours.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "books.vertical")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.secondary)
+                        Text("No Saved Tours")
+                            .font(.title2.bold())
+                        Text("Tours you create will be saved here automatically")
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                } else {
+                    List {
+                        ForEach(tourVM.savedTours) { tour in
+                            Button {
+                                tourVM.openSavedTour(tour)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(tour.title)
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                    Text(tour.locationQuery)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    HStack(spacing: 12) {
+                                        Label("\(tour.stops.count) stops", systemImage: "mappin.and.ellipse")
+                                        Label(formatDuration(tour.durationMinutes), systemImage: "clock")
+                                        if let km = tour.totalDistanceKm {
+                                            Label(String(format: "%.1f km", km), systemImage: "car")
+                                        }
+                                    }
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        .onDelete { indexSet in
+                            for i in indexSet {
+                                tourVM.deleteSavedTour(tourVM.savedTours[i])
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
             }
             .navigationTitle("Library")
+            .sheet(isPresented: $tourVM.showTourDetail) {
+                if let tour = tourVM.currentTour {
+                    TourDetailView(tour: tour)
+                        .environmentObject(tourVM)
+                }
+            }
         }
     }
 }

@@ -10,6 +10,9 @@ class TourViewModel: ObservableObject {
     @Published var lastPreviewTourId: String?
     @Published var showTourDetail = false
 
+    // Saved tours
+    @Published var savedTours: [Tour] = []
+
     // Location verification state
     @Published var verifiedLocation: VerifiedLocation?
     @Published var isVerifying = false
@@ -29,6 +32,11 @@ class TourViewModel: ObservableObject {
     let availableThemes = ["history", "food", "scenic", "hidden-gems", "architecture", "culture", "nature", "nightlife"]
 
     private let locationManager = LocationHelper()
+    private let storage = TourStorage.shared
+
+    init() {
+        savedTours = storage.loadAll()
+    }
 
     // MARK: - Step 1: Verify Location
 
@@ -71,7 +79,6 @@ class TourViewModel: ObservableObject {
         isGenerating = true
         error = nil
 
-        // Progressive status messages while the API works
         let locationName = searchText
         let progressMessages = [
             "Researching \(locationName)...",
@@ -86,7 +93,6 @@ class TourViewModel: ObservableObject {
             "Polishing your personalized tour...",
         ]
 
-        // Start cycling through messages
         let progressTask = Task {
             for (i, msg) in progressMessages.enumerated() {
                 if Task.isCancelled { break }
@@ -116,7 +122,7 @@ class TourViewModel: ObservableObject {
         generationProgress = ""
     }
 
-    // MARK: - Unlock Full Tour (from preview)
+    // MARK: - Unlock Full Tour
 
     func unlockFullTour() async {
         isGenerating = true
@@ -126,11 +132,9 @@ class TourViewModel: ObservableObject {
         do {
             let tour: Tour
             if let tourId = lastPreviewTourId {
-                // We already have a generated tour — just load the full version
                 generationProgress = "Fetching all stops and narration..."
                 tour = try await APIClient.shared.getFullTour(tourId: tourId)
             } else {
-                // Generate from scratch
                 let location = verifiedLocation?.formattedAddress ?? searchText
                 generationProgress = "Generating your full tour..."
                 tour = try await APIClient.shared.generateFullTour(
@@ -139,6 +143,10 @@ class TourViewModel: ObservableObject {
                     themes: Array(selectedThemes)
                 )
             }
+
+            // Save to local storage
+            storage.save(tour)
+            savedTours = storage.loadAll()
 
             currentTour = tour
             currentPreview = nil
@@ -150,6 +158,42 @@ class TourViewModel: ObservableObject {
 
         isGenerating = false
         generationProgress = ""
+    }
+
+    // MARK: - Saved Tours
+
+    func openSavedTour(_ tour: Tour) {
+        currentTour = tour
+        currentPreview = nil
+        showTourDetail = true
+    }
+
+    func deleteSavedTour(_ tour: Tour) {
+        storage.delete(tour.id)
+        savedTours = storage.loadAll()
+        if currentTour?.id == tour.id {
+            currentTour = nil
+            showTourDetail = false
+        }
+    }
+
+    // MARK: - Start Tour (open in Google Maps)
+
+    func startTour() {
+        guard let tour = currentTour,
+              let urlStr = tour.mapsDirectionsUrl,
+              let url = URL(string: urlStr) else {
+            error = "No tour route available"
+            return
+        }
+
+        // Try Google Maps app first, fall back to Apple Maps / browser
+        let googleMapsURL = URL(string: "comgooglemaps://?\(url.query ?? "")")
+        if let gmUrl = googleMapsURL, UIApplication.shared.canOpenURL(gmUrl) {
+            UIApplication.shared.open(gmUrl)
+        } else {
+            UIApplication.shared.open(url)
+        }
     }
 
     // MARK: - Current Location
@@ -181,12 +225,6 @@ class TourViewModel: ObservableObject {
         error = nil
     }
 
-    func openInGoogleMaps() {
-        guard let url = currentTour?.mapsDirectionsUrl,
-              let mapsUrl = URL(string: url) else { return }
-        UIApplication.shared.open(mapsUrl)
-    }
-
     private func friendlyError(_ error: Error) -> String {
         if let apiErr = error as? APIError {
             return apiErr.localizedDescription
@@ -199,7 +237,50 @@ class TourViewModel: ObservableObject {
     }
 }
 
-// MARK: - Location Helper (handles CLLocationManager delegate on main thread)
+// MARK: - Local Tour Storage (persists tours as JSON files)
+
+class TourStorage {
+    static let shared = TourStorage()
+
+    private let directory: URL = {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let dir = docs.appendingPathComponent("SavedTours", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    func save(_ tour: Tour) {
+        let url = directory.appendingPathComponent("\(tour.id).json")
+        if let data = try? JSONEncoder().encode(tour) {
+            try? data.write(to: url)
+        }
+    }
+
+    func loadAll() -> [Tour] {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles) else {
+            return []
+        }
+
+        return files
+            .filter { $0.pathExtension == "json" }
+            .sorted { a, b in
+                let dateA = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                let dateB = (try? b.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                return dateA > dateB
+            }
+            .compactMap { url -> Tour? in
+                guard let data = try? Data(contentsOf: url) else { return nil }
+                return try? JSONDecoder().decode(Tour.self, from: data)
+            }
+    }
+
+    func delete(_ tourId: String) {
+        let url = directory.appendingPathComponent("\(tourId).json")
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
+// MARK: - Location Helper
 
 class LocationHelper: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
@@ -215,12 +296,10 @@ class LocationHelper: NSObject, CLLocationManagerDelegate {
         self.completion = completion
         manager.requestWhenInUseAuthorization()
 
-        // If we already have a location, use it immediately
         if let loc = manager.location, loc.timestamp.timeIntervalSinceNow > -60 {
             reverseGeocode(loc)
             return
         }
-
         manager.requestLocation()
     }
 
@@ -235,8 +314,7 @@ class LocationHelper: NSObject, CLLocationManagerDelegate {
     }
 
     private func reverseGeocode(_ location: CLLocation) {
-        let geocoder = CLGeocoder()
-        geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
+        CLGeocoder().reverseGeocodeLocation(location) { [weak self] placemarks, error in
             if let error {
                 self?.completion?(.failure(error))
             } else if let pm = placemarks?.first {

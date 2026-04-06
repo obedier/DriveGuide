@@ -91,6 +91,7 @@ struct HomeView: View {
         .sheet(isPresented: $tourVM.showTourDetail) {
             if let tour = tourVM.currentTour {
                 TourDetailView(tour: tour)
+                    .environmentObject(tourVM)
             } else if let preview = tourVM.currentPreview {
                 PreviewDetailView(preview: preview)
                     .environmentObject(tourVM)
