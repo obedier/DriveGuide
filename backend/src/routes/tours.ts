@@ -37,7 +37,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  // POST /tours/preview — PUBLIC
+  // POST /tours/preview — PUBLIC — returns preview (3 stops, teaser narration)
   app.post<{ Body: GenerateTourRequest }>('/tours/preview', {
     preHandler: optionalAuth,
   }, async (request, reply) => {
@@ -51,10 +51,39 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
 
     const tour = await generateTour(
       { location, duration_minutes, themes, language },
+      request.user?.userId ?? null,
+    );
+
+    return { preview: generatePreview(tour), tour_id: tour.id };
+  });
+
+  // POST /tours/full — PUBLIC for MVP — returns the complete tour
+  // TODO: Gate behind auth + subscription when Firebase is wired up
+  app.post<{ Body: GenerateTourRequest & { tour_id?: string } }>('/tours/full', async (request, reply) => {
+    const { tour_id, location, duration_minutes, themes, language } = request.body;
+
+    // If we already have a tour_id from preview, just load it
+    if (tour_id) {
+      try {
+        const tour = loadTour(tour_id);
+        return { tour };
+      } catch {
+        // Tour not found, fall through to generate
+      }
+    }
+
+    if (!location || !duration_minutes || duration_minutes < 30 || duration_minutes > 360) {
+      return reply.code(400).send({
+        error: { code: 'INVALID_INPUT', message: 'Location required, duration must be 30-360 minutes' },
+      });
+    }
+
+    const tour = await generateTour(
+      { location, duration_minutes, themes, language },
       null,
     );
 
-    return { preview: generatePreview(tour) };
+    return { tour };
   });
 
   // POST /tours/generate — Authenticated

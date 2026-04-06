@@ -7,6 +7,8 @@ class TourViewModel: ObservableObject {
     // Tour state
     @Published var currentPreview: TourPreview?
     @Published var currentTour: Tour?
+    @Published var lastPreviewTourId: String?
+    @Published var showTourDetail = false
 
     // Location verification state
     @Published var verifiedLocation: VerifiedLocation?
@@ -95,18 +97,54 @@ class TourViewModel: ObservableObject {
         }
 
         do {
-            let preview = try await APIClient.shared.generatePreview(
+            let result = try await APIClient.shared.generatePreview(
                 location: location,
                 durationMinutes: selectedDuration,
                 themes: Array(selectedThemes)
             )
             progressTask.cancel()
             generationProgress = "Your tour is ready!"
-            currentPreview = preview
-            // Brief pause to show "ready" message
+            currentPreview = result.preview
+            lastPreviewTourId = result.tourId
             try? await Task.sleep(for: .seconds(0.5))
         } catch {
             progressTask.cancel()
+            self.error = friendlyError(error)
+        }
+
+        isGenerating = false
+        generationProgress = ""
+    }
+
+    // MARK: - Unlock Full Tour (from preview)
+
+    func unlockFullTour() async {
+        isGenerating = true
+        error = nil
+        generationProgress = "Loading your complete tour..."
+
+        do {
+            let tour: Tour
+            if let tourId = lastPreviewTourId {
+                // We already have a generated tour — just load the full version
+                generationProgress = "Fetching all stops and narration..."
+                tour = try await APIClient.shared.getFullTour(tourId: tourId)
+            } else {
+                // Generate from scratch
+                let location = verifiedLocation?.formattedAddress ?? searchText
+                generationProgress = "Generating your full tour..."
+                tour = try await APIClient.shared.generateFullTour(
+                    location: location,
+                    durationMinutes: selectedDuration,
+                    themes: Array(selectedThemes)
+                )
+            }
+
+            currentTour = tour
+            currentPreview = nil
+            showTourDetail = true
+            generationProgress = ""
+        } catch {
             self.error = friendlyError(error)
         }
 
@@ -136,8 +174,10 @@ class TourViewModel: ObservableObject {
     func clearTour() {
         currentPreview = nil
         currentTour = nil
+        lastPreviewTourId = nil
         verifiedLocation = nil
         isLocationConfirmed = false
+        showTourDetail = false
         error = nil
     }
 

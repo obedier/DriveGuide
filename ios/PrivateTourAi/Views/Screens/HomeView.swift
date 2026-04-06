@@ -9,7 +9,7 @@ struct HomeView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
         )
     )
-    @State private var showTourDetail = false
+    // showTourDetail is now driven by tourVM.showTourDetail
 
     var body: some View {
         ZStack {
@@ -68,13 +68,13 @@ struct HomeView: View {
                         .transition(.move(edge: .bottom))
                 } else if let preview = tourVM.currentPreview {
                     PreviewCard(preview: preview) {
-                        showTourDetail = true
+                        tourVM.showTourDetail = true
                     }
                     .padding()
                     .transition(.move(edge: .bottom))
                 } else if let tour = tourVM.currentTour {
                     TourReadyCard(tour: tour) {
-                        showTourDetail = true
+                        tourVM.showTourDetail = true
                     }
                     .padding()
                     .transition(.move(edge: .bottom))
@@ -88,7 +88,7 @@ struct HomeView: View {
                 }
             }
         }
-        .sheet(isPresented: $showTourDetail) {
+        .sheet(isPresented: $tourVM.showTourDetail) {
             if let tour = tourVM.currentTour {
                 TourDetailView(tour: tour)
             } else if let preview = tourVM.currentPreview {
@@ -112,6 +112,23 @@ struct HomeView: View {
         .animation(.spring(response: 0.4), value: tourVM.isGenerating)
         .animation(.spring(response: 0.4), value: tourVM.currentPreview != nil)
         .animation(.spring(response: 0.4), value: tourVM.currentTour != nil)
+        // When full tour loads, zoom map to show all stops and auto-open detail
+        .onChange(of: tourVM.currentTour?.id) { _, tourId in
+            guard let tour = tourVM.currentTour, !tour.stops.isEmpty else { return }
+            let lats = tour.stops.map(\.latitude)
+            let lngs = tour.stops.map(\.longitude)
+            let center = CLLocationCoordinate2D(
+                latitude: (lats.min()! + lats.max()!) / 2,
+                longitude: (lngs.min()! + lngs.max()!) / 2
+            )
+            let span = MKCoordinateSpan(
+                latitudeDelta: max((lats.max()! - lats.min()!) * 1.4, 0.02),
+                longitudeDelta: max((lngs.max()! - lngs.min()!) * 1.4, 0.02)
+            )
+            withAnimation(.easeInOut(duration: 0.8)) {
+                cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
+            }
+        }
     }
 }
 

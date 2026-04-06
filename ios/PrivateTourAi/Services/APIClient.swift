@@ -44,7 +44,7 @@ final class APIClient: Sendable {
 
     // MARK: - Tour Generation
 
-    func generatePreview(location: String, durationMinutes: Int, themes: [String] = []) async throws -> TourPreview {
+    func generatePreview(location: String, durationMinutes: Int, themes: [String] = []) async throws -> (preview: TourPreview, tourId: String?) {
         let body = GenerateTourRequest(
             location: location,
             durationMinutes: durationMinutes,
@@ -55,7 +55,7 @@ final class APIClient: Sendable {
         guard let preview = response.preview else {
             throw APIError.noData
         }
-        return preview
+        return (preview, response.tourId)
     }
 
     func generateTour(location: String, durationMinutes: Int, themes: [String] = []) async throws -> TourResponse {
@@ -66,6 +66,25 @@ final class APIClient: Sendable {
             language: nil
         )
         return try await post("/tours/generate", body: body, timeout: longTimeout)
+    }
+
+    func getFullTour(tourId: String) async throws -> Tour {
+        let body = FullTourRequest(tourId: tourId, location: nil, durationMinutes: nil)
+        let response: TourResponse = try await post("/tours/full", body: body, timeout: longTimeout)
+        guard let tour = response.tour else { throw APIError.noData }
+        return tour
+    }
+
+    func generateFullTour(location: String, durationMinutes: Int, themes: [String] = []) async throws -> Tour {
+        let body = GenerateTourRequest(
+            location: location,
+            durationMinutes: durationMinutes,
+            themes: themes.isEmpty ? nil : themes,
+            language: nil
+        )
+        let response: TourResponse = try await post("/tours/full", body: body, timeout: longTimeout)
+        guard let tour = response.tour else { throw APIError.noData }
+        return tour
     }
 
     func getTour(id: String) async throws -> Tour {

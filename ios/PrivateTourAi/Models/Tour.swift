@@ -158,6 +158,24 @@ struct NearbyHighlight: Codable, Identifiable {
 struct TourResponse: Codable {
     let tour: Tour?
     let preview: TourPreview?
+    let tourId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case tour, preview
+        case tourId = "tour_id"
+    }
+}
+
+struct FullTourRequest: Codable {
+    let tourId: String?
+    let location: String?
+    let durationMinutes: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case location
+        case tourId = "tour_id"
+        case durationMinutes = "duration_minutes"
+    }
 }
 
 struct AudioResponse: Codable {

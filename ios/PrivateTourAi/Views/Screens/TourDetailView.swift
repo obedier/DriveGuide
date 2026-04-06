@@ -368,10 +368,8 @@ struct PreviewDetailView: View {
 
     private func unlockFullTour() {
         isUnlocking = true
-        // For now, skip auth gate — generate full tour directly
-        // When Firebase Auth is added, this will require sign-in first
         Task {
-            await tourVM.generatePreview()
+            await tourVM.unlockFullTour()
             isUnlocking = false
         }
     }
