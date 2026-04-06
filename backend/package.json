@@ -1,0 +1,37 @@
+{
+  "name": "private-tourai-api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "tsx src/lib/migrate.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "^5.3.3",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/rate-limit": "^10.2.0",
+    "better-sqlite3": "^11.8.1",
+    "firebase-admin": "^13.2.0",
+    "@google/generative-ai": "^0.24.0",
+    "@google-cloud/text-to-speech": "^5.7.0",
+    "@google-cloud/storage": "^7.16.0",
+    "lru-cache": "^11.1.0",
+    "nanoid": "^5.1.5",
+    "zod": "^3.24.4",
+    "archiver": "^7.0.1",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

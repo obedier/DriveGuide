@@ -1,0 +1,330 @@
+import SwiftUI
+import MapKit
+
+struct TourDetailView: View {
+    let tour: Tour
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedStop: TourStop?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Map header
+                    Map {
+                        ForEach(tour.stops) { stop in
+                            Annotation(stop.name, coordinate: CLLocationCoordinate2D(
+                                latitude: stop.latitude, longitude: stop.longitude
+                            )) {
+                                StopMarker(order: stop.sequenceOrder + 1, category: stop.category)
+                            }
+                        }
+                    }
+                    .mapStyle(.standard(elevation: .realistic))
+                    .frame(height: 260)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .padding()
+
+                    // Tour info
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(tour.title)
+                            .font(.title2.bold())
+
+                        Text(tour.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 20) {
+                            InfoBadge(icon: "mappin.and.ellipse", value: "\(tour.stops.count) stops")
+                            InfoBadge(icon: "clock", value: formatDuration(tour.durationMinutes))
+                            if let km = tour.totalDistanceKm {
+                                InfoBadge(icon: "car", value: String(format: "%.1f km", km))
+                            }
+                        }
+                        .padding(.vertical, 8)
+
+                        if let summary = tour.storyArcSummary {
+                            Text(summary)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .padding(12)
+                                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+                        }
+
+                        // Action buttons
+                        HStack(spacing: 12) {
+                            Button {
+                                if let urlStr = tour.mapsDirectionsUrl,
+                                   let url = URL(string: urlStr) {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                                    Text("Open in Maps")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+
+                            Button {
+                                // TODO: Start guided tour (Sprint S5)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "play.fill")
+                                    Text("Start Tour")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color("AccentCoral"))
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    // Stops list
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("YOUR STOPS")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                            .padding(.top, 24)
+                            .padding(.bottom, 12)
+
+                        ForEach(tour.stops) { stop in
+                            StopRow(stop: stop, isLast: stop.id == tour.stops.last?.id)
+                                .onTapGesture { selectedStop = stop }
+                        }
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .sheet(item: $selectedStop) { stop in
+            StopDetailSheet(stop: stop)
+        }
+    }
+}
+
+struct InfoBadge: View {
+    let icon: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(Color("AccentCoral"))
+            Text(value)
+                .font(.caption)
+        }
+    }
+}
+
+struct StopRow: View {
+    let stop: TourStop
+    let isLast: Bool
+
+    var categoryIcon: String {
+        switch stop.category {
+        case "landmark": return "building.columns.fill"
+        case "restaurant": return "fork.knife"
+        case "viewpoint": return "eye.fill"
+        case "hidden-gem": return "diamond.fill"
+        case "photo-op": return "camera.fill"
+        case "park": return "leaf.fill"
+        case "museum": return "building.2.fill"
+        case "neighborhood": return "house.fill"
+        default: return "mappin.fill"
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Timeline
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color("AccentCoral"))
+                        .frame(width: 28, height: 28)
+                    Text("\(stop.sequenceOrder + 1)")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(Color("AccentCoral").opacity(0.3))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(stop.name)
+                        .font(.subheadline.bold())
+                    Spacer()
+                    Image(systemName: categoryIcon)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text(stop.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                HStack(spacing: 12) {
+                    if stop.recommendedStayMinutes > 0 {
+                        Label("\(stop.recommendedStayMinutes) min", systemImage: "clock")
+                    }
+                    if stop.isOptional {
+                        Label("Optional", systemImage: "arrow.uturn.right")
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+            }
+            .padding(.bottom, 16)
+        }
+        .padding(.horizontal)
+    }
+}
+
+struct StopDetailSheet: View {
+    let stop: TourStop
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Mini map
+                    Map {
+                        Annotation(stop.name, coordinate: CLLocationCoordinate2D(
+                            latitude: stop.latitude, longitude: stop.longitude
+                        )) {
+                            StopMarker(order: stop.sequenceOrder + 1, category: stop.category)
+                        }
+                    }
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                    Text(stop.name)
+                        .font(.title2.bold())
+
+                    Text(stop.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Divider()
+
+                    NarrationSection(title: "As You Approach", text: stop.approachNarration)
+                    NarrationSection(title: "At This Stop", text: stop.atStopNarration)
+                    NarrationSection(title: "As You Leave", text: stop.departureNarration)
+                }
+                .padding()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct NarrationSection: View {
+    let title: String
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(Color("AccentCoral"))
+            Text(text)
+                .font(.callout)
+                .lineSpacing(4)
+        }
+    }
+}
+
+struct PreviewDetailView: View {
+    let preview: TourPreview
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(preview.title)
+                        .font(.title2.bold())
+                    Text(preview.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(preview.previewStops) { stop in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(stop.name)
+                                    .font(.headline)
+                                Spacer()
+                                Text(stop.category.capitalized)
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color("AccentCoral").opacity(0.1), in: Capsule())
+                                    .foregroundStyle(Color("AccentCoral"))
+                            }
+                            Text(stop.teaser)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    // Paywall teaser
+                    VStack(spacing: 12) {
+                        Image(systemName: "lock.fill")
+                            .font(.title)
+                            .foregroundStyle(Color("AccentCoral"))
+                        Text("Unlock the Full Tour")
+                            .font(.headline)
+                        Text("Sign up to get all \(preview.stopCount) stops with audio narration, GPS triggers, and offline access.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Sign Up Free") {
+                            // TODO: Auth flow
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color("AccentCoral"))
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16))
+                }
+                .padding()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
