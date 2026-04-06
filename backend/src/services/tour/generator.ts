@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { getDb } from '../../lib/db.js';
 import { newId } from '../../lib/id.js';
 import { geocode, nearbySearch, optimizeRoute, getPlacePhoto } from './maps.js';
+import { computeNauticalRoute } from './nautical.js';
 import { generateTourContent } from './gemini.js';
 import type { Tour, TourStop, NarrationSegment, GenerateTourRequest, TourTheme } from '../../models/types.js';
 
@@ -97,6 +98,15 @@ async function generateWithTimeout(
     // Reorder stops based on route optimization
     const orderedStops = reorderStops(content.stops, route.waypoint_order);
 
+    // Step 4b: For boat tours, compute nautical route
+    let directionsUrl = route.directions_url;
+    let totalDistanceKm = route.total_distance_km;
+    if (transportMode === 'boat') {
+      const nautical = await computeNauticalRoute(orderedStops);
+      directionsUrl = nautical.chart_url; // VectorCharts URL instead of Google Maps
+      totalDistanceKm = nautical.distance_nm * 1.852; // store as km for consistency, display as nm
+    }
+
     // Step 5: Save everything to database
     const db = getDb();
     const saveTour = db.transaction(() => {
@@ -109,8 +119,8 @@ async function generateWithTimeout(
         WHERE id = ?
       `).run(
         content.title, content.description, geo.latitude, geo.longitude,
-        JSON.stringify(route), route.directions_url,
-        route.total_distance_km, route.total_duration_minutes,
+        JSON.stringify(route), directionsUrl,
+        totalDistanceKm, route.total_duration_minutes,
         content.story_arc_summary, userId ? 0 : 1, tourId,
       );
 

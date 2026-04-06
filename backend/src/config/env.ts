@@ -34,5 +34,8 @@ export const env = {
   previewPerIpLimit: parseInt(process.env.PREVIEW_PER_IP_LIMIT || '3', 10),
 
   // App version
+  // VectorCharts (nautical maps for boat tours)
+  vectorchartsApiKey: process.env.VECTORCHARTS_API_KEY || '2fdb12f93fdd4071a394008e331130fe',
+
   minAppVersion: process.env.MIN_APP_VERSION || '1.0.0',
 } as const;

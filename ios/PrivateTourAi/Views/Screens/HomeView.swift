@@ -269,24 +269,58 @@ struct SearchCard: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
-                    // Create Tour button
+                    // Create / Edit Tour button
                     if tourVM.verifiedLocation != nil {
-                        Button {
-                            isSearchFocused = false
-                            withAnimation(.spring(response: 0.3)) { showOptions = false }
-                            Task { await tourVM.confirmAndGenerate() }
-                        } label: {
-                            HStack {
-                                Image(systemName: "sparkles")
-                                Text("Create Tour")
-                                    .fontWeight(.semibold)
+                        if tourVM.currentPreview != nil || tourVM.currentTour != nil {
+                            // Tour already generated — show edit options
+                            HStack(spacing: 10) {
+                                Button {
+                                    tourVM.showTourDetail = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "eye")
+                                        Text("View Tour")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(Color("AccentCoral"))
+
+                                Button {
+                                    isSearchFocused = false
+                                    withAnimation(.spring(response: 0.3)) { showOptions = false }
+                                    tourVM.clearTour()
+                                    Task { await tourVM.confirmAndGenerate() }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                        Text("New")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.orange)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                        } else {
+                            Button {
+                                isSearchFocused = false
+                                withAnimation(.spring(response: 0.3)) { showOptions = false }
+                                Task { await tourVM.confirmAndGenerate() }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                    Text("Create Tour")
+                                        .fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color("AccentCoral"))
+                            .disabled(tourVM.isGenerating)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color("AccentCoral"))
-                        .disabled(tourVM.isGenerating)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))

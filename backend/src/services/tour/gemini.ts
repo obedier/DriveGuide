@@ -46,7 +46,15 @@ export async function generateTourContent(
   const themesStr = themes.length > 0 ? themes.join(', ') : 'general highlights, hidden gems, local culture';
   const transportLabel = transportMode === 'car' ? 'driving' : transportMode === 'walk' ? 'walking' : transportMode === 'bike' ? 'cycling' : transportMode === 'boat' ? 'boating/waterway' : 'flying';
   const speedNote = speedMph ? `The traveler will be moving at approximately ${speedMph} mph.` : '';
-  const boatNote = transportMode === 'boat' ? `\n\nIMPORTANT: This is a BOAT/WATERWAY tour. All stops must be accessible by water — marinas, waterfront docks, intracoastal waterway stops, islands, waterside restaurants, yacht clubs. The route must follow navigable waterways (intracoastal, canals, rivers, ocean). Do NOT include inland stops that require a car. Narration should reference water features, boats, marine life, waterfront mansions, bridges, and channels.` : '';
+  const boatNote = transportMode === 'boat' ? `\n\nCRITICAL — BOAT TOUR RULES:
+1. This is a BOAT tour on WATER. Every single stop must be ON THE WATER or directly at the water's edge with a dock.
+2. NEVER include any stop that requires getting off the boat or walking inland. The traveler stays on the boat the entire time.
+3. Stops should be things you can SEE FROM THE WATER: waterfront mansions, mega-yachts at docks, bridges, islands, marine landmarks, waterfront restaurants with docks, marinas, channels, inlets.
+4. The route must follow navigable waterways only: intracoastal waterway, canals, rivers, ocean coastline, harbor channels.
+5. Coordinates must be ON the water or at the waterfront edge — NOT in the middle of a neighborhood or road.
+6. Narration should say things like "look to your starboard side", "as we cruise past", "pulling up alongside", "that mansion on the waterfront".
+7. Between-stop narration should describe what you see from the boat: other vessels, mangroves, sea walls, drawbridges opening, pelicans, dolphins.
+8. For South Florida: use the Intracoastal Waterway, New River, Stranahan River, Port Everglades channel, Miami River, Biscayne Bay — NOT roads.` : '';
   const planeNote = transportMode === 'plane' ? `\n\nIMPORTANT: This is an AERIAL tour. Stops are flyover viewpoints, not landing spots. Narration should describe what the traveler sees from above — landmarks, coastlines, city grids, natural features. Use phrases like "below you", "from this altitude", "looking down".` : '';
   const customNote = customPrompt ? `\n\nSPECIAL FOCUS: The traveler specifically wants: "${customPrompt}". Incorporate this into your stop selections and narration wherever possible.` : '';
 

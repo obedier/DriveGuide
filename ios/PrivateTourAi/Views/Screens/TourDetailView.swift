@@ -43,7 +43,14 @@ struct TourDetailView: View {
                             InfoBadge(icon: "mappin.and.ellipse", value: "\(tour.stops.count) stops")
                             InfoBadge(icon: "clock", value: formatDuration(tour.durationMinutes))
                             if let km = tour.totalDistanceKm {
-                                InfoBadge(icon: "car", value: String(format: "%.1f km", km))
+                                let miles = km * 0.621371
+                                let distIcon = transportIconFor(tour.transportMode)
+                                let unit = (tour.transportMode == "boat") ? "nm" : "mi"
+                                let dist = (tour.transportMode == "boat") ? km * 0.539957 : miles
+                                InfoBadge(icon: distIcon, value: String(format: "%.1f %@", dist, unit))
+                            }
+                            if let mode = tour.transportMode, mode != "car" {
+                                InfoBadge(icon: transportIconFor(mode), value: mode.capitalized)
                             }
                         }
                         .padding(.vertical, 8)
@@ -79,8 +86,9 @@ struct TourDetailView: View {
                                 }
                             } label: {
                                 HStack {
-                                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                                    Text("Open Route in Maps")
+                                    let isBoat = tour.transportMode == "boat"
+                                    Image(systemName: isBoat ? "water.waves" : "arrow.triangle.turn.up.right.diamond.fill")
+                                    Text(isBoat ? "Open Nautical Chart" : "Open Route in Maps")
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -200,6 +208,16 @@ struct TourDetailView: View {
             tourVM.error = error.localizedDescription
         }
         isRegenerating = false
+    }
+}
+
+func transportIconFor(_ mode: String?) -> String {
+    switch mode {
+    case "walk": return "figure.walk"
+    case "bike": return "bicycle"
+    case "boat": return "ferry.fill"
+    case "plane": return "airplane"
+    default: return "car.fill"
     }
 }
 
