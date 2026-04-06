@@ -7,6 +7,9 @@ struct TourDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStop: TourStop?
     @State private var showGuidedTour = false
+    @State private var showRegenerate = false
+    @State private var regeneratePrompt = ""
+    @State private var isRegenerating = false
 
     var body: some View {
         NavigationStack {
@@ -88,13 +91,60 @@ struct TourDetailView: View {
                     }
                     .padding(.horizontal)
 
+                    // Regenerate section
+                    VStack(spacing: 10) {
+                        Button {
+                            withAnimation { showRegenerate.toggle() }
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text("Regenerate Tour")
+                                Spacer()
+                                Image(systemName: showRegenerate ? "chevron.up" : "chevron.down")
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        }
+
+                        if showRegenerate {
+                            VStack(spacing: 10) {
+                                TextField("What should change? e.g. \"more food stops\", \"skip museums\"", text: $regeneratePrompt, axis: .vertical)
+                                    .font(.callout)
+                                    .lineLimit(2...4)
+                                    .textFieldStyle(.roundedBorder)
+
+                                Button {
+                                    Task { await regenerateTour() }
+                                } label: {
+                                    HStack {
+                                        if isRegenerating {
+                                            ProgressView().scaleEffect(0.8)
+                                        } else {
+                                            Image(systemName: "sparkles")
+                                        }
+                                        Text(isRegenerating ? "Regenerating..." : "Regenerate")
+                                            .fontWeight(.semibold)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.orange)
+                                .disabled(isRegenerating)
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
                     // Stops list
                     VStack(alignment: .leading, spacing: 0) {
                         Text("YOUR STOPS")
                             .font(.caption.bold())
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
-                            .padding(.top, 24)
+                            .padding(.top, 16)
                             .padding(.bottom, 12)
 
                         ForEach(tour.stops) { stop in
@@ -124,6 +174,32 @@ struct TourDetailView: View {
         .fullScreenCover(isPresented: $showGuidedTour) {
             GuidedTourView(tour: tour)
         }
+    }
+
+    private func regenerateTour() async {
+        isRegenerating = true
+        let originalPrompt = tour.customPrompt ?? ""
+        let combinedPrompt = [originalPrompt, regeneratePrompt]
+            .filter { !$0.isEmpty }
+            .joined(separator: ". Also: ")
+
+        do {
+            let newTour = try await APIClient.shared.generateFullTour(
+                location: tour.locationQuery,
+                durationMinutes: tour.durationMinutes,
+                themes: tour.themes,
+                transportMode: tour.transportMode ?? "car",
+                customPrompt: combinedPrompt.isEmpty ? nil : combinedPrompt
+            )
+            TourStorage.shared.save(newTour)
+            tourVM.savedTours = TourStorage.shared.loadAll()
+            tourVM.currentTour = newTour
+            regeneratePrompt = ""
+            showRegenerate = false
+        } catch {
+            tourVM.error = error.localizedDescription
+        }
+        isRegenerating = false
     }
 }
 

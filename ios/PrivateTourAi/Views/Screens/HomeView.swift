@@ -273,6 +273,7 @@ struct SearchCard: View {
                     if tourVM.verifiedLocation != nil {
                         Button {
                             isSearchFocused = false
+                            withAnimation(.spring(response: 0.3)) { showOptions = false }
                             Task { await tourVM.confirmAndGenerate() }
                         } label: {
                             HStack {
