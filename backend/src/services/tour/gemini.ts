@@ -36,11 +36,17 @@ export async function generateTourContent(
   themes: TourTheme[],
   nearbyPlaces: Array<{ name: string; latitude: number; longitude: number; types: string[]; rating?: number; vicinity?: string }>,
   language: string = 'en',
+  transportMode: string = 'car',
+  speedMph: number | null = null,
+  customPrompt: string | null = null,
 ): Promise<GeminiTourResponse> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const stopCount = getStopCount(durationMinutes);
   const themesStr = themes.length > 0 ? themes.join(', ') : 'general highlights, hidden gems, local culture';
+  const transportLabel = transportMode === 'car' ? 'driving' : transportMode === 'walk' ? 'walking' : transportMode === 'bike' ? 'cycling' : transportMode === 'boat' ? 'boating' : 'flying';
+  const speedNote = speedMph ? `The traveler will be moving at approximately ${speedMph} mph.` : '';
+  const customNote = customPrompt ? `\n\nSPECIAL FOCUS: The traveler specifically wants: "${customPrompt}". Incorporate this into your stop selections and narration wherever possible.` : '';
 
   const placesContext = nearbyPlaces.slice(0, 30).map((p) =>
     `- ${p.name} (${p.latitude}, ${p.longitude}) — ${p.types.slice(0, 3).join(', ')}${p.rating ? `, rating: ${p.rating}` : ''}`
@@ -48,7 +54,7 @@ export async function generateTourContent(
 
   const prompt = `You are a brilliant, charismatic local tour guide who has lived in ${locationName} for 20 years. You know every hidden corner, the best stories, the insider secrets, and the history that makes this place special. You're not a textbook — you're the friend everyone wishes they had when visiting.
 
-TASK: Create a ${durationMinutes}-minute driving tour of ${locationName} (${formattedAddress}).
+TASK: Create a ${durationMinutes}-minute ${transportLabel} tour of ${locationName} (${formattedAddress}). ${speedNote}${customNote}
 
 THEMES: ${themesStr}
 

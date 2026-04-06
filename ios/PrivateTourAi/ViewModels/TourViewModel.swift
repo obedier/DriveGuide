@@ -27,9 +27,14 @@ class TourViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var selectedDuration: Int = 60
     @Published var selectedThemes: Set<String> = []
+    @Published var transportMode: String = "car"
+    @Published var speedMph: Double? = nil
+    @Published var customPrompt: String = ""
+    @Published var showAdvancedSettings = false
 
     let durations = [30, 60, 90, 120, 180, 240, 360]
     let availableThemes = ["history", "food", "scenic", "hidden-gems", "architecture", "culture", "nature", "nightlife"]
+    let transportModes = ["car", "walk", "bike", "boat", "plane"]
 
     private let locationManager = LocationHelper()
     private let storage = TourStorage.shared
@@ -106,7 +111,10 @@ class TourViewModel: ObservableObject {
             let result = try await APIClient.shared.generatePreview(
                 location: location,
                 durationMinutes: selectedDuration,
-                themes: Array(selectedThemes)
+                themes: Array(selectedThemes),
+                transportMode: transportMode,
+                speedMph: speedMph,
+                customPrompt: customPrompt.isEmpty ? nil : customPrompt
             )
             progressTask.cancel()
             generationProgress = "Your tour is ready!"
@@ -214,6 +222,13 @@ class TourViewModel: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    // MARK: - Share
+
+    func shareTour() -> URL? {
+        guard let shareId = currentTour?.shareId else { return nil }
+        return URL(string: "https://privatetourai.app/tour/\(shareId)")
+    }
 
     func clearTour() {
         currentPreview = nil

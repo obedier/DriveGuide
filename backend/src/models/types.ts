@@ -5,6 +5,8 @@ export type SegmentType = 'intro' | 'between_stops' | 'approach' | 'at_stop' | '
 export type SubscriptionTier = 'free' | 'single' | 'weekly' | 'monthly' | 'annual';
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'grace_period';
 export type VoicePreference = 'male' | 'female' | 'neutral';
+export type TransportMode = 'car' | 'walk' | 'bike' | 'boat' | 'plane';
+export type VoiceQuality = 'standard' | 'premium';
 
 export interface GeoPoint {
   latitude: number;
@@ -33,6 +35,10 @@ export interface Tour {
   story_arc_summary: string | null;
   cache_key: string | null;
   is_template: boolean;
+  transport_mode: TransportMode;
+  speed_mph: number | null;
+  custom_prompt: string | null;
+  share_id: string | null;
   stops: TourStop[];
   narration_segments: NarrationSegment[];
   created_at: string;
@@ -55,6 +61,7 @@ export interface TourStop {
   departure_narration: string;
   place_data: unknown;
   google_place_id: string | null;
+  photo_url: string | null;
   created_at: string;
 }
 
@@ -132,4 +139,8 @@ export interface GenerateTourRequest {
   language?: string;
   start_address?: string;
   end_address?: string;
+  transport_mode?: TransportMode;
+  speed_mph?: number;
+  custom_prompt?: string;
+  voice_quality?: VoiceQuality;
 }

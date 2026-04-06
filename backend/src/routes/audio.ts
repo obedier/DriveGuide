@@ -17,7 +17,7 @@ export async function audioRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: { code: 'TOUR_NOT_READY', message: 'Tour is not ready for audio generation' } });
     }
 
-    const result = await generateTourAudio(tour.id, request.body?.language);
+    const result = await generateTourAudio(tour.id, request.body?.language, request.body?.voice_preference === 'premium' ? 'premium' : 'standard');
 
     return {
       tour_id: tour.id,

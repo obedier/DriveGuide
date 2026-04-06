@@ -113,10 +113,30 @@ function getPublicUrl(gcsPath: string): string {
   return `https://storage.googleapis.com/${env.audioCacheBucket}/${gcsPath}`;
 }
 
+// Premium voice names (Journey voices — most natural for narration)
+const PREMIUM_VOICES: Record<string, string> = {
+  'en-US': 'en-US-Journey-D',
+  'es-US': 'es-US-Journey-D',
+  'fr-FR': 'fr-FR-Journey-D',
+  'de-DE': 'de-DE-Journey-D',
+  'pt-BR': 'pt-BR-Journey-D',
+  'it-IT': 'it-IT-Journey-D',
+};
+
+const STANDARD_VOICES: Record<string, string> = {
+  'en-US': 'en-US-Neural2-J',
+  'es-US': 'es-US-Neural2-B',
+  'fr-FR': 'fr-FR-Neural2-B',
+  'de-DE': 'de-DE-Neural2-B',
+  'pt-BR': 'pt-BR-Neural2-B',
+  'it-IT': 'it-IT-Neural2-C',
+};
+
 export async function generateTourAudio(
   tourId: string,
   language?: string,
-): Promise<{ segments: Array<{ segment_id: string; audio_url: string; duration_seconds: number; file_size_bytes: number; content_hash: string }>; total_duration_seconds: number; total_size_bytes: number }> {
+  voiceQuality: string = 'standard',
+): Promise<{ segments: Array<{ segment_id: string; audio_url: string; duration_seconds: number; file_size_bytes: number; content_hash: string }>; total_duration_seconds: number; total_size_bytes: number; voice_quality: string }> {
   const db = getDb();
   const segmentRows = db.prepare('SELECT * FROM narration_segments WHERE tour_id = ? ORDER BY sequence_order')
     .all(tourId) as Array<{ id: string; narration_text: string; content_hash: string; language: string }>;
@@ -127,7 +147,11 @@ export async function generateTourAudio(
 
   for (const seg of segmentRows) {
     const lang = language ?? seg.language;
-    const audio = await synthesizeOrCache(seg.narration_text, seg.content_hash, lang);
+    const ttsLang = normalizeLangCode(lang);
+    const voiceName = voiceQuality === 'premium'
+      ? (PREMIUM_VOICES[ttsLang] ?? STANDARD_VOICES[ttsLang] ?? 'en-US-Neural2-J')
+      : (STANDARD_VOICES[ttsLang] ?? 'en-US-Neural2-J');
+    const audio = await synthesizeOrCache(seg.narration_text, seg.content_hash, lang, voiceName);
     results.push({
       segment_id: seg.id,
       audio_url: audio.public_url,
@@ -139,7 +163,7 @@ export async function generateTourAudio(
     totalSize += audio.file_size_bytes;
   }
 
-  return { segments: results, total_duration_seconds: totalDuration, total_size_bytes: totalSize };
+  return { segments: results, total_duration_seconds: totalDuration, total_size_bytes: totalSize, voice_quality: voiceQuality };
 }
 
 function normalizeLangCode(lang: string): string {

@@ -161,4 +161,15 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     db.prepare('DELETE FROM tours WHERE id = ?').run(request.params.id);
     return reply.code(204).send();
   });
+
+  // GET /tours/shared/:shareId — PUBLIC — get a tour by share link
+  app.get<{ Params: { shareId: string } }>('/tours/shared/:shareId', async (request, reply) => {
+    const db = getDb();
+    const row = db.prepare('SELECT id FROM tours WHERE share_id = ?').get(request.params.shareId) as { id: string } | undefined;
+    if (!row) {
+      return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Shared tour not found' } });
+    }
+    const tour = loadTour(row.id);
+    return { tour };
+  });
 }

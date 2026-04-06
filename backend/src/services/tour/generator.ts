@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { getDb } from '../../lib/db.js';
 import { newId } from '../../lib/id.js';
-import { geocode, nearbySearch, optimizeRoute } from './maps.js';
+import { geocode, nearbySearch, optimizeRoute, getPlacePhoto } from './maps.js';
 import { generateTourContent } from './gemini.js';
 import type { Tour, TourStop, NarrationSegment, GenerateTourRequest, TourTheme } from '../../models/types.js';
 
@@ -15,7 +15,8 @@ export async function generateTour(
   const language = request.language ?? 'en';
 
   // Check cache
-  const cacheKey = buildCacheKey(request.location, request.duration_minutes, themes);
+  const transportMode = request.transport_mode ?? 'car';
+  const cacheKey = buildCacheKey(request.location, request.duration_minutes, themes, transportMode, request.custom_prompt);
   const cached = findCachedTour(cacheKey);
   if (cached) return cached;
 
@@ -24,9 +25,9 @@ export async function generateTour(
 
   // Insert placeholder
   db.prepare(`
-    INSERT INTO tours (id, user_id, title, description, location_query, duration_minutes, themes, language, status, cache_key)
-    VALUES (?, ?, '', '', ?, ?, ?, ?, 'generating', ?)
-  `).run(tourId, userId, request.location, request.duration_minutes, JSON.stringify(themes), language, cacheKey);
+    INSERT INTO tours (id, user_id, title, description, location_query, duration_minutes, themes, language, status, cache_key, transport_mode, speed_mph, custom_prompt)
+    VALUES (?, ?, '', '', ?, ?, ?, ?, 'generating', ?, ?, ?, ?)
+  `).run(tourId, userId, request.location, request.duration_minutes, JSON.stringify(themes), language, cacheKey, transportMode, request.speed_mph ?? null, request.custom_prompt ?? null);
 
   try {
     const tour = await generateWithTimeout(tourId, request, themes, language, userId);
@@ -56,6 +57,8 @@ async function generateWithTimeout(
     // Step 2: Find nearby places
     const places = await nearbySearch(geo.latitude, geo.longitude);
 
+    const transportMode = request.transport_mode ?? 'car';
+
     // Step 3: Generate content with Gemini
     const content = await generateTourContent(
       request.location,
@@ -66,6 +69,9 @@ async function generateWithTimeout(
       themes,
       places,
       language,
+      transportMode,
+      request.speed_mph ?? null,
+      request.custom_prompt ?? null,
     );
 
     // Step 4: Optimize route
@@ -76,7 +82,7 @@ async function generateWithTimeout(
 
     let route;
     if (waypoints.length > 0) {
-      route = await optimizeRoute(origin, destination, waypoints);
+      route = await optimizeRoute(origin, destination, waypoints, transportMode);
     } else {
       route = {
         legs: [],
@@ -107,6 +113,10 @@ async function generateWithTimeout(
         route.total_distance_km, route.total_duration_minutes,
         content.story_arc_summary, userId ? 0 : 1, tourId,
       );
+
+      // Generate share ID
+      const shareId = newId().slice(0, 10);
+      db.prepare('UPDATE tours SET share_id = ? WHERE id = ?').run(shareId, tourId);
 
       // Insert stops
       const insertStop = db.prepare(`
@@ -152,6 +162,9 @@ async function generateWithTimeout(
     });
 
     saveTour();
+
+    // Fetch photos in background (don't block tour return)
+    fetchPhotosForStops(tourId, orderedStops, places).catch(() => {});
 
     // Load and return full tour
     return loadTour(tourId);
@@ -250,8 +263,40 @@ function reorderStops<T>(stops: T[], waypointOrder: number[]): T[] {
   return [first, ...reordered, last];
 }
 
-function buildCacheKey(location: string, duration: number, themes: TourTheme[]): string {
-  const normalized = `${location.toLowerCase().trim()}|${duration}|${themes.sort().join(',')}`;
+async function fetchPhotosForStops(
+  tourId: string,
+  _stops: Array<{ name: string; latitude: number; longitude: number }>,
+  nearbyPlaces: Array<{ place_id: string; name: string; latitude: number; longitude: number }>,
+): Promise<void> {
+  const db = getDb();
+  const dbStops = db.prepare('SELECT id, name, latitude, longitude FROM tour_stops WHERE tour_id = ? ORDER BY sequence_order').all(tourId) as Array<{ id: string; name: string; latitude: number; longitude: number }>;
+
+  for (const dbStop of dbStops) {
+    // Find matching nearby place by proximity
+    const match = nearbyPlaces.find((p) => {
+      const dist = haversineKm(dbStop.latitude, dbStop.longitude, p.latitude, p.longitude);
+      return dist < 0.5; // within 500m
+    });
+
+    if (match) {
+      const photoUrl = await getPlacePhoto(match.place_id);
+      if (photoUrl) {
+        db.prepare('UPDATE tour_stops SET photo_url = ? WHERE id = ?').run(photoUrl, dbStop.id);
+      }
+    }
+  }
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function buildCacheKey(location: string, duration: number, themes: TourTheme[], transport: string = 'car', customPrompt: string | null = null): string {
+  const normalized = `${location.toLowerCase().trim()}|${duration}|${themes.sort().join(',')}|${transport}|${customPrompt ?? ''}`;
   return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
 }
 

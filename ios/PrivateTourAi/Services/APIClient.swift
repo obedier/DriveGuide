@@ -44,12 +44,15 @@ final class APIClient: Sendable {
 
     // MARK: - Tour Generation
 
-    func generatePreview(location: String, durationMinutes: Int, themes: [String] = []) async throws -> (preview: TourPreview, tourId: String?) {
+    func generatePreview(location: String, durationMinutes: Int, themes: [String] = [], transportMode: String = "car", speedMph: Double? = nil, customPrompt: String? = nil) async throws -> (preview: TourPreview, tourId: String?) {
         let body = GenerateTourRequest(
             location: location,
             durationMinutes: durationMinutes,
             themes: themes.isEmpty ? nil : themes,
-            language: nil
+            language: nil,
+            transportMode: transportMode == "car" ? nil : transportMode,
+            speedMph: speedMph,
+            customPrompt: customPrompt?.isEmpty == true ? nil : customPrompt
         )
         let response: TourResponse = try await post("/tours/preview", body: body, timeout: longTimeout)
         guard let preview = response.preview else {
@@ -58,12 +61,22 @@ final class APIClient: Sendable {
         return (preview, response.tourId)
     }
 
-    func generateTour(location: String, durationMinutes: Int, themes: [String] = []) async throws -> TourResponse {
+    // Share
+    func getSharedTour(shareId: String) async throws -> Tour {
+        let response: [String: Tour] = try await get("/tours/shared/\(shareId)")
+        guard let tour = response["tour"] else { throw APIError.noData }
+        return tour
+    }
+
+    func generateTour(location: String, durationMinutes: Int, themes: [String] = [], transportMode: String = "car", speedMph: Double? = nil, customPrompt: String? = nil) async throws -> TourResponse {
         let body = GenerateTourRequest(
             location: location,
             durationMinutes: durationMinutes,
             themes: themes.isEmpty ? nil : themes,
-            language: nil
+            language: nil,
+            transportMode: transportMode == "car" ? nil : transportMode,
+            speedMph: speedMph,
+            customPrompt: customPrompt
         )
         return try await post("/tours/generate", body: body, timeout: longTimeout)
     }
@@ -75,12 +88,15 @@ final class APIClient: Sendable {
         return tour
     }
 
-    func generateFullTour(location: String, durationMinutes: Int, themes: [String] = []) async throws -> Tour {
+    func generateFullTour(location: String, durationMinutes: Int, themes: [String] = [], transportMode: String = "car", speedMph: Double? = nil, customPrompt: String? = nil) async throws -> Tour {
         let body = GenerateTourRequest(
             location: location,
             durationMinutes: durationMinutes,
             themes: themes.isEmpty ? nil : themes,
-            language: nil
+            language: nil,
+            transportMode: transportMode == "car" ? nil : transportMode,
+            speedMph: speedMph,
+            customPrompt: customPrompt
         )
         let response: TourResponse = try await post("/tours/full", body: body, timeout: longTimeout)
         guard let tour = response.tour else { throw APIError.noData }

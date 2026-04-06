@@ -106,6 +106,13 @@ struct TourDetailView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if let shareUrl = tourVM.shareTour() {
+                        ShareLink(item: shareUrl, subject: Text(tour.title), message: Text("Check out this tour I made with Private TourAi!")) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
@@ -175,6 +182,17 @@ struct StopRow: View {
             .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 4) {
+                // Photo
+                if let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color(.systemGray5)
+                    }
+                    .frame(height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
                 HStack {
                     Text(stop.name)
                         .font(.subheadline.bold())

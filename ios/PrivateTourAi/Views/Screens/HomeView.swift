@@ -203,6 +203,17 @@ struct SearchCard: View {
                         }
                     }
 
+                    // Transport mode
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(tourVM.transportModes, id: \.self) { mode in
+                                TransportChip(mode: mode, isSelected: tourVM.transportMode == mode) {
+                                    tourVM.transportMode = mode
+                                }
+                            }
+                        }
+                    }
+
                     // Theme pills
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -219,6 +230,43 @@ struct SearchCard: View {
                                 }
                             }
                         }
+                    }
+
+                    // Advanced settings toggle
+                    Button {
+                        withAnimation { tourVM.showAdvancedSettings.toggle() }
+                    } label: {
+                        HStack {
+                            Image(systemName: "slider.horizontal.3")
+                            Text("Advanced")
+                            Spacer()
+                            Image(systemName: tourVM.showAdvancedSettings ? "chevron.up" : "chevron.down")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+
+                    if tourVM.showAdvancedSettings {
+                        VStack(spacing: 8) {
+                            // Speed
+                            HStack {
+                                Text("Speed (mph)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                TextField("Auto", value: $tourVM.speedMph, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                    .font(.caption)
+                            }
+
+                            // Custom focus
+                            TextField("Special focus: e.g. \"homes of movie stars\", \"tallest buildings\"", text: $tourVM.customPrompt, axis: .vertical)
+                                .font(.caption)
+                                .lineLimit(2...4)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
 
                     // Create Tour button
@@ -275,6 +323,38 @@ struct DurationChip: View {
                 .padding(.vertical, 8)
                 .background(isSelected ? Color("AccentCoral") : Color(.systemGray5), in: Capsule())
                 .foregroundStyle(isSelected ? .white : .primary)
+        }
+    }
+}
+
+struct TransportChip: View {
+    let mode: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var icon: String {
+        switch mode {
+        case "car": return "car.fill"
+        case "walk": return "figure.walk"
+        case "bike": return "bicycle"
+        case "boat": return "ferry.fill"
+        case "plane": return "airplane"
+        default: return "car.fill"
+        }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                Text(mode.capitalized)
+                    .font(.caption)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(isSelected ? Color("AccentCoral") : Color(.systemGray5), in: Capsule())
+            .foregroundStyle(isSelected ? .white : .primary)
         }
     }
 }

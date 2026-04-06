@@ -15,6 +15,10 @@ struct Tour: Codable, Identifiable {
     let totalDistanceKm: Double?
     let totalDurationMinutes: Int?
     let storyArcSummary: String?
+    let transportMode: String?
+    let speedMph: Double?
+    let customPrompt: String?
+    let shareId: String?
     let stops: [TourStop]
     let narrationSegments: [NarrationSegment]
     let createdAt: String
@@ -29,6 +33,10 @@ struct Tour: Codable, Identifiable {
         case totalDistanceKm = "total_distance_km"
         case totalDurationMinutes = "total_duration_minutes"
         case storyArcSummary = "story_arc_summary"
+        case transportMode = "transport_mode"
+        case speedMph = "speed_mph"
+        case customPrompt = "custom_prompt"
+        case shareId = "share_id"
         case narrationSegments = "narration_segments"
         case createdAt = "created_at"
     }
@@ -48,6 +56,7 @@ struct TourStop: Codable, Identifiable {
     let atStopNarration: String
     let departureNarration: String
     let googlePlaceId: String?
+    let photoUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, category, latitude, longitude
@@ -58,6 +67,7 @@ struct TourStop: Codable, Identifiable {
         case atStopNarration = "at_stop_narration"
         case departureNarration = "departure_narration"
         case googlePlaceId = "google_place_id"
+        case photoUrl = "photo_url"
     }
 }
 
@@ -121,10 +131,16 @@ struct GenerateTourRequest: Codable {
     let durationMinutes: Int
     let themes: [String]?
     let language: String?
+    let transportMode: String?
+    let speedMph: Double?
+    let customPrompt: String?
 
     enum CodingKeys: String, CodingKey {
         case location, themes, language
         case durationMinutes = "duration_minutes"
+        case transportMode = "transport_mode"
+        case speedMph = "speed_mph"
+        case customPrompt = "custom_prompt"
     }
 }
 

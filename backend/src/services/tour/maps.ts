@@ -85,16 +85,47 @@ export async function nearbySearch(
   return allPlaces.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 }
 
+export async function getPlacePhoto(placeId: string): Promise<string | null> {
+  const detailUrl = `${MAPS_BASE}/place/details/json?place_id=${placeId}&fields=photos&key=${env.googleMapsKey}`;
+  const res = await fetch(detailUrl);
+  const data = await res.json() as { result?: { photos?: Array<{ photo_reference: string }> } };
+  const photoRef = data.result?.photos?.[0]?.photo_reference;
+  if (!photoRef) return null;
+  return `${MAPS_BASE}/place/photo?maxwidth=600&photo_reference=${photoRef}&key=${env.googleMapsKey}`;
+}
+
+type GoogleTravelMode = 'driving' | 'walking' | 'bicycling' | 'transit';
+
+function toGoogleTravelMode(mode: string): GoogleTravelMode {
+  switch (mode) {
+    case 'walk': return 'walking';
+    case 'bike': return 'bicycling';
+    case 'boat': return 'driving'; // no boat mode in Google, use driving
+    case 'plane': return 'driving'; // approximate with driving
+    default: return 'driving';
+  }
+}
+
+function toMapsTravelMode(mode: string): string {
+  switch (mode) {
+    case 'walk': return 'walking';
+    case 'bike': return 'bicycling';
+    default: return 'driving';
+  }
+}
+
 export async function optimizeRoute(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   waypoints: Array<{ lat: number; lng: number }>,
+  transportMode: string = 'car',
 ): Promise<OptimizedRoute> {
   const waypointsParam = waypoints
     .map((w) => `${w.lat},${w.lng}`)
     .join('|');
 
-  const url = `${MAPS_BASE}/directions/json?origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&waypoints=optimize:true|${waypointsParam}&key=${env.googleMapsKey}`;
+  const travelMode = toGoogleTravelMode(transportMode);
+  const url = `${MAPS_BASE}/directions/json?origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&waypoints=optimize:true|${waypointsParam}&mode=${travelMode}&key=${env.googleMapsKey}`;
 
   const res = await fetch(url);
   const data = await res.json() as {
@@ -134,7 +165,7 @@ export async function optimizeRoute(
   // Build Google Maps multi-stop URL
   const orderedWaypoints = route.waypoint_order.map((i) => waypoints[i]);
   const allPoints = [origin, ...orderedWaypoints, destination];
-  const mapsUrl = buildMapsUrl(allPoints);
+  const mapsUrl = buildMapsUrl(allPoints, transportMode);
 
   return {
     legs,
@@ -146,7 +177,7 @@ export async function optimizeRoute(
   };
 }
 
-function buildMapsUrl(points: Array<{ lat: number; lng: number }>): string {
+function buildMapsUrl(points: Array<{ lat: number; lng: number }>, transportMode: string = 'car'): string {
   if (points.length < 2) return '';
   const origin = points[0];
   const destination = points[points.length - 1];
@@ -159,6 +190,6 @@ function buildMapsUrl(points: Array<{ lat: number; lng: number }>): string {
     url += `&waypoints=${wp}`;
   }
 
-  url += '&travelmode=driving';
+  url += `&travelmode=${toMapsTravelMode(transportMode)}`;
   return url;
 }
