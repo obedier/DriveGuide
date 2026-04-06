@@ -14,7 +14,7 @@ const audioPathCache = new LRUCache<string, string>({ max: 5000, ttl: 1000 * 60 
 
 interface AudioResult {
   gcs_path: string;
-  signed_url: string;
+  public_url: string;
   duration_seconds: number;
   file_size_bytes: number;
   content_hash: string;
@@ -23,13 +23,15 @@ interface AudioResult {
 export async function synthesizeOrCache(
   text: string,
   contentHash: string,
-  language: string = 'en-US',
+  language: string = 'en',
   voiceName: string = 'en-US-Neural2-J',
 ): Promise<AudioResult> {
+  // Normalize short language codes to BCP-47 for TTS API
+  const ttsLanguage = normalizeLangCode(language);
   // Check in-memory cache
   const cachedPath = audioPathCache.get(contentHash);
   if (cachedPath) {
-    const url = await getSignedUrl(cachedPath);
+    const url = getPublicUrl(cachedPath);
     const db = getDb();
     const row = db.prepare('SELECT duration_seconds, file_size_bytes FROM audio_files WHERE content_hash = ? AND language = ?')
       .get(contentHash, language) as { duration_seconds: number; file_size_bytes: number } | undefined;
@@ -39,7 +41,7 @@ export async function synthesizeOrCache(
 
     return {
       gcs_path: cachedPath,
-      signed_url: url,
+      public_url: url,
       duration_seconds: row?.duration_seconds ?? 0,
       file_size_bytes: row?.file_size_bytes ?? 0,
       content_hash: contentHash,
@@ -53,30 +55,30 @@ export async function synthesizeOrCache(
 
   if (dbRow) {
     audioPathCache.set(contentHash, dbRow.gcs_path);
-    const url = await getSignedUrl(dbRow.gcs_path);
+    const url = getPublicUrl(dbRow.gcs_path);
     db.prepare('UPDATE audio_files SET last_accessed_at = datetime(\'now\'), usage_count = usage_count + 1 WHERE content_hash = ? AND language = ?')
       .run(contentHash, language);
-    return { ...dbRow, signed_url: url, content_hash: contentHash };
+    return { ...dbRow, public_url: url, content_hash: contentHash };
   }
 
   // Check GCS directly (belt and suspenders)
   const gcsPath = `audio/${contentHash}.mp3`;
   const [exists] = await bucket.file(gcsPath).exists();
   if (exists) {
-    const url = await getSignedUrl(gcsPath);
+    const url = getPublicUrl(gcsPath);
     audioPathCache.set(contentHash, gcsPath);
     // Re-insert DB row
     db.prepare(`
       INSERT OR IGNORE INTO audio_files (id, content_hash, language, voice_name, gcs_path, format)
       VALUES (?, ?, ?, ?, ?, 'mp3')
     `).run(newId(), contentHash, language, voiceName, gcsPath);
-    return { gcs_path: gcsPath, signed_url: url, duration_seconds: 0, file_size_bytes: 0, content_hash: contentHash };
+    return { gcs_path: gcsPath, public_url: url, duration_seconds: 0, file_size_bytes: 0, content_hash: contentHash };
   }
 
   // Generate new audio
   const [response] = await ttsClient.synthesizeSpeech({
     input: { text },
-    voice: { languageCode: language, name: voiceName },
+    voice: { languageCode: ttsLanguage, name: voiceName },
     audioConfig: { audioEncoding: 'MP3', speakingRate: 0.95, pitch: 0 },
   });
 
@@ -96,23 +98,19 @@ export async function synthesizeOrCache(
   `).run(newId(), contentHash, language, voiceName, gcsPath, estimatedDuration, fileSize);
 
   audioPathCache.set(contentHash, gcsPath);
-  const url = await getSignedUrl(gcsPath);
+  const url = getPublicUrl(gcsPath);
 
   return {
     gcs_path: gcsPath,
-    signed_url: url,
+    public_url: url,
     duration_seconds: estimatedDuration,
     file_size_bytes: fileSize,
     content_hash: contentHash,
   };
 }
 
-async function getSignedUrl(gcsPath: string): Promise<string> {
-  const [url] = await bucket.file(gcsPath).getSignedUrl({
-    action: 'read',
-    expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-  });
-  return url;
+function getPublicUrl(gcsPath: string): string {
+  return `https://storage.googleapis.com/${env.audioCacheBucket}/${gcsPath}`;
 }
 
 export async function generateTourAudio(
@@ -132,7 +130,7 @@ export async function generateTourAudio(
     const audio = await synthesizeOrCache(seg.narration_text, seg.content_hash, lang);
     results.push({
       segment_id: seg.id,
-      audio_url: audio.signed_url,
+      audio_url: audio.public_url,
       duration_seconds: audio.duration_seconds,
       file_size_bytes: audio.file_size_bytes,
       content_hash: audio.content_hash,
@@ -142,4 +140,13 @@ export async function generateTourAudio(
   }
 
   return { segments: results, total_duration_seconds: totalDuration, total_size_bytes: totalSize };
+}
+
+function normalizeLangCode(lang: string): string {
+  const map: Record<string, string> = {
+    en: 'en-US', es: 'es-US', fr: 'fr-FR', de: 'de-DE',
+    pt: 'pt-BR', ja: 'ja-JP', ko: 'ko-KR', zh: 'cmn-CN',
+    hi: 'hi-IN', ar: 'ar-XA', it: 'it-IT',
+  };
+  return map[lang] ?? lang;
 }
