@@ -19,12 +19,18 @@ struct NauticalChartView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Pan to current stop when it changes
         if currentStopIndex >= 0, currentStopIndex < stops.count {
             let stop = stops[currentStopIndex]
             webView.evaluateJavaScript("""
                 if (window.map) {
                     map.flyTo({center: [\(stop.longitude), \(stop.latitude)], zoom: 14, pitch: 45, duration: 1500});
+                    // Highlight current marker
+                    if (window.markers) {
+                        window.markers.forEach(function(m, i) {
+                            m.getElement().style.opacity = i === \(currentStopIndex) ? '1' : '0.6';
+                            m.getElement().style.transform = i === \(currentStopIndex) ? 'scale(1.3)' : 'scale(1)';
+                        });
+                    }
                 }
             """)
         }
@@ -35,16 +41,23 @@ struct NauticalChartView: UIViewRepresentable {
         let centerLng = stops.map(\.longitude).reduce(0, +) / Double(max(stops.count, 1))
 
         let markersJS = stops.enumerated().map { (i, stop) in
-            """
-            new maplibregl.Marker({color: '\(i == currentStopIndex ? "#FF5151" : "#FFFFFF")'})
-                .setLngLat([\(stop.longitude), \(stop.latitude)])
-                .setPopup(new maplibregl.Popup().setHTML('<b>\(i + 1). \(stop.name.replacingOccurrences(of: "'", with: "\\'"))</b>'))
-                .addTo(map);
+            let color = i == 0 || i == stops.count - 1 ? "#22C55E" : "#FF5151"
+            return """
+            (function() {
+                var el = document.createElement('div');
+                el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:\(color);color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);';
+                el.textContent = '\(i + 1)';
+                var marker = new maplibregl.Marker({element: el})
+                    .setLngLat([\(stop.longitude), \(stop.latitude)])
+                    .setPopup(new maplibregl.Popup({offset: 20}).setHTML('<b>\(stop.name.replacingOccurrences(of: "'", with: "\\'"))</b>'))
+                    .addTo(map);
+                window.markers.push(marker);
+            })();
             """
         }.joined(separator: "\n")
 
-        // Route line between stops
-        let routeCoords = stops.map { "[\($0.longitude), \($0.latitude)]" }.joined(separator: ",")
+        // Build waypoints array for VectorCharts routing API
+        let waypointsJSON = stops.map { "[\($0.latitude), \($0.longitude)]" }.joined(separator: ",")
 
         let html = """
         <!DOCTYPE html>
@@ -61,6 +74,8 @@ struct NauticalChartView: UIViewRepresentable {
         <body>
         <div id="map"></div>
         <script>
+        window.markers = [];
+
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://api.vectorcharts.com/api/v1/styles/base.json?token=\(apiKey)&theme=day&depthUnits=feet',
@@ -72,28 +87,47 @@ struct NauticalChartView: UIViewRepresentable {
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         map.on('load', function() {
-            // Route line
-            map.addSource('route', {
-                'type': 'geojson',
-                'data': {
-                    'type': 'Feature',
-                    'properties': {},
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [\(routeCoords)]
-                    }
-                }
-            });
-            map.addLayer({
-                'id': 'route',
-                'type': 'line',
-                'source': 'route',
-                'layout': { 'line-join': 'round', 'line-cap': 'round' },
-                'paint': { 'line-color': '#FF5151', 'line-width': 4, 'line-dasharray': [2, 1] }
-            });
-
-            // Markers
+            // Add markers
             \(markersJS)
+
+            // Fetch waterway route from VectorCharts routing API
+            fetch('https://api.vectorcharts.com/api/v1/routing/route?token=\(apiKey)', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({waypoints: [\(waypointsJSON)]})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.route && data.route.length > 0) {
+                    // Draw the actual waterway route
+                    var coords = data.route.map(function(p) { return [p[1], p[0]]; }); // [lng, lat]
+                    map.addSource('route', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            properties: {},
+                            geometry: { type: 'LineString', coordinates: coords }
+                        }
+                    });
+                    map.addLayer({
+                        id: 'route-bg',
+                        type: 'line',
+                        source: 'route',
+                        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.6 }
+                    });
+                    map.addLayer({
+                        id: 'route',
+                        type: 'line',
+                        source: 'route',
+                        layout: { 'line-join': 'round', 'line-cap': 'round' },
+                        paint: { 'line-color': '#FF5151', 'line-width': 3 }
+                    });
+                }
+                // If routing fails, just show markers without route line
+            })
+            .catch(function() {
+                // Routing unavailable — show markers only, no confusing lines
+            });
         });
 
         window.map = map;

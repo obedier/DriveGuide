@@ -72,7 +72,13 @@ struct LibraryView: View {
                                         Label("\(tour.stops.count) stops", systemImage: "mappin.and.ellipse")
                                         Label(formatDuration(tour.durationMinutes), systemImage: "clock")
                                         if let km = tour.totalDistanceKm {
-                                            Label(String(format: "%.1f km", km), systemImage: "car")
+                                            let isBoat = tour.transportMode == "boat"
+                                            let icon = transportIcon(tour.transportMode ?? "car")
+                                            if isBoat {
+                                                Label(String(format: "%.1f nm", km * 0.539957), systemImage: icon)
+                                            } else {
+                                                Label(String(format: "%.1f mi", km * 0.621371), systemImage: icon)
+                                            }
                                         }
                                     }
                                     .font(.caption2)

@@ -275,6 +275,11 @@ async function generateBoatTourFlow(
   });
 
   saveTour();
+
+  // Fetch photos for boat stops in background
+  const places = await nearbySearch(geo.latitude, geo.longitude, 8000);
+  fetchPhotosForStops(tourId, content.stops, places).catch(() => {});
+
   return loadTour(tourId);
 }
 

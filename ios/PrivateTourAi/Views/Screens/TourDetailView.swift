@@ -80,15 +80,22 @@ struct TourDetailView: View {
                             .tint(Color("AccentCoral"))
 
                             Button {
-                                if let urlStr = tour.mapsDirectionsUrl,
-                                   let url = URL(string: urlStr) {
+                                // For boat tours, build a Google Maps URL from stops (since VectorCharts URL is a style JSON)
+                                if tour.transportMode == "boat" {
+                                    let origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                    let dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                    let waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+                                    var mapsUrl = "https://www.google.com/maps/dir/?api=1&origin=\(origin)&destination=\(dest)&travelmode=driving"
+                                    if !waypoints.isEmpty { mapsUrl += "&waypoints=\(waypoints)" }
+                                    if let url = URL(string: mapsUrl) { UIApplication.shared.open(url) }
+                                } else if let urlStr = tour.mapsDirectionsUrl,
+                                          let url = URL(string: urlStr) {
                                     UIApplication.shared.open(url)
                                 }
                             } label: {
                                 HStack {
-                                    let isBoat = tour.transportMode == "boat"
-                                    Image(systemName: isBoat ? "water.waves" : "arrow.triangle.turn.up.right.diamond.fill")
-                                    Text(isBoat ? "Open Nautical Chart" : "Open Route in Maps")
+                                    Image(systemName: "map.fill")
+                                    Text("Open Waypoints in Maps")
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
