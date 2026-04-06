@@ -29,9 +29,18 @@ class TourPlaybackService: ObservableObject {
 
         audioProgress = "Generating audio narration (\(segments.count) segments)..."
         do {
-            let response = try await APIClient.shared.generateAudio(tourId: tour.id)
+            // Try tour-based endpoint first, fall back to inline if tour not on server
+            let response: AudioResponse
+            do {
+                response = try await APIClient.shared.generateAudio(tourId: tour.id)
+            } catch {
+                print("[Playback] Tour-based audio failed, trying inline: \(error)")
+                audioProgress = "Generating audio (inline)..."
+                response = try await APIClient.shared.generateAudioInline(segments: segments)
+            }
+
             let audioUrls = response.segments.map(\.audioUrl)
-            audioProgress = "Downloading audio..."
+            audioProgress = "Downloading \(audioUrls.count) audio segments..."
 
             await audioPlayer.prepare(segments: segments, audioUrls: audioUrls)
             audioReady = audioPlayer.hasAudio

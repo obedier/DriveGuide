@@ -115,6 +115,23 @@ final class APIClient: Sendable {
         return try await post("/tours/\(tourId)/audio", body: EmptyBody(), timeout: longTimeout)
     }
 
+    func generateAudioInline(segments: [NarrationSegment]) async throws -> AudioResponse {
+        struct InlineRequest: Encodable {
+            let segments: [SegmentInput]
+        }
+        struct SegmentInput: Encodable {
+            let id: String
+            let narration_text: String
+            let content_hash: String
+            let language: String
+        }
+
+        let input = InlineRequest(segments: segments.map { seg in
+            SegmentInput(id: seg.id, narration_text: seg.narrationText, content_hash: seg.contentHash, language: seg.language)
+        })
+        return try await post("/audio/generate", body: input, timeout: longTimeout)
+    }
+
     // MARK: - HTTP Methods
 
     private func get<T: Decodable>(_ path: String, timeout: TimeInterval? = nil) async throws -> T {

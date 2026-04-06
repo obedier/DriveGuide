@@ -10,36 +10,43 @@ struct GuidedTourView: View {
     @State private var audioOnly = false
     @State private var use3DMap = false
 
+    private var isBoatTour: Bool { tour.transportMode == "boat" }
+
     var body: some View {
         ZStack {
-            // Map
-            Map(position: $cameraPosition) {
-                ForEach(tour.stops) { stop in
-                    let idx = tour.stops.firstIndex(where: { $0.id == stop.id }) ?? 0
-                    let isCurrent = idx == playback.currentStopIndex
-                    let isVisited = idx < playback.currentStopIndex
+            // Map — use nautical chart for boat tours
+            if isBoatTour {
+                NauticalChartView(stops: tour.stops, currentStopIndex: playback.currentStopIndex)
+                    .ignoresSafeArea()
+            } else {
+                Map(position: $cameraPosition) {
+                    ForEach(tour.stops) { stop in
+                        let idx = tour.stops.firstIndex(where: { $0.id == stop.id }) ?? 0
+                        let isCurrent = idx == playback.currentStopIndex
+                        let isVisited = idx < playback.currentStopIndex
 
-                    Annotation(stop.name, coordinate: CLLocationCoordinate2D(
-                        latitude: stop.latitude, longitude: stop.longitude
-                    )) {
-                        ZStack {
-                            Circle()
-                                .fill(isCurrent ? Color("AccentCoral") : isVisited ? .green : Color(.systemGray4))
-                                .frame(width: 36, height: 36)
-                            if isCurrent {
+                        Annotation(stop.name, coordinate: CLLocationCoordinate2D(
+                            latitude: stop.latitude, longitude: stop.longitude
+                        )) {
+                            ZStack {
                                 Circle()
-                                    .stroke(Color("AccentCoral"), lineWidth: 3)
-                                    .frame(width: 44, height: 44)
+                                    .fill(isCurrent ? Color("AccentCoral") : isVisited ? .green : Color(.systemGray4))
+                                    .frame(width: 36, height: 36)
+                                if isCurrent {
+                                    Circle()
+                                        .stroke(Color("AccentCoral"), lineWidth: 3)
+                                        .frame(width: 44, height: 44)
+                                }
+                                Text("\(stop.sequenceOrder + 1)")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white)
                             }
-                            Text("\(stop.sequenceOrder + 1)")
-                                .font(.caption.bold())
-                                .foregroundStyle(.white)
                         }
                     }
                 }
+                .mapStyle(use3DMap ? .standard(elevation: .realistic, emphasis: .muted, pointsOfInterest: .including([.museum, .park, .restaurant, .hotel]), showsTraffic: false) : .standard(elevation: .realistic))
+                .ignoresSafeArea()
             }
-            .mapStyle(use3DMap ? .standard(elevation: .realistic, emphasis: .muted, pointsOfInterest: .including([.museum, .park, .restaurant, .hotel]), showsTraffic: false) : .standard(elevation: .realistic))
-            .ignoresSafeArea()
 
             VStack {
                 // Top bar
