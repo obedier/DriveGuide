@@ -9,7 +9,6 @@ struct HomeView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
         )
     )
-    // showTourDetail is now driven by tourVM.showTourDetail
 
     var body: some View {
         ZStack {
@@ -39,7 +38,7 @@ struct HomeView: View {
             .mapStyle(.standard(elevation: .realistic))
             .ignoresSafeArea()
 
-            // Search overlay
+            // Overlay
             VStack {
                 SearchCard()
                     .padding(.horizontal)
@@ -47,22 +46,8 @@ struct HomeView: View {
 
                 Spacer()
 
-                // Location verification card
-                if tourVM.isVerifying {
-                    GeneratingCard(progress: "Finding location...")
-                        .padding()
-                        .transition(.move(edge: .bottom))
-                } else if let loc = tourVM.verifiedLocation, !tourVM.isLocationConfirmed {
-                    LocationConfirmCard(location: loc) {
-                        Task { await tourVM.confirmAndGenerate() }
-                    } onCancel: {
-                        tourVM.clearTour()
-                    }
-                    .padding()
-                    .transition(.move(edge: .bottom))
-                }
-                // Tour generation states
-                else if tourVM.isGenerating {
+                // Bottom cards
+                if tourVM.isGenerating {
                     GeneratingCard(progress: tourVM.generationProgress)
                         .padding()
                         .transition(.move(edge: .bottom))
@@ -72,8 +57,8 @@ struct HomeView: View {
                     }
                     .padding()
                     .transition(.move(edge: .bottom))
-                } else if let tour = tourVM.currentTour {
-                    TourReadyCard(tour: tour) {
+                } else if tourVM.currentTour != nil {
+                    TourReadyCard(tour: tourVM.currentTour!) {
                         tourVM.showTourDetail = true
                     }
                     .padding()
@@ -81,10 +66,8 @@ struct HomeView: View {
                 }
 
                 if let error = tourVM.error {
-                    ErrorBanner(message: error) {
-                        tourVM.error = nil
-                    }
-                    .padding(.horizontal)
+                    ErrorBanner(message: error) { tourVM.error = nil }
+                        .padding(.horizontal)
                 }
             }
         }
@@ -97,116 +80,85 @@ struct HomeView: View {
                     .environmentObject(tourVM)
             }
         }
-        // Animate map to verified location
+        // Zoom to verified location
         .onChange(of: tourVM.verifiedLocation?.latitude) { _, newLat in
             if let lat = newLat, let lng = tourVM.verifiedLocation?.longitude {
                 withAnimation(.easeInOut(duration: 0.8)) {
                     cameraPosition = .region(MKCoordinateRegion(
                         center: CLLocationCoordinate2D(latitude: lat, longitude: lng),
-                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                        span: MKCoordinateSpan(latitudeDelta: 0.03, longitudeDelta: 0.03)
                     ))
                 }
             }
         }
+        // Zoom to tour stops
+        .onChange(of: tourVM.currentTour?.id) { _, _ in
+            if let tour = tourVM.currentTour, !tour.stops.isEmpty {
+                let lats = tour.stops.map(\.latitude)
+                let lngs = tour.stops.map(\.longitude)
+                let center = CLLocationCoordinate2D(
+                    latitude: (lats.min()! + lats.max()!) / 2,
+                    longitude: (lngs.min()! + lngs.max()!) / 2
+                )
+                let span = MKCoordinateSpan(
+                    latitudeDelta: max((lats.max()! - lats.min()!) * 1.4, 0.02),
+                    longitudeDelta: max((lngs.max()! - lngs.min()!) * 1.4, 0.02)
+                )
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
+                }
+            }
+        }
         .animation(.spring(response: 0.4), value: tourVM.isVerifying)
-        .animation(.spring(response: 0.4), value: tourVM.verifiedLocation != nil)
         .animation(.spring(response: 0.4), value: tourVM.isGenerating)
         .animation(.spring(response: 0.4), value: tourVM.currentPreview != nil)
         .animation(.spring(response: 0.4), value: tourVM.currentTour != nil)
-        // When full tour loads, zoom map to show all stops and auto-open detail
-        .onChange(of: tourVM.currentTour?.id) { _, tourId in
-            guard let tour = tourVM.currentTour, !tour.stops.isEmpty else { return }
-            let lats = tour.stops.map(\.latitude)
-            let lngs = tour.stops.map(\.longitude)
-            let center = CLLocationCoordinate2D(
-                latitude: (lats.min()! + lats.max()!) / 2,
-                longitude: (lngs.min()! + lngs.max()!) / 2
-            )
-            let span = MKCoordinateSpan(
-                latitudeDelta: max((lats.max()! - lats.min()!) * 1.4, 0.02),
-                longitudeDelta: max((lngs.max()! - lngs.min()!) * 1.4, 0.02)
-            )
-            withAnimation(.easeInOut(duration: 0.8)) {
-                cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
-            }
-        }
     }
 }
 
-// MARK: - Location Confirm Card
-
-struct LocationConfirmCard: View {
-    let location: VerifiedLocation
-    let onConfirm: () -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundStyle(Color("AccentCoral"))
-                    .font(.title3)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Is this the right place?")
-                        .font(.subheadline.bold())
-                    Text(location.formattedAddress)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-
-            HStack(spacing: 12) {
-                Button(action: onCancel) {
-                    Text("Try Again")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.bordered)
-
-                Button(action: onConfirm) {
-                    HStack {
-                        Image(systemName: "sparkles")
-                        Text("Create Tour")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color("AccentCoral"))
-            }
-        }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
-    }
-}
-
-// MARK: - Search Card
+// MARK: - Search Card (autocomplete + inline verify)
 
 struct SearchCard: View {
     @EnvironmentObject var tourVM: TourViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var showOptions = false
+    @State private var debounceTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 12) {
+            // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Where do you want to explore?", text: $tourVM.searchText)
+                TextField("City, neighborhood, or address...", text: $tourVM.searchText)
                     .focused($isSearchFocused)
                     .submitLabel(.search)
                     .onSubmit {
                         isSearchFocused = false
-                        Task { await tourVM.verifyLocation() }
+                        Task { await tourVM.confirmAndGenerate() }
                     }
+                    .onChange(of: tourVM.searchText) { _, newValue in
+                        // Debounced autocomplete: verify location after typing stops
+                        debounceTask?.cancel()
+                        if newValue.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 {
+                            debounceTask = Task {
+                                try? await Task.sleep(for: .seconds(1.0))
+                                if !Task.isCancelled {
+                                    await tourVM.verifyLocation()
+                                }
+                            }
+                        }
+                    }
+
+                if tourVM.isVerifying {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
 
                 // Current location button
                 Button { tourVM.useCurrentLocation() } label: {
                     Image(systemName: "location.fill")
                         .foregroundStyle(Color("AccentCoral"))
-                        .font(.body)
                 }
 
                 if !tourVM.searchText.isEmpty {
@@ -219,7 +171,23 @@ struct SearchCard: View {
             .padding(12)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
 
-            if showOptions || isSearchFocused {
+            // Verified address confirmation (inline, subtle)
+            if let loc = tourVM.verifiedLocation, !tourVM.isLocationConfirmed {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                    Text(loc.formattedAddress)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 12)
+                .transition(.opacity)
+            }
+
+            // Duration + themes + create button (always visible when search has content)
+            if showOptions || tourVM.verifiedLocation != nil {
                 VStack(spacing: 10) {
                     // Duration picker
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -253,22 +221,24 @@ struct SearchCard: View {
                         }
                     }
 
-                    // Find Location button (verify first, don't generate immediately)
-                    Button {
-                        isSearchFocused = false
-                        Task { await tourVM.verifyLocation() }
-                    } label: {
-                        HStack {
-                            Image(systemName: "mappin.and.ellipse")
-                            Text("Find Location")
-                                .fontWeight(.semibold)
+                    // Create Tour button
+                    if tourVM.verifiedLocation != nil {
+                        Button {
+                            isSearchFocused = false
+                            Task { await tourVM.confirmAndGenerate() }
+                        } label: {
+                            HStack {
+                                Image(systemName: "sparkles")
+                                Text("Create Tour")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color("AccentCoral"))
+                        .disabled(tourVM.isGenerating)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color("AccentCoral"))
-                    .disabled(tourVM.searchText.isEmpty || tourVM.isVerifying)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -279,6 +249,7 @@ struct SearchCard: View {
         .onChange(of: isSearchFocused) { _, focused in
             withAnimation(.spring(response: 0.3)) { showOptions = focused }
         }
+        .animation(.spring(response: 0.3), value: tourVM.verifiedLocation != nil)
     }
 }
 
