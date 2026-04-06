@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct ContentView: View {
     @EnvironmentObject var tourVM: TourViewModel
@@ -18,7 +19,7 @@ struct ContentView: View {
                 }
                 .tag(1)
 
-            ProfilePlaceholderView()
+            ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")
                 }
@@ -115,26 +116,143 @@ struct LibraryView: View {
     }
 }
 
-struct ProfilePlaceholderView: View {
+struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
+    @State private var showSignIn = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.secondary)
+            List {
                 if authVM.isAuthenticated {
-                    Text(authVM.displayName ?? "User")
-                        .font(.title2.bold())
-                    Button("Sign Out") { authVM.signOut() }
-                        .foregroundStyle(.red)
+                    // Profile section
+                    Section {
+                        HStack(spacing: 14) {
+                            if let url = authVM.photoURL {
+                                AsyncImage(url: url) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.system(size: 50))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(width: 56, height: 56)
+                                .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundStyle(.secondary)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(authVM.displayName ?? "User")
+                                    .font(.headline)
+                                if let email = authVM.email {
+                                    Text(email)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+
+                    // Subscription section
+                    Section("Subscription") {
+                        HStack {
+                            Text("Plan")
+                            Spacer()
+                            Text(authVM.tier.rawValue.capitalized)
+                                .foregroundStyle(Color("AccentCoral"))
+                                .fontWeight(.semibold)
+                        }
+                        if !authVM.subscription.tier.isUnlimited {
+                            Button("Upgrade to Premium") {
+                                // TODO: Show paywall
+                            }
+                            .foregroundStyle(Color("AccentCoral"))
+                        }
+                        Button("Restore Purchases") {
+                            Task { await authVM.subscription.restorePurchases() }
+                        }
+                    }
+
+                    // Account section
+                    Section("Account") {
+                        Button("Sign Out", role: .destructive) {
+                            authVM.signOut()
+                        }
+                        Button("Delete Account", role: .destructive) {
+                            authVM.deleteAccount()
+                        }
+                    }
                 } else {
-                    Text("Sign in for full tours")
-                        .font(.title2.bold())
-                    Button("Sign In") { authVM.signIn() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color("AccentCoral"))
+                    // Sign-in section
+                    Section {
+                        VStack(spacing: 16) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 60))
+                                .foregroundStyle(.secondary)
+                            Text("Sign in to Roamly")
+                                .font(.title2.bold())
+                            Text("Save tours, sync across devices, and unlock premium features")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                    }
+
+                    Section {
+                        // Google Sign-In
+                        Button {
+                            authVM.signInWithGoogle()
+                        } label: {
+                            HStack {
+                                Image(systemName: "g.circle.fill")
+                                    .font(.title2)
+                                Text("Continue with Google")
+                                    .fontWeight(.medium)
+                                Spacer()
+                            }
+                        }
+
+                        // Apple Sign-In
+                        SignInWithAppleButton(.signIn) { request in
+                            let nonce = authVM.prepareAppleNonce()
+                            request.requestedScopes = [.email, .fullName]
+                            request.nonce = nonce
+                        } onCompletion: { result in
+                            authVM.handleAppleSignIn(result)
+                        }
+                        .frame(height: 44)
+
+                        // Email sign-in
+                        VStack(spacing: 10) {
+                            TextField("Email", text: $authVM.emailText)
+                                .textContentType(.emailAddress)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                            SecureField("Password", text: $authVM.passwordText)
+                                .textContentType(.password)
+                            Button {
+                                authVM.signInWithEmail()
+                            } label: {
+                                Text("Sign In with Email")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color("AccentCoral"))
+                            .disabled(authVM.emailText.isEmpty || authVM.passwordText.isEmpty)
+                        }
+                    }
+
+                    if let error = authVM.error {
+                        Section {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
                 }
             }
             .navigationTitle("Profile")

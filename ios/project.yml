@@ -5,6 +5,17 @@ options:
     iOS: "17.0"
   xcodeVersion: "16.0"
 
+packages:
+  FirebaseAuth:
+    url: https://github.com/firebase/firebase-ios-sdk
+    version: 11.12.0
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    version: 8.0.0
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm
+    version: 5.18.0
+
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -21,6 +32,16 @@ targets:
           - "**/.DS_Store"
     resources:
       - path: PrivateTourAi/Resources/Assets.xcassets
+      - path: PrivateTourAi/Resources/GoogleService-Info.plist
+    dependencies:
+      - package: FirebaseAuth
+        product: FirebaseAuth
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: GoogleSignIn
+        product: GoogleSignInSwift
+      - package: RevenueCat
+        product: RevenueCat
     settings:
       base:
         INFOPLIST_GENERATION_MODE: GeneratedFile
@@ -33,5 +54,5 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Private TourAi needs your location to provide GPS-triggered narration during tours."
-        INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Private TourAi needs continuous location access to trigger audio narration as you drive through your tour route."
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Roamly needs your location to provide GPS-triggered narration during tours."
+        INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Roamly needs continuous location access to trigger audio narration as you drive through your tour route."
