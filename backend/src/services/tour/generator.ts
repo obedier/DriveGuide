@@ -3,6 +3,7 @@ import { getDb } from '../../lib/db.js';
 import { newId } from '../../lib/id.js';
 import { geocode, nearbySearch, optimizeRoute, getPlacePhoto } from './maps.js';
 import { computeNauticalRoute } from './nautical.js';
+import { generateBoatTour, calculateMaritimeSegments } from './boat-engine.js';
 import { generateTourContent } from './gemini.js';
 import type { Tour, TourStop, NarrationSegment, GenerateTourRequest, TourTheme } from '../../models/types.js';
 
@@ -55,10 +56,17 @@ async function generateWithTimeout(
     // Step 1: Geocode
     const geo = await geocode(request.location);
 
+    const transportMode = request.transport_mode ?? 'car';
+
+    // ── BOAT TOURS: Use dedicated boat engine ──
+    if (transportMode === 'boat') {
+      return await generateBoatTourFlow(tourId, request, geo, userId);
+    }
+
+    // ── ALL OTHER MODES: Standard flow ──
+
     // Step 2: Find nearby places
     const places = await nearbySearch(geo.latitude, geo.longitude);
-
-    const transportMode = request.transport_mode ?? 'car';
 
     // Step 3: Generate content with Gemini
     const content = await generateTourContent(
@@ -98,16 +106,9 @@ async function generateWithTimeout(
     // Reorder stops based on route optimization
     const orderedStops = reorderStops(content.stops, route.waypoint_order);
 
-    // Step 4b: For boat tours, compute nautical route
-    let directionsUrl = route.directions_url;
-    let totalDistanceKm = route.total_distance_km;
-    if (transportMode === 'boat') {
-      const nautical = await computeNauticalRoute(orderedStops);
-      directionsUrl = nautical.chart_url; // VectorCharts URL instead of Google Maps
-      totalDistanceKm = nautical.distance_nm * 1.852; // store as km for consistency, display as nm
-    }
-
     // Step 5: Save everything to database
+    const directionsUrl = route.directions_url;
+    const totalDistanceKm = route.total_distance_km;
     const db = getDb();
     const saveTour = db.transaction(() => {
       db.prepare(`
@@ -181,6 +182,100 @@ async function generateWithTimeout(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// ─── Boat Tour Flow (dedicated engine) ───
+
+async function generateBoatTourFlow(
+  tourId: string,
+  request: GenerateTourRequest,
+  geo: { latitude: number; longitude: number; formatted_address: string },
+  userId: string | null,
+): Promise<Tour> {
+  const db = getDb();
+  const language = request.language ?? 'en';
+
+  const content = await generateBoatTour(
+    request.location,
+    geo.formatted_address,
+    geo.latitude,
+    geo.longitude,
+    request.duration_minutes,
+    request.start_address ?? null,
+    request.end_address ?? null,
+    request.custom_prompt ?? null,
+  );
+
+  // Calculate maritime distances between stops
+  const maritimeSegments = calculateMaritimeSegments(content.stops);
+  const totalDistanceNm = maritimeSegments.reduce((sum, s) => sum + s.distance_nm, 0);
+  const totalTravelMinutes = maritimeSegments.reduce((sum, s) => sum + s.estimated_minutes, 0);
+
+  // Build nautical route
+  const nautical = await computeNauticalRoute(content.stops);
+
+  const saveTour = db.transaction(() => {
+    db.prepare(`
+      UPDATE tours SET
+        title = ?, description = ?, center_lat = ?, center_lng = ?,
+        status = 'ready', route_data = ?, maps_directions_url = ?,
+        total_distance_km = ?, total_duration_minutes = ?,
+        story_arc_summary = ?, is_template = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(
+      content.title, content.description, geo.latitude, geo.longitude,
+      JSON.stringify({ maritime_segments: maritimeSegments, nautical }),
+      nautical.chart_url,
+      totalDistanceNm * 1.852, // store as km internally
+      totalTravelMinutes,
+      content.story_arc_summary, userId ? 0 : 1, tourId,
+    );
+
+    const shareId = newId().slice(0, 10);
+    db.prepare('UPDATE tours SET share_id = ? WHERE id = ?').run(shareId, tourId);
+
+    const insertStop = db.prepare(`
+      INSERT INTO tour_stops (id, tour_id, sequence_order, name, description, category, latitude, longitude,
+        recommended_stay_minutes, is_optional, approach_narration, at_stop_narration, departure_narration)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const stopIds: string[] = [];
+    for (let i = 0; i < content.stops.length; i++) {
+      const s = content.stops[i];
+      const stopId = newId();
+      stopIds.push(stopId);
+      insertStop.run(
+        stopId, tourId, i, s.name, s.description, s.category,
+        s.latitude, s.longitude, s.recommended_stay_minutes,
+        0, s.approach_narration, s.at_stop_narration, s.departure_narration,
+      );
+    }
+
+    // Build narration segments
+    const segments = buildNarrationSegments(
+      tourId, stopIds, content.stops, content, language,
+    );
+
+    const insertSegment = db.prepare(`
+      INSERT INTO narration_segments (id, tour_id, from_stop_id, to_stop_id, segment_type,
+        sequence_order, narration_text, content_hash, estimated_duration_seconds,
+        trigger_lat, trigger_lng, trigger_radius_meters, language)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const seg of segments) {
+      insertSegment.run(
+        seg.id, seg.tour_id, seg.from_stop_id, seg.to_stop_id, seg.segment_type,
+        seg.sequence_order, seg.narration_text, seg.content_hash,
+        seg.estimated_duration_seconds, seg.trigger_lat, seg.trigger_lng,
+        seg.trigger_radius_meters, seg.language,
+      );
+    }
+  });
+
+  saveTour();
+  return loadTour(tourId);
 }
 
 function buildNarrationSegments(

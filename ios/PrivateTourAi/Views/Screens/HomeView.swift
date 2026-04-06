@@ -248,6 +248,23 @@ struct SearchCard: View {
 
                     if tourVM.showAdvancedSettings {
                         VStack(spacing: 8) {
+                            // Start/end location
+                            HStack(spacing: 16) {
+                                Toggle(isOn: $tourVM.useAsStartLocation) {
+                                    Label("Start here", systemImage: "flag.fill")
+                                        .font(.caption)
+                                }
+                                .toggleStyle(.switch)
+                                .tint(Color("AccentCoral"))
+
+                                Toggle(isOn: $tourVM.useAsEndLocation) {
+                                    Label("End here", systemImage: "flag.checkered")
+                                        .font(.caption)
+                                }
+                                .toggleStyle(.switch)
+                                .tint(Color("AccentCoral"))
+                            }
+
                             // Speed
                             HStack {
                                 Text("Speed (mph)")

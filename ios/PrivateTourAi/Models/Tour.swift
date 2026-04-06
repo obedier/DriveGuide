@@ -159,6 +159,8 @@ struct GenerateTourRequest: Codable {
     let transportMode: String?
     let speedMph: Double?
     let customPrompt: String?
+    let startAddress: String?
+    let endAddress: String?
 
     enum CodingKeys: String, CodingKey {
         case location, themes, language
@@ -166,6 +168,8 @@ struct GenerateTourRequest: Codable {
         case transportMode = "transport_mode"
         case speedMph = "speed_mph"
         case customPrompt = "custom_prompt"
+        case startAddress = "start_address"
+        case endAddress = "end_address"
     }
 }
 

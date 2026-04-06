@@ -30,6 +30,8 @@ class TourViewModel: ObservableObject {
     @Published var transportMode: String = "car"
     @Published var speedMph: Double? = nil
     @Published var customPrompt: String = ""
+    @Published var useAsStartLocation = false
+    @Published var useAsEndLocation = false
     @Published var showAdvancedSettings = false
 
     let durations = [30, 60, 90, 120, 180, 240, 360]
@@ -110,13 +112,17 @@ class TourViewModel: ObservableObject {
         }
 
         do {
+            let startAddr = useAsStartLocation ? (verifiedLocation?.formattedAddress ?? searchText) : nil
+            let endAddr = useAsEndLocation ? (verifiedLocation?.formattedAddress ?? searchText) : nil
             let result = try await APIClient.shared.generatePreview(
                 location: location,
                 durationMinutes: selectedDuration,
                 themes: Array(selectedThemes),
                 transportMode: transportMode,
                 speedMph: speedMph,
-                customPrompt: customPrompt.isEmpty ? nil : customPrompt
+                customPrompt: customPrompt.isEmpty ? nil : customPrompt,
+                startAddress: startAddr,
+                endAddress: endAddr
             )
             progressTask.cancel()
             generationProgress = "Your tour is ready!"

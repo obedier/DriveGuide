@@ -77,9 +77,11 @@ REQUIREMENTS:
 - Every narration must feel like a knowledgeable local talking to a friend — personal, opinionated, with insider tips
 - Include specific visual cues ("look to your left", "notice the blue building")
 - Mention the best time to visit, photo opportunities, and where to eat nearby
-- Each "between stops" narration should describe what the driver is seeing as they drive through neighborhoods
+- Each "between stops" narration should describe what the ${transportLabel === 'driving' ? 'driver' : 'traveler'} is seeing
 - Optional stops should be genuinely tempting (great restaurant, scenic viewpoint)
-- Stops must be geographically close enough to visit within ${durationMinutes} minutes including driving
+- Stops must be geographically close enough to visit within ${durationMinutes} minutes
+- NEVER include GPS coordinates, latitude/longitude numbers, or raw addresses in narration text. Describe locations by name and visual cues only.
+- NEVER include street addresses in narration. Say "on the corner of Collins and 8th" not "800 Collins Ave, Miami Beach, FL 33139"
 
 RESPOND IN VALID JSON ONLY (no markdown, no code fences):
 {

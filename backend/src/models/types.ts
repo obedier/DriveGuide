@@ -6,6 +6,7 @@ export type SubscriptionTier = 'free' | 'single' | 'weekly' | 'monthly' | 'annua
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'grace_period';
 export type VoicePreference = 'male' | 'female' | 'neutral';
 export type TransportMode = 'car' | 'walk' | 'bike' | 'boat' | 'plane';
+// Note: 'boat' is handled by the dedicated boat-engine.ts, not the generic Gemini prompt
 export type VoiceQuality = 'standard' | 'premium';
 
 export interface GeoPoint {
