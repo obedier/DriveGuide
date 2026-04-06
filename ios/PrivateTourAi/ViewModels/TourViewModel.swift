@@ -42,7 +42,20 @@ class TourViewModel: ObservableObject {
     private let storage = TourStorage.shared
 
     init() {
+        loadSampleToursIfNeeded()
         savedTours = storage.loadAll()
+    }
+
+    private func loadSampleToursIfNeeded() {
+        let marker = storage.directory.appendingPathComponent(".samples-loaded")
+        guard !FileManager.default.fileExists(atPath: marker.path) else { return }
+
+        if let url = Bundle.main.url(forResource: "sample-boat-tour", withExtension: "json"),
+           let data = try? Data(contentsOf: url),
+           let tour = try? JSONDecoder().decode(Tour.self, from: data) {
+            storage.save(tour)
+        }
+        FileManager.default.createFile(atPath: marker.path, contents: nil)
     }
 
     // MARK: - Step 1: Verify Location
@@ -275,7 +288,7 @@ class TourViewModel: ObservableObject {
 class TourStorage {
     static let shared = TourStorage()
 
-    private let directory: URL = {
+    let directory: URL = {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let dir = docs.appendingPathComponent("SavedTours", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
