@@ -68,19 +68,45 @@ class TourViewModel: ObservableObject {
 
         isGenerating = true
         error = nil
-        generationProgress = "Researching the area..."
+
+        // Progressive status messages while the API works
+        let locationName = searchText
+        let progressMessages = [
+            "Researching \(locationName)...",
+            "Scanning local landmarks and hidden gems...",
+            "Checking what's open and worth visiting...",
+            "Talking to our AI guide about the best routes...",
+            "Selecting stops that tell a great story...",
+            "Building the perfect narrative arc...",
+            "Optimizing the driving route...",
+            "Crafting narration for each stop...",
+            "Adding insider tips and local secrets...",
+            "Polishing your personalized tour...",
+        ]
+
+        // Start cycling through messages
+        let progressTask = Task {
+            for (i, msg) in progressMessages.enumerated() {
+                if Task.isCancelled { break }
+                generationProgress = msg
+                let delay = i < 2 ? 2.0 : (i < 5 ? 4.0 : 6.0)
+                try? await Task.sleep(for: .seconds(delay))
+            }
+        }
 
         do {
-            generationProgress = "Finding the best stops..."
             let preview = try await APIClient.shared.generatePreview(
                 location: location,
                 durationMinutes: selectedDuration,
                 themes: Array(selectedThemes)
             )
-
-            generationProgress = "Tour ready!"
+            progressTask.cancel()
+            generationProgress = "Your tour is ready!"
             currentPreview = preview
+            // Brief pause to show "ready" message
+            try? await Task.sleep(for: .seconds(0.5))
         } catch {
+            progressTask.cancel()
             self.error = friendlyError(error)
         }
 

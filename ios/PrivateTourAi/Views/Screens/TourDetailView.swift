@@ -263,7 +263,10 @@ struct NarrationSection: View {
 
 struct PreviewDetailView: View {
     let preview: TourPreview
+    @EnvironmentObject var tourVM: TourViewModel
+    @EnvironmentObject var authVM: AuthViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var isUnlocking = false
 
     var body: some View {
         NavigationStack {
@@ -275,13 +278,22 @@ struct PreviewDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
+                    HStack(spacing: 20) {
+                        InfoBadge(icon: "mappin.and.ellipse", value: "\(preview.stopCount) stops")
+                        InfoBadge(icon: "clock", value: formatDuration(preview.durationMinutes))
+                        if let km = preview.totalDistanceKm {
+                            InfoBadge(icon: "car", value: String(format: "%.1f km", km))
+                        }
+                    }
+                    .padding(.vertical, 4)
+
                     ForEach(preview.previewStops) { stop in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text(stop.name)
                                     .font(.headline)
                                 Spacer()
-                                Text(stop.category.capitalized)
+                                Text(stop.category.replacingOccurrences(of: "-", with: " ").capitalized)
                                     .font(.caption)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
@@ -296,26 +308,47 @@ struct PreviewDetailView: View {
                         .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
                     }
 
-                    // Paywall teaser
-                    VStack(spacing: 12) {
-                        Image(systemName: "lock.fill")
-                            .font(.title)
-                            .foregroundStyle(Color("AccentCoral"))
-                        Text("Unlock the Full Tour")
-                            .font(.headline)
-                        Text("Sign up to get all \(preview.stopCount) stops with audio narration, GPS triggers, and offline access.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("Sign Up Free") {
-                            // TODO: Auth flow
+                    // Remaining stops teaser
+                    if preview.stopCount > preview.previewStops.count {
+                        HStack {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(.secondary)
+                            Text("+ \(preview.stopCount - preview.previewStops.count) more stops with full narration")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemGray6).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    // Unlock / Continue button
+                    if isUnlocking || tourVM.isGenerating {
+                        HStack(spacing: 14) {
+                            ProgressView()
+                                .tint(Color("AccentCoral"))
+                            Text(tourVM.generationProgress.isEmpty ? "Unlocking your tour..." : tourVM.generationProgress)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16))
+                    } else {
+                        Button {
+                            unlockFullTour()
+                        } label: {
+                            HStack {
+                                Image(systemName: "sparkles")
+                                Text("Get Full Guided Tour")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(Color("AccentCoral"))
                     }
-                    .padding(24)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16))
                 }
                 .padding()
             }
@@ -325,6 +358,21 @@ struct PreviewDetailView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .onChange(of: tourVM.currentTour != nil) { _, hasTour in
+                if hasTour {
+                    dismiss()
+                }
+            }
+        }
+    }
+
+    private func unlockFullTour() {
+        isUnlocking = true
+        // For now, skip auth gate — generate full tour directly
+        // When Firebase Auth is added, this will require sign-in first
+        Task {
+            await tourVM.generatePreview()
+            isUnlocking = false
         }
     }
 }

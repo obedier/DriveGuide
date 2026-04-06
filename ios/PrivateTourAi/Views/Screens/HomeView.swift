@@ -93,6 +93,7 @@ struct HomeView: View {
                 TourDetailView(tour: tour)
             } else if let preview = tourVM.currentPreview {
                 PreviewDetailView(preview: preview)
+                    .environmentObject(tourVM)
             }
         }
         // Animate map to verified location
