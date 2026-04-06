@@ -1,18 +1,15 @@
 import { FastifyInstance } from 'fastify';
 import { generateTourAudio } from '../services/audio/tts.js';
-import { requireAuth } from '../middleware/auth.js';
 import { getDb } from '../lib/db.js';
 
 export async function audioRoutes(app: FastifyInstance): Promise<void> {
-  // POST /tours/:id/audio
-  app.post<{ Params: { id: string }; Body: { language?: string; voice_preference?: string } }>('/tours/:id/audio', {
-    preHandler: requireAuth,
-  }, async (request, reply) => {
+  // POST /tours/:id/audio — PUBLIC for MVP (gate behind auth later)
+  app.post<{ Params: { id: string }; Body: { language?: string; voice_preference?: string } }>('/tours/:id/audio', async (request, reply) => {
     const db = getDb();
-    const tour = db.prepare('SELECT id, user_id, status FROM tours WHERE id = ?')
-      .get(request.params.id) as { id: string; user_id: string; status: string } | undefined;
+    const tour = db.prepare('SELECT id, status FROM tours WHERE id = ?')
+      .get(request.params.id) as { id: string; status: string } | undefined;
 
-    if (!tour || (tour.user_id && tour.user_id !== request.user!.userId)) {
+    if (!tour) {
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Tour not found' } });
     }
 

@@ -14,7 +14,6 @@ class TourPlaybackService: ObservableObject {
 
     private var tour: Tour?
     private var segments: [NarrationSegment] = []
-    private var audioUrls: [String] = []
     private var simulationTask: Task<Void, Never>?
 
     // MARK: - Prepare Tour
@@ -23,85 +22,89 @@ class TourPlaybackService: ObservableObject {
         self.tour = tour
         self.segments = tour.narrationSegments.sorted { $0.sequenceOrder < $1.sequenceOrder }
 
-        // Generate audio via API
-        audioProgress = "Generating audio narration..."
+        guard !segments.isEmpty else {
+            audioProgress = "No narration segments found"
+            return
+        }
+
+        audioProgress = "Generating audio narration (\(segments.count) segments)..."
         do {
             let response = try await APIClient.shared.generateAudio(tourId: tour.id)
-            audioUrls = response.segments.map(\.audioUrl)
-            audioProgress = "Downloading audio (\(response.segments.count) segments)..."
+            let audioUrls = response.segments.map(\.audioUrl)
+            audioProgress = "Downloading audio..."
 
-            // Map API audio segments to narration segments by order
-            // The API returns segments in the same order as narration_segments
             await audioPlayer.prepare(segments: segments, audioUrls: audioUrls)
-            audioReady = true
-            audioProgress = ""
+            audioReady = audioPlayer.hasAudio
+            audioProgress = audioReady ? "" : "Audio generation failed — using text narration"
+            print("[Playback] Audio ready: \(audioReady), segments: \(segments.count)")
         } catch {
-            audioProgress = "Audio unavailable — showing text narration"
+            print("[Playback] Audio generation error: \(error)")
+            audioProgress = "Audio unavailable — text narration mode"
             audioReady = false
-            // Still allow text-based tour
         }
     }
 
-    // MARK: - Start Tour (Real GPS)
+    // MARK: - Start Tour (manual playback)
 
     func startTour() {
-        guard tour != nil else { return }
+        guard tour != nil, !segments.isEmpty else { return }
         isActive = true
         currentStopIndex = -1
         currentSegmentType = "intro"
-
-        // Play intro segment
-        if let introIdx = segments.firstIndex(where: { $0.segmentType == "intro" }) {
-            audioPlayer.playSegment(at: introIdx)
-        }
+        audioPlayer.playSegment(at: 0)
+        updateCurrentStop()
     }
 
-    // MARK: - Simulate Tour (for testing without driving)
+    // MARK: - Simulate Tour
 
     func startSimulation() {
-        guard let tour else { return }
+        guard let tour, !segments.isEmpty else { return }
         isActive = true
         isSimulating = true
         currentStopIndex = -1
 
-        simulationTask = Task {
-            // Play through each segment with pauses
-            for (i, segment) in segments.enumerated() {
+        simulationTask = Task { [weak self] in
+            guard let self else { return }
+
+            for (i, segment) in self.segments.enumerated() {
                 if Task.isCancelled { break }
 
-                currentSegmentType = segment.segmentType
-
-                // Update current stop index based on segment
+                // Update UI state
+                self.currentSegmentType = segment.segmentType
                 if let toStopId = segment.toStopId,
                    let stopIdx = tour.stops.firstIndex(where: { $0.id == toStopId }) {
-                    currentStopIndex = stopIdx
+                    self.currentStopIndex = stopIdx
                 }
 
-                // Play audio if available
-                if audioReady {
-                    audioPlayer.playSegment(at: i)
-                    // Wait for audio to finish (check every second)
-                    while audioPlayer.isPlaying && !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(1))
+                if self.audioReady {
+                    // Play audio and wait for it to finish
+                    self.audioPlayer.playSegment(at: i)
+
+                    // Wait for segmentFinished signal
+                    while !self.audioPlayer.segmentFinished && !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(0.3))
                     }
+
                     // Brief pause between segments
-                    try? await Task.sleep(for: .seconds(1))
+                    if !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(1.5))
+                    }
                 } else {
-                    // No audio — show text for estimated duration
-                    let duration = max(segment.estimatedDurationSeconds, 5)
-                    try? await Task.sleep(for: .seconds(min(Double(duration), 10)))
+                    // No audio — display text for a few seconds then advance
+                    let showDuration = min(Double(max(segment.estimatedDurationSeconds, 5)), 8.0)
+                    try? await Task.sleep(for: .seconds(showDuration))
                 }
             }
 
             if !Task.isCancelled {
-                isActive = false
-                isSimulating = false
-                currentSegmentType = "complete"
+                self.currentSegmentType = "complete"
+                self.isActive = false
+                self.isSimulating = false
             }
         }
     }
 
-    // MARK: - Navigate segments manually
+    // MARK: - Controls
 
     func nextSegment() {
         audioPlayer.skipToNext()
@@ -121,8 +124,6 @@ class TourPlaybackService: ObservableObject {
         }
     }
 
-    // MARK: - Stop
-
     func stopTour() {
         simulationTask?.cancel()
         simulationTask = nil
@@ -130,6 +131,7 @@ class TourPlaybackService: ObservableObject {
         isActive = false
         isSimulating = false
         currentStopIndex = -1
+        currentSegmentType = "intro"
     }
 
     // MARK: - Helpers
@@ -148,7 +150,10 @@ class TourPlaybackService: ObservableObject {
 
     var currentNarrationText: String {
         let idx = audioPlayer.currentSegmentIndex
-        guard idx < segments.count else { return "" }
+        guard idx < segments.count else {
+            if currentSegmentType == "complete" { return "Thank you for joining this tour! We hope you enjoyed it." }
+            return ""
+        }
         return segments[idx].narrationText
     }
 
