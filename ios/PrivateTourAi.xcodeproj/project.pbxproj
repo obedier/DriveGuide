@@ -282,6 +282,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
+				INFOPLIST_KEY_CFBundleDisplayName = Roamly;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Private TourAi needs continuous location access to trigger audio narration as you drive through your tour route.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Private TourAi needs your location to provide GPS-triggered narration during tours.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -307,6 +308,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
+				INFOPLIST_KEY_CFBundleDisplayName = Roamly;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Private TourAi needs continuous location access to trigger audio narration as you drive through your tour route.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Private TourAi needs your location to provide GPS-triggered narration during tours.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
