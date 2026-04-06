@@ -126,7 +126,10 @@ class TourPlaybackService: ObservableObject {
     }
 
     func togglePlayPause() {
-        if audioPlayer.isPlaying {
+        if !isActive {
+            // Tour not started — start simulation
+            startSimulation()
+        } else if audioPlayer.isPlaying {
             audioPlayer.pause()
         } else {
             audioPlayer.resume()

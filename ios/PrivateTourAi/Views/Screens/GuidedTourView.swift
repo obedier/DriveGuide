@@ -14,7 +14,7 @@ struct GuidedTourView: View {
 
     var body: some View {
         ZStack {
-            // Map — use nautical chart for boat tours
+            // Map — nautical chart for boat tours, Apple Maps for everything else
             if isBoatTour {
                 NauticalChartView(stops: tour.stops, currentStopIndex: playback.currentStopIndex)
                     .ignoresSafeArea()
@@ -71,7 +71,6 @@ struct GuidedTourView: View {
 
                     Spacer()
 
-                    // Controls
                     HStack(spacing: 12) {
                         Button { withAnimation { audioOnly.toggle() } } label: {
                             Image(systemName: audioOnly ? "text.bubble" : "speaker.wave.2.fill")
@@ -80,18 +79,22 @@ struct GuidedTourView: View {
                                 .background(.ultraThinMaterial, in: Circle())
                         }
 
-                        Button { withAnimation { use3DMap.toggle() } } label: {
-                            Image(systemName: use3DMap ? "map" : "view.3d")
-                                .font(.caption)
-                                .padding(8)
-                                .background(.ultraThinMaterial, in: Circle())
+                        if !isBoatTour {
+                            Button { withAnimation { use3DMap.toggle() } } label: {
+                                Image(systemName: use3DMap ? "map" : "view.3d")
+                                    .font(.caption)
+                                    .padding(8)
+                                    .background(.ultraThinMaterial, in: Circle())
+                            }
                         }
 
-                        Text("\(playback.audioPlayer.currentSegmentIndex + 1)/\(max(playback.audioPlayer.totalSegments, 1))")
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial, in: Capsule())
+                        if playback.isActive {
+                            Text("\(playback.audioPlayer.currentSegmentIndex + 1)/\(max(playback.audioPlayer.totalSegments, 1))")
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -102,10 +105,10 @@ struct GuidedTourView: View {
                 // Bottom card
                 if isPreparing {
                     PreparingAudioCard(progress: playback.audioProgress)
-                } else if audioOnly {
+                } else if audioOnly && playback.isActive {
                     AudioOnlyCard(playback: playback) { stopAndDismiss() }
                 } else {
-                    NarrationPlaybackCard(playback: playback, tour: tour) { stopAndDismiss() }
+                    TourControlCard(playback: playback, tour: tour) { stopAndDismiss() }
                 }
             }
         }
@@ -114,15 +117,13 @@ struct GuidedTourView: View {
             isPreparing = false
         }
         .onChange(of: playback.currentStopIndex) { _, newIdx in
-            guard newIdx >= 0, newIdx < tour.stops.count else { return }
+            guard !isBoatTour, newIdx >= 0, newIdx < tour.stops.count else { return }
             let stop = tour.stops[newIdx]
             withAnimation(.easeInOut(duration: 1.0)) {
                 if use3DMap {
                     cameraPosition = .camera(MapCamera(
                         centerCoordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
-                        distance: 800,
-                        heading: 0,
-                        pitch: 60
+                        distance: 800, heading: 0, pitch: 60
                     ))
                 } else {
                     cameraPosition = .region(MKCoordinateRegion(
@@ -161,46 +162,54 @@ struct PreparingAudioCard: View {
     }
 }
 
-// MARK: - Audio Only Card (minimal)
+// MARK: - Audio Only (minimal)
 
 struct AudioOnlyCard: View {
     @ObservedObject var playback: TourPlaybackService
     let onStop: () -> Void
 
     var body: some View {
-        HStack(spacing: 20) {
-            Button { playback.previousSegment() } label: {
-                Image(systemName: "backward.fill").font(.title3)
-            }
+        VStack(spacing: 8) {
+            Text(playback.segmentLabel)
+                .font(.caption.bold())
+                .foregroundStyle(Color("AccentCoral"))
 
-            Button { playback.togglePlayPause() } label: {
-                Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(Color("AccentCoral"))
-            }
+            HStack(spacing: 20) {
+                Button { playback.previousSegment() } label: {
+                    Image(systemName: "backward.fill").font(.title3)
+                }
+                .disabled(playback.audioPlayer.currentSegmentIndex == 0)
 
-            Button { playback.nextSegment() } label: {
-                Image(systemName: "forward.fill").font(.title3)
-            }
+                Button { playback.togglePlayPause() } label: {
+                    Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(Color("AccentCoral"))
+                }
 
-            Spacer()
+                Button { playback.nextSegment() } label: {
+                    Image(systemName: "forward.fill").font(.title3)
+                }
+                .disabled(playback.audioPlayer.currentSegmentIndex >= playback.audioPlayer.totalSegments - 1)
 
-            Button(action: onStop) {
-                Image(systemName: "stop.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.red)
+                Spacer()
+
+                Button(action: onStop) {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                }
             }
+            .foregroundStyle(.primary)
         }
-        .foregroundStyle(.primary)
         .padding(16)
         .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 20))
         .padding()
     }
 }
 
-// MARK: - Full Narration Card
+// MARK: - Main Tour Control Card
 
-struct NarrationPlaybackCard: View {
+struct TourControlCard: View {
     @ObservedObject var playback: TourPlaybackService
     let tour: Tour
     let onStop: () -> Void
@@ -208,81 +217,122 @@ struct NarrationPlaybackCard: View {
     var body: some View {
         VStack(spacing: 0) {
             // Segment label
-            Text(playback.segmentLabel.uppercased())
+            Text(playback.isActive ? playback.segmentLabel.uppercased() : "READY TO START")
                 .font(.caption.bold())
                 .foregroundStyle(Color("AccentCoral"))
                 .padding(.top, 16)
                 .padding(.bottom, 4)
 
-            // Photo (if current stop has one)
-            if let stop = playback.currentStop, let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color(.systemGray5)
-                }
-                .frame(height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-            }
+            if playback.isActive {
+                // Active tour: show photo, narration, controls
 
-            // Narration text
-            ScrollView {
-                Text(playback.currentNarrationText)
-                    .font(.callout)
-                    .lineSpacing(5)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 6)
-            }
-            .frame(maxHeight: 140)
-
-            // Progress bar
-            if playback.audioPlayer.hasAudio {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Rectangle().fill(Color(.systemGray5))
-                        Rectangle().fill(Color("AccentCoral"))
-                            .frame(width: geo.size.width * playback.audioPlayer.playbackProgress)
+                // Photo
+                if let stop = playback.currentStop, let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color(.systemGray5)
                     }
-                }
-                .frame(height: 3)
-                .clipShape(Capsule())
-                .padding(.horizontal, 20)
-            }
-
-            // Controls
-            HStack(spacing: 24) {
-                Button { playback.previousSegment() } label: {
-                    Image(systemName: "backward.fill").font(.title3)
+                    .frame(height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
                 }
 
-                Button { playback.togglePlayPause() } label: {
-                    Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(Color("AccentCoral"))
+                // Narration text
+                ScrollView {
+                    Text(playback.currentNarrationText)
+                        .font(.callout)
+                        .lineSpacing(5)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 6)
+                }
+                .frame(maxHeight: 140)
+
+                // Progress bar
+                if playback.audioPlayer.hasAudio {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle().fill(Color(.systemGray5))
+                            Rectangle().fill(Color("AccentCoral"))
+                                .frame(width: geo.size.width * playback.audioPlayer.playbackProgress)
+                        }
+                    }
+                    .frame(height: 3)
+                    .clipShape(Capsule())
+                    .padding(.horizontal, 20)
                 }
 
-                Button { playback.nextSegment() } label: {
-                    Image(systemName: "forward.fill").font(.title3)
-                }
-            }
-            .foregroundStyle(.primary)
-            .padding(.vertical, 10)
+                // Playback controls
+                HStack(spacing: 24) {
+                    Button { playback.previousSegment() } label: {
+                        Image(systemName: "backward.fill").font(.title3)
+                    }
+                    .disabled(playback.audioPlayer.currentSegmentIndex == 0)
 
-            // Action buttons
-            HStack(spacing: 12) {
-                if !playback.isActive {
+                    Button { playback.togglePlayPause() } label: {
+                        Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 48))
+                            .foregroundStyle(Color("AccentCoral"))
+                    }
+
+                    Button { playback.nextSegment() } label: {
+                        Image(systemName: "forward.fill").font(.title3)
+                    }
+                    .disabled(playback.audioPlayer.currentSegmentIndex >= playback.audioPlayer.totalSegments - 1)
+                }
+                .foregroundStyle(.primary)
+                .padding(.vertical, 10)
+
+                // End Tour button
+                Button(action: onStop) {
+                    HStack {
+                        Image(systemName: "stop.fill")
+                        Text("End Tour")
+                    }
+                    .font(.subheadline.bold())
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
+
+            } else {
+                // Not started: show tour summary and start buttons
+
+                Text(tour.title)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                Text("\(tour.stops.count) stops \u{2022} \(formatDuration(tour.durationMinutes))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 8)
+
+                if !playback.audioReady && !playback.audioProgress.isEmpty {
+                    Text(playback.audioProgress)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 4)
+                }
+
+                // Start buttons
+                HStack(spacing: 12) {
                     Button {
                         playback.startSimulation()
                     } label: {
                         HStack {
                             Image(systemName: "play.fill")
-                            Text("Simulate")
+                            Text("Simulate Tour")
                         }
                         .font(.subheadline.bold())
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 14)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
@@ -292,30 +342,18 @@ struct NarrationPlaybackCard: View {
                     } label: {
                         HStack {
                             Image(systemName: "location.fill")
-                            Text("Live GPS")
+                            Text("Start Live")
                         }
                         .font(.subheadline.bold())
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 14)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color("AccentCoral"))
-                } else {
-                    Button(action: onStop) {
-                        HStack {
-                            Image(systemName: "stop.fill")
-                            Text("End Tour")
-                        }
-                        .font(.subheadline.bold())
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 14)
         }
         .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal)
