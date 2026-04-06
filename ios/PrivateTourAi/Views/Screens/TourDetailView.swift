@@ -169,7 +169,7 @@ struct TourDetailView: View {
             }
         }
         .sheet(item: $selectedStop) { stop in
-            StopDetailSheet(stop: stop)
+            StopDetailSheet(stop: stop, allStops: tour.stops)
         }
         .fullScreenCover(isPresented: $showGuidedTour) {
             GuidedTourView(tour: tour)
@@ -302,26 +302,59 @@ struct StopRow: View {
 }
 
 struct StopDetailSheet: View {
-    let stop: TourStop
+    let stops: [TourStop]
+    @State var currentIndex: Int
     @Environment(\.dismiss) private var dismiss
+
+    init(stop: TourStop, allStops: [TourStop]) {
+        self.stops = allStops
+        self._currentIndex = State(initialValue: allStops.firstIndex(where: { $0.id == stop.id }) ?? 0)
+    }
+
+    // Legacy init for compatibility
+    init(stop: TourStop) {
+        self.stops = [stop]
+        self._currentIndex = State(initialValue: 0)
+    }
+
+    var stop: TourStop { stops[currentIndex] }
+    var hasPrevious: Bool { currentIndex > 0 }
+    var hasNext: Bool { currentIndex < stops.count - 1 }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Mini map
-                    Map {
-                        Annotation(stop.name, coordinate: CLLocationCoordinate2D(
-                            latitude: stop.latitude, longitude: stop.longitude
-                        )) {
-                            StopMarker(order: stop.sequenceOrder + 1, category: stop.category)
+                    // Photo
+                    if let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
+                        AsyncImage(url: url) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color(.systemGray5)
                         }
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    } else {
+                        // Mini map
+                        Map {
+                            Annotation(stop.name, coordinate: CLLocationCoordinate2D(
+                                latitude: stop.latitude, longitude: stop.longitude
+                            )) {
+                                StopMarker(order: stop.sequenceOrder + 1, category: stop.category)
+                            }
+                        }
+                        .frame(height: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
-                    .frame(height: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                    Text(stop.name)
-                        .font(.title2.bold())
+                    HStack {
+                        Text(stop.name)
+                            .font(.title2.bold())
+                        Spacer()
+                        Text("\(currentIndex + 1) of \(stops.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
                     Text(stop.description)
                         .font(.subheadline)
@@ -337,6 +370,23 @@ struct StopDetailSheet: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    HStack(spacing: 16) {
+                        Button {
+                            withAnimation { currentIndex -= 1 }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                        .disabled(!hasPrevious)
+
+                        Button {
+                            withAnimation { currentIndex += 1 }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                        }
+                        .disabled(!hasNext)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }

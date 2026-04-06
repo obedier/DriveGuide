@@ -30,7 +30,7 @@ struct ContentView: View {
 
 struct LibraryView: View {
     @EnvironmentObject var tourVM: TourViewModel
-    @State private var showDetail = false
+    @State private var selectedTour: Tour?
 
     var body: some View {
         NavigationStack {
@@ -52,11 +52,19 @@ struct LibraryView: View {
                         ForEach(tourVM.savedTours) { tour in
                             Button {
                                 tourVM.openSavedTour(tour)
+                                selectedTour = tour
                             } label: {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(tour.title)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
+                                    HStack {
+                                        Text(tour.title)
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        // Transport mode icon
+                                        Image(systemName: transportIcon(tour.transportMode ?? "car"))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                     Text(tour.locationQuery)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -83,12 +91,20 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
-            .sheet(isPresented: $tourVM.showTourDetail) {
-                if let tour = tourVM.currentTour {
-                    TourDetailView(tour: tour)
-                        .environmentObject(tourVM)
-                }
+            .sheet(item: $selectedTour) { tour in
+                TourDetailView(tour: tour)
+                    .environmentObject(tourVM)
             }
+        }
+    }
+
+    func transportIcon(_ mode: String) -> String {
+        switch mode {
+        case "walk": return "figure.walk"
+        case "bike": return "bicycle"
+        case "boat": return "ferry.fill"
+        case "plane": return "airplane"
+        default: return "car.fill"
         }
     }
 }

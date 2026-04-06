@@ -23,6 +23,31 @@ struct Tour: Codable, Identifiable {
     let narrationSegments: [NarrationSegment]
     let createdAt: String
 
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+        locationQuery = try container.decodeIfPresent(String.self, forKey: .locationQuery) ?? ""
+        centerLat = try container.decodeIfPresent(Double.self, forKey: .centerLat)
+        centerLng = try container.decodeIfPresent(Double.self, forKey: .centerLng)
+        durationMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinutes) ?? 60
+        themes = try container.decodeIfPresent([String].self, forKey: .themes) ?? []
+        language = try container.decodeIfPresent(String.self, forKey: .language) ?? "en"
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "ready"
+        mapsDirectionsUrl = try container.decodeIfPresent(String.self, forKey: .mapsDirectionsUrl)
+        totalDistanceKm = try container.decodeIfPresent(Double.self, forKey: .totalDistanceKm)
+        totalDurationMinutes = try container.decodeIfPresent(Int.self, forKey: .totalDurationMinutes)
+        storyArcSummary = try container.decodeIfPresent(String.self, forKey: .storyArcSummary)
+        transportMode = try container.decodeIfPresent(String.self, forKey: .transportMode)
+        speedMph = try container.decodeIfPresent(Double.self, forKey: .speedMph)
+        customPrompt = try container.decodeIfPresent(String.self, forKey: .customPrompt)
+        shareId = try container.decodeIfPresent(String.self, forKey: .shareId)
+        stops = try container.decodeIfPresent([TourStop].self, forKey: .stops) ?? []
+        narrationSegments = try container.decodeIfPresent([NarrationSegment].self, forKey: .narrationSegments) ?? []
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, title, description, themes, language, status, stops
         case locationQuery = "location_query"

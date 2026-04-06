@@ -74,6 +74,8 @@ class TourViewModel: ObservableObject {
     func confirmAndGenerate() async {
         guard verifiedLocation != nil else { return }
         isLocationConfirmed = true
+        // Dismiss keyboard
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         await generatePreview()
     }
 
@@ -120,6 +122,16 @@ class TourViewModel: ObservableObject {
             generationProgress = "Your tour is ready!"
             currentPreview = result.preview
             lastPreviewTourId = result.tourId
+
+            // Auto-save full tour to library immediately
+            if let tourId = result.tourId {
+                Task {
+                    if let tour = try? await APIClient.shared.getFullTour(tourId: tourId) {
+                        storage.save(tour)
+                        savedTours = storage.loadAll()
+                    }
+                }
+            }
             try? await Task.sleep(for: .seconds(0.5))
         } catch {
             progressTask.cancel()
@@ -170,10 +182,10 @@ class TourViewModel: ObservableObject {
 
     // MARK: - Saved Tours
 
+    // Library uses its own sheet — this just sets the tour
     func openSavedTour(_ tour: Tour) {
         currentTour = tour
         currentPreview = nil
-        showTourDetail = true
     }
 
     func deleteSavedTour(_ tour: Tour) {
