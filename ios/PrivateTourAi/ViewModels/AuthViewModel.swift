@@ -18,8 +18,6 @@ class AuthViewModel: ObservableObject {
         isAuthenticated = false
         displayName = nil
         email = nil
-        Task {
-            await APIClient.shared.setAuthToken(nil)
-        }
+        // TODO: Clear Firebase Auth token when auth is implemented
     }
 }

@@ -1,10 +1,42 @@
 import { FastifyInstance } from 'fastify';
 import { generateTour, loadTour, generatePreview } from '../services/tour/generator.js';
+import { geocode, nearbySearch } from '../services/tour/maps.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { getDb } from '../lib/db.js';
 import type { GenerateTourRequest } from '../models/types.js';
 
 export async function tourRoutes(app: FastifyInstance): Promise<void> {
+  // POST /tours/verify-location — PUBLIC — geocode and return coordinates for map confirmation
+  app.post<{ Body: { location: string } }>('/tours/verify-location', async (request, reply) => {
+    const { location } = request.body;
+    if (!location) {
+      return reply.code(400).send({ error: { code: 'INVALID_INPUT', message: 'Location is required' } });
+    }
+
+    try {
+      const geo = await geocode(location);
+      // Also grab a few POIs to show what's in the area
+      const places = await nearbySearch(geo.latitude, geo.longitude, 3000, ['tourist_attraction', 'point_of_interest']);
+      return {
+        verified: true,
+        location: {
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+          formatted_address: geo.formatted_address,
+        },
+        nearby_highlights: places.slice(0, 5).map((p) => ({
+          name: p.name,
+          latitude: p.latitude,
+          longitude: p.longitude,
+        })),
+      };
+    } catch {
+      return reply.code(404).send({
+        error: { code: 'LOCATION_NOT_FOUND', message: `Could not find "${location}". Try a more specific address or city name.` },
+      });
+    }
+  });
+
   // POST /tours/preview — PUBLIC
   app.post<{ Body: GenerateTourRequest }>('/tours/preview', {
     preHandler: optionalAuth,

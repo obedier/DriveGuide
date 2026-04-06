@@ -124,6 +124,36 @@ struct GenerateTourRequest: Codable {
     }
 }
 
+// Location verification
+struct VerifyLocationResponse: Codable {
+    let verified: Bool
+    let location: VerifiedLocation
+    let nearbyHighlights: [NearbyHighlight]?
+
+    enum CodingKeys: String, CodingKey {
+        case verified, location
+        case nearbyHighlights = "nearby_highlights"
+    }
+}
+
+struct VerifiedLocation: Codable {
+    let latitude: Double
+    let longitude: Double
+    let formattedAddress: String
+
+    enum CodingKeys: String, CodingKey {
+        case latitude, longitude
+        case formattedAddress = "formatted_address"
+    }
+}
+
+struct NearbyHighlight: Codable, Identifiable {
+    var id: String { name }
+    let name: String
+    let latitude: Double
+    let longitude: Double
+}
+
 // API Response wrappers
 struct TourResponse: Codable {
     let tour: Tour?

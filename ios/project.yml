@@ -8,7 +8,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: U3972W2GDJ
     PRODUCT_BUNDLE_IDENTIFIER: com.privatetourai.app
 
 targets:

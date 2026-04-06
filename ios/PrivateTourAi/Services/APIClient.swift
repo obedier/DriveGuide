@@ -20,19 +20,26 @@ enum APIError: Error, LocalizedError {
     }
 }
 
-actor APIClient {
+// Using a final class (not actor) to avoid isolation issues with @MainActor callers
+final class APIClient: Sendable {
     static let shared = APIClient()
 
-    #if DEBUG
-    private let baseURL = "http://localhost:8080/v1"
-    #else
-    private let baseURL = "https://private-tourai-api-801121217326.us-east1.run.app/v1"
-    #endif
+    private let baseURL = "https://private-tourai-api-i32snp7xla-ue.a.run.app/v1"
 
-    private var authToken: String?
+    // Longer timeout for AI-powered endpoints
+    private let shortTimeout: TimeInterval = 15
+    private let longTimeout: TimeInterval = 120
 
-    func setAuthToken(_ token: String?) {
-        self.authToken = token
+    // MARK: - Location Verification
+
+    func verifyLocation(_ location: String) async throws -> VerifiedLocation {
+        struct VerifyRequest: Encodable { let location: String }
+        let response: VerifyLocationResponse = try await post(
+            "/tours/verify-location",
+            body: VerifyRequest(location: location),
+            timeout: shortTimeout
+        )
+        return response.location
     }
 
     // MARK: - Tour Generation
@@ -44,7 +51,7 @@ actor APIClient {
             themes: themes.isEmpty ? nil : themes,
             language: nil
         )
-        let response: TourResponse = try await post("/tours/preview", body: body, authenticated: false)
+        let response: TourResponse = try await post("/tours/preview", body: body, timeout: longTimeout)
         guard let preview = response.preview else {
             throw APIError.noData
         }
@@ -58,7 +65,7 @@ actor APIClient {
             themes: themes.isEmpty ? nil : themes,
             language: nil
         )
-        return try await post("/tours/generate", body: body)
+        return try await post("/tours/generate", body: body, timeout: longTimeout)
     }
 
     func getTour(id: String) async throws -> Tour {
@@ -70,35 +77,30 @@ actor APIClient {
     // MARK: - Audio
 
     func generateAudio(tourId: String) async throws -> AudioResponse {
-        return try await post("/tours/\(tourId)/audio", body: EmptyBody())
+        return try await post("/tours/\(tourId)/audio", body: EmptyBody(), timeout: longTimeout)
     }
 
     // MARK: - HTTP Methods
 
-    private func get<T: Decodable>(_ path: String, authenticated: Bool = true) async throws -> T {
-        let request = try buildRequest(path: path, method: "GET", authenticated: authenticated)
+    private func get<T: Decodable>(_ path: String, timeout: TimeInterval? = nil) async throws -> T {
+        let request = try buildRequest(path: path, method: "GET", timeout: timeout ?? shortTimeout)
         return try await execute(request)
     }
 
-    private func post<T: Decodable, B: Encodable>(_ path: String, body: B, authenticated: Bool = true) async throws -> T {
-        var request = try buildRequest(path: path, method: "POST", authenticated: authenticated)
+    private func post<T: Decodable, B: Encodable>(_ path: String, body: B, timeout: TimeInterval? = nil) async throws -> T {
+        var request = try buildRequest(path: path, method: "POST", timeout: timeout ?? shortTimeout)
         request.httpBody = try JSONEncoder().encode(body)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         return try await execute(request)
     }
 
-    private func buildRequest(path: String, method: String, authenticated: Bool) throws -> URLRequest {
+    private func buildRequest(path: String, method: String, timeout: TimeInterval) throws -> URLRequest {
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw APIError.invalidURL
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = path.contains("generate") || path.contains("audio") ? 90 : 30
-
-        if authenticated, let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
+        request.timeoutInterval = timeout
         return request
     }
 
@@ -106,6 +108,11 @@ actor APIClient {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
+        } catch let urlError as URLError {
+            if urlError.code == .timedOut {
+                throw APIError.networkError(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Request timed out. Please try again."]))
+            }
+            throw APIError.networkError(urlError)
         } catch {
             throw APIError.networkError(error)
         }
@@ -127,6 +134,10 @@ actor APIClient {
             let decoder = JSONDecoder()
             return try decoder.decode(T.self, from: data)
         } catch {
+            // Log the raw response for debugging
+            let raw = String(data: data, encoding: .utf8) ?? "(binary)"
+            print("[APIClient] Decode error for \(request.url?.path ?? "?"): \(error)")
+            print("[APIClient] Raw response: \(raw.prefix(500))")
             throw APIError.decodingError(error)
         }
     }
