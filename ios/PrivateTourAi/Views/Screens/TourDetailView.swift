@@ -6,6 +6,7 @@ struct TourDetailView: View {
     @EnvironmentObject var tourVM: TourViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStop: TourStop?
+    @State private var showGuidedTour = false
 
     var body: some View {
         NavigationStack {
@@ -53,7 +54,21 @@ struct TourDetailView: View {
                         }
 
                         // Action buttons
-                        HStack(spacing: 12) {
+                        VStack(spacing: 10) {
+                            Button {
+                                showGuidedTour = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "headphones")
+                                    Text("Start Guided Tour")
+                                        .fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color("AccentCoral"))
+
                             Button {
                                 if let urlStr = tour.mapsDirectionsUrl,
                                    let url = URL(string: urlStr) {
@@ -62,26 +77,13 @@ struct TourDetailView: View {
                             } label: {
                                 HStack {
                                     Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                                    Text("Open in Maps")
+                                    Text("Open Route in Maps")
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
+                                .padding(.vertical, 12)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.bordered)
                             .tint(.blue)
-
-                            Button {
-                                tourVM.startTour()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "play.fill")
-                                    Text("Start Tour")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color("AccentCoral"))
                         }
                     }
                     .padding(.horizontal)
@@ -111,6 +113,9 @@ struct TourDetailView: View {
         }
         .sheet(item: $selectedStop) { stop in
             StopDetailSheet(stop: stop)
+        }
+        .fullScreenCover(isPresented: $showGuidedTour) {
+            GuidedTourView(tour: tour)
         }
     }
 }

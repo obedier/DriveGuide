@@ -72,6 +72,8 @@ struct NarrationSegment: Codable, Identifiable {
     let triggerLng: Double?
     let triggerRadiusMeters: Double
     let language: String
+    let fromStopId: String?
+    let toStopId: String?
     var audioUrl: String?
 
     enum CodingKeys: String, CodingKey {
@@ -83,6 +85,8 @@ struct NarrationSegment: Codable, Identifiable {
         case estimatedDurationSeconds = "estimated_duration_seconds"
         case triggerLat = "trigger_lat"
         case triggerLng = "trigger_lng"
+        case fromStopId = "from_stop_id"
+        case toStopId = "to_stop_id"
         case triggerRadiusMeters = "trigger_radius_meters"
         case audioUrl = "audio_url"
     }
