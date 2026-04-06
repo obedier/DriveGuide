@@ -224,7 +224,7 @@ struct FullTourRequest: Codable {
 }
 
 struct AudioResponse: Codable {
-    let tourId: String
+    let tourId: String?
     let segments: [AudioSegment]
     let totalDurationSeconds: Int
     let totalSizeBytes: Int
