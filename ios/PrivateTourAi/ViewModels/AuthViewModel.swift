@@ -59,6 +59,12 @@ class AuthViewModel: ObservableObject {
         auth.prepareAppleNonce()
     }
 
+    func handleAppleResult(_ result: Result<ASAuthorization, Error>) {
+        Task {
+            await auth.handleAppleSignInResult(result)
+        }
+    }
+
     func signInWithEmail() {
         guard !emailText.isEmpty, !passwordText.isEmpty else {
             authError = "Please enter email and password"

@@ -202,6 +202,51 @@ class AuthService: ObservableObject {
         controller.performRequests()
     }
 
+    // MARK: - Apple Sign-In (SignInWithAppleButton result handler)
+
+    func handleAppleSignInResult(_ result: Result<ASAuthorization, Error>) async {
+        isLoading = true
+        error = nil
+
+        switch result {
+        case .success(let authorization):
+            guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = appleCredential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8) else {
+                error = "Apple Sign-In: missing identity token"
+                isLoading = false
+                return
+            }
+
+            guard let nonce = currentNonce else {
+                error = "Apple Sign-In: missing nonce — try again"
+                isLoading = false
+                return
+            }
+
+            do {
+                let firebaseCred = OAuthProvider.appleCredential(
+                    withIDToken: idToken,
+                    rawNonce: nonce,
+                    fullName: appleCredential.fullName
+                )
+                let result = try await Auth.auth().signIn(with: firebaseCred)
+                print("[Auth] Apple+Firebase success: \(result.user.uid)")
+            } catch {
+                print("[Auth] Firebase Apple error: \(error)")
+                self.error = "Firebase: \(error.localizedDescription)"
+            }
+
+        case .failure(let err):
+            let nsErr = err as NSError
+            if nsErr.code != ASAuthorizationError.canceled.rawValue {
+                self.error = "Apple error \(nsErr.code): \(err.localizedDescription)"
+            }
+        }
+
+        isLoading = false
+    }
+
     // MARK: - Email/Password
 
     func signInWithEmail(email: String, password: String) async {
