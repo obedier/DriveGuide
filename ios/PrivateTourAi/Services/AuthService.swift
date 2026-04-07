@@ -101,31 +101,17 @@ class AuthService: ObservableObject {
             }
 
             print("[Auth] Apple Sign-In succeeded, exchanging with Firebase...")
-            print("[Auth] Apple nonce present: \(nonce.prefix(8))...")
-            print("[Auth] Apple idToken length: \(idToken.count)")
 
-            // Create Firebase credential from Apple token
-            let credential = OAuthProvider.credential(
-                providerID: AuthProviderID.apple,
-                idToken: idToken,
-                rawNonce: nonce
+            // Use the dedicated Apple credential method
+            let credential = OAuthProvider.appleCredential(
+                withIDToken: idToken,
+                rawNonce: nonce,
+                fullName: appleCredential.fullName
             )
 
             do {
                 let authResult = try await Auth.auth().signIn(with: credential)
                 print("[Auth] Firebase auth succeeded via Apple: \(authResult.user.uid)")
-
-                // Update display name from Apple if available
-                if let fullName = appleCredential.fullName {
-                    let displayName = [fullName.givenName, fullName.familyName]
-                        .compactMap { $0 }
-                        .joined(separator: " ")
-                    if !displayName.isEmpty {
-                        let changeRequest = authResult.user.createProfileChangeRequest()
-                        changeRequest.displayName = displayName
-                        try? await changeRequest.commitChanges()
-                    }
-                }
             } catch {
                 print("[Auth] Firebase Apple auth error: \(error)")
                 self.error = "Apple Sign-In failed: \(error.localizedDescription)"
