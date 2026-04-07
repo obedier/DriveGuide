@@ -55,10 +55,6 @@ class AuthViewModel: ObservableObject {
         Task { await auth.signInWithApple() }
     }
 
-    func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        Task { await auth.handleAppleSignIn(result: result) }
-    }
-
     func prepareAppleNonce() -> String {
         auth.prepareAppleNonce()
     }

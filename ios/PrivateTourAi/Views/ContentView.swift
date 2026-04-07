@@ -188,28 +188,16 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 30)
 
-                            // Apple Sign-In — native SwiftUI button, no nonce for testing
-                            SignInWithAppleButton(.signIn) { request in
-                                request.requestedScopes = [.fullName, .email]
-                                // No nonce — test if Apple's error is nonce-related
-                            } onCompletion: { result in
-                                switch result {
-                                case .success(let auth):
-                                    if let cred = auth.credential as? ASAuthorizationAppleIDCredential,
-                                       let tokenData = cred.identityToken,
-                                       let token = String(data: tokenData, encoding: .utf8) {
-                                        authVM.authError = "Apple token received! (\(token.count) chars). Firebase exchange next..."
-                                        // For now just confirm Apple works
-                                        // TODO: Exchange with Firebase using nonce
-                                    }
-                                case .failure(let error):
-                                    let nsErr = error as NSError
-                                    authVM.authError = "Apple error \(nsErr.code): \(nsErr.domain) — \(error.localizedDescription)"
+                            // Apple Sign-In (Shelly-proven pattern: callback delegate)
+                            Button { authVM.signInWithApple() } label: {
+                                HStack {
+                                    Image(systemName: "apple.logo").font(.title3)
+                                    Text("Sign in with Apple").fontWeight(.semibold)
                                 }
+                                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                                .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                                .foregroundStyle(.black)
                             }
-                            .signInWithAppleButtonStyle(.white)
-                            .frame(height: 54)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
                             .padding(.horizontal, 30)
 
                             // Google Sign-In (gold button)

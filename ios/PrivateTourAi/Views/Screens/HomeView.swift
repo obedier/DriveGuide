@@ -38,14 +38,12 @@ struct HomeView: View {
                 SearchCard()
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
+                    .disabled(tourVM.isGenerating)
+                    .opacity(tourVM.isGenerating ? 0.4 : 1)
 
                 Spacer()
 
-                // Generation loading
-                if tourVM.isGenerating {
-                    GenerationView(progress: tourVM.generationProgress)
-                        .transition(.opacity)
-                } else if let preview = tourVM.currentPreview {
+                if let preview = tourVM.currentPreview, !tourVM.isGenerating {
                     PreviewCard(preview: preview) { tourVM.showTourDetail = true }
                         .padding(.horizontal, 16)
                         .transition(.move(edge: .bottom))
@@ -67,6 +65,14 @@ struct HomeView: View {
                         .foregroundStyle(.brandGold.opacity(0.5))
                         .padding(.bottom, 8)
                 }
+            }
+        }
+        // Full-screen generation overlay
+        .overlay {
+            if tourVM.isGenerating {
+                GenerationView(progress: tourVM.generationProgress)
+                    .transition(.opacity)
+                    .ignoresSafeArea()
             }
         }
         .sheet(isPresented: $tourVM.showTourDetail) {
