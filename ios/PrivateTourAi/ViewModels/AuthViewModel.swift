@@ -11,24 +11,41 @@ class AuthViewModel: ObservableObject {
     @Published var emailText = ""
     @Published var passwordText = ""
 
-    var isAuthenticated: Bool { auth.isAuthenticated }
-    var displayName: String? { auth.displayName }
-    var email: String? { auth.email }
-    var photoURL: URL? { auth.photoURL }
-    var isLoading: Bool { auth.isLoading }
-    var error: String? { auth.error }
+    // Mirror auth state as @Published so SwiftUI re-renders
+    @Published var isAuthenticated = false
+    @Published var displayName: String?
+    @Published var email: String?
+    @Published var photoURL: URL?
+    @Published var isLoading = false
+    @Published var authError: String?
+
     var tier: SubscriptionService.SubscriptionTier { subscription.tier }
 
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
-        // Configure subscription service when auth state changes
-        auth.$isAuthenticated.receive(on: RunLoop.main).sink { [weak self] isAuth in
-            if isAuth {
+        // Sync all auth state changes to our @Published properties
+        auth.$isAuthenticated.receive(on: RunLoop.main).sink { [weak self] val in
+            self?.isAuthenticated = val
+            if val {
                 self?.subscription.configure(userId: self?.auth.uid)
             }
         }.store(in: &cancellables)
-    }
 
-    private var cancellables = Set<AnyCancellable>()
+        auth.$user.receive(on: RunLoop.main).sink { [weak self] user in
+            self?.displayName = user?.displayName
+            self?.email = user?.email
+            self?.photoURL = user?.photoURL
+        }.store(in: &cancellables)
+
+        auth.$isLoading.receive(on: RunLoop.main).sink { [weak self] val in
+            self?.isLoading = val
+        }.store(in: &cancellables)
+
+        auth.$error.receive(on: RunLoop.main).sink { [weak self] val in
+            self?.authError = val
+        }.store(in: &cancellables)
+    }
 
     func signInWithGoogle() {
         Task { await auth.signInWithGoogle() }
@@ -44,7 +61,7 @@ class AuthViewModel: ObservableObject {
 
     func signInWithEmail() {
         guard !emailText.isEmpty, !passwordText.isEmpty else {
-            auth.error = "Please enter email and password"
+            authError = "Please enter email and password"
             return
         }
         Task { await auth.signInWithEmail(email: emailText, password: passwordText) }

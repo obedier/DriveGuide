@@ -246,7 +246,7 @@ struct ProfileView: View {
                         }
                     }
 
-                    if let error = authVM.error {
+                    if let error = authVM.authError {
                         Section {
                             Text(error)
                                 .font(.caption)
