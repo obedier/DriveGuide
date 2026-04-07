@@ -14,6 +14,7 @@ class AuthService: ObservableObject {
 
     private var currentNonce: String?
     private var appleSignInDelegate: AppleSignInDelegate?
+    private var appleAuthController: ASAuthorizationController?  // MUST retain
 
     static let shared = AuthService()
 
@@ -107,6 +108,7 @@ class AuthService: ObservableObject {
                 }
                 self.isLoading = false
                 self.appleSignInDelegate = nil
+                self.appleAuthController = nil
             }
         }
 
@@ -122,12 +124,14 @@ class AuthService: ObservableObject {
                 }
                 self.isLoading = false
                 self.appleSignInDelegate = nil
+                self.appleAuthController = nil
             }
         }
 
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = delegate
         controller.presentationContextProvider = delegate
+        self.appleAuthController = controller  // retain controller during auth flow
         controller.performRequests()
     }
 
