@@ -188,13 +188,24 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 30)
 
-                            // Apple Sign-In — use native SwiftUI button
+                            // Apple Sign-In — native SwiftUI button, no nonce for testing
                             SignInWithAppleButton(.signIn) { request in
-                                let nonce = authVM.prepareAppleNonce()
                                 request.requestedScopes = [.fullName, .email]
-                                request.nonce = nonce
+                                // No nonce — test if Apple's error is nonce-related
                             } onCompletion: { result in
-                                authVM.handleAppleSignIn(result)
+                                switch result {
+                                case .success(let auth):
+                                    if let cred = auth.credential as? ASAuthorizationAppleIDCredential,
+                                       let tokenData = cred.identityToken,
+                                       let token = String(data: tokenData, encoding: .utf8) {
+                                        authVM.authError = "Apple token received! (\(token.count) chars). Firebase exchange next..."
+                                        // For now just confirm Apple works
+                                        // TODO: Exchange with Firebase using nonce
+                                    }
+                                case .failure(let error):
+                                    let nsErr = error as NSError
+                                    authVM.authError = "Apple error \(nsErr.code): \(nsErr.domain) — \(error.localizedDescription)"
+                                }
                             }
                             .signInWithAppleButtonStyle(.white)
                             .frame(height: 54)
