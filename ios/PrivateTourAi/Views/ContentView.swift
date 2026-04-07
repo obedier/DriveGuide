@@ -216,14 +216,17 @@ struct ProfileView: View {
                         }
 
                         // Apple Sign-In
-                        SignInWithAppleButton(.signIn) { request in
-                            let nonce = authVM.prepareAppleNonce()
-                            request.requestedScopes = [.email, .fullName]
-                            request.nonce = nonce
-                        } onCompletion: { result in
-                            authVM.handleAppleSignIn(result)
+                        Button {
+                            authVM.signInWithApple()
+                        } label: {
+                            HStack {
+                                Image(systemName: "apple.logo")
+                                    .font(.title2)
+                                Text("Continue with Apple")
+                                    .fontWeight(.medium)
+                                Spacer()
+                            }
                         }
-                        .frame(height: 44)
 
                         // Email sign-in
                         VStack(spacing: 10) {

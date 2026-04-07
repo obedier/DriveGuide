@@ -82,7 +82,66 @@ class AuthService: ObservableObject {
         isLoading = false
     }
 
-    // MARK: - Apple Sign-In
+    // MARK: - Apple Sign-In (direct provider)
+
+    func signInWithApple() async {
+        isLoading = true
+        error = nil
+
+        let nonce = randomNonceString()
+        currentNonce = nonce
+        let hashedNonce = sha256(nonce)
+
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.email, .fullName]
+        request.nonce = hashedNonce
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            error = "Cannot present Apple Sign-In"
+            isLoading = false
+            return
+        }
+
+        let delegate = AppleSignInDelegate()
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = delegate
+        controller.presentationContextProvider = delegate
+        delegate.window = window
+
+        do {
+            let authorization = try await delegate.performRequest(controller: controller)
+
+            guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = appleCredential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8) else {
+                error = "Apple Sign-In: missing credentials"
+                isLoading = false
+                return
+            }
+
+            print("[Auth] Apple token received, exchanging with Firebase...")
+            let credential = OAuthProvider.appleCredential(
+                withIDToken: idToken,
+                rawNonce: nonce,
+                fullName: appleCredential.fullName
+            )
+
+            let result = try await Auth.auth().signIn(with: credential)
+            print("[Auth] Firebase Apple auth success: \(result.user.uid)")
+        } catch {
+            let nsError = error as NSError
+            if nsError.code == ASAuthorizationError.canceled.rawValue {
+                print("[Auth] Apple Sign-In cancelled")
+            } else {
+                print("[Auth] Apple Sign-In error: code=\(nsError.code) \(error.localizedDescription)")
+                self.error = "Apple error (\(nsError.code)): \(error.localizedDescription)"
+            }
+        }
+
+        isLoading = false
+    }
 
     func handleAppleSignIn(result: Result<ASAuthorization, Error>) async {
         isLoading = true
@@ -193,5 +252,33 @@ class AuthService: ObservableObject {
         let data = Data(input.utf8)
         let hash = SHA256.hash(data: data)
         return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - Apple Sign-In Delegate (async/await bridge)
+
+class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    var window: UIWindow?
+    private var continuation: CheckedContinuation<ASAuthorization, Error>?
+
+    func performRequest(controller: ASAuthorizationController) async throws -> ASAuthorization {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            controller.performRequests()
+        }
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        window ?? UIWindow()
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        continuation?.resume(returning: authorization)
+        continuation = nil
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
     }
 }
