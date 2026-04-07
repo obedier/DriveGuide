@@ -13,6 +13,7 @@
 		2F6E7CC4A2FF0CFC7CD5D572 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2BC91D15FECC9455D70707D4 /* GoogleSignInSwift */; };
 		365120514144FD8A2B04896D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F28C24AC9A315045CC366A /* HomeView.swift */; };
 		6427A03EBCA43DDEAEE31F78 /* TourDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF92431644817B1F6F91434 /* TourDetailView.swift */; };
+		69DA4C0510FDA26623196DAD /* Subscriptions.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */; };
 		75891FA2AE6413463F27F172 /* NauticalChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35E939946D3F8A4C2D84979C /* NauticalChartView.swift */; };
 		836E0EED642536A651E8480F /* PrivateTourAiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414312265E15A0CD338495C4 /* PrivateTourAiApp.swift */; };
 		8498D763CECD6C9EFD2C2BDE /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 363B65321161E1A7AC647395 /* GoogleSignIn */; };
@@ -45,6 +46,7 @@
 		BD6128A58318C0CE71094662 /* TourPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourPlaybackService.swift; sourceTree = "<group>"; };
 		D687DD10B485A411FD6B132A /* sample-boat-tour.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "sample-boat-tour.json"; sourceTree = "<group>"; };
 		DB8F1DBFCDFDD30850833B75 /* Tour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tour.swift; sourceTree = "<group>"; };
+		DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */ = {isa = PBXFileReference; path = Subscriptions.storekit; sourceTree = "<group>"; };
 		E1CEB0F53140D452C3D85619 /* PrivateTourAi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PrivateTourAi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1F28C24AC9A315045CC366A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FACCCB4168F3D367CC03ADAE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 				5EE53B4E22DD36907191343D /* Assets.xcassets */,
 				561F7E4397844F57AADE7647 /* GoogleService-Info.plist */,
 				D687DD10B485A411FD6B132A /* sample-boat-tour.json */,
+				DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -241,6 +244,7 @@
 			files = (
 				84BB5E2D18D63FCB24B3A601 /* Assets.xcassets in Resources */,
 				17AEEBB6C147D8A931EC8AF0 /* GoogleService-Info.plist in Resources */,
+				69DA4C0510FDA26623196DAD /* Subscriptions.storekit in Resources */,
 				9EEF7F2A3F01054362D6B0AA /* sample-boat-tour.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -339,6 +343,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
 				INFOPLIST_KEY_CFBundleDisplayName = Roamly;
+				INFOPLIST_KEY_CFBundleURLTypes = "[{CFBundleURLSchemes = [com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r];}]";
+				INFOPLIST_KEY_GIDClientID = "801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Roamly needs continuous location access to trigger audio narration as you drive through your tour route.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Roamly needs your location to provide GPS-triggered narration during tours.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -365,6 +371,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
 				INFOPLIST_KEY_CFBundleDisplayName = Roamly;
+				INFOPLIST_KEY_CFBundleURLTypes = "[{CFBundleURLSchemes = [com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r];}]";
+				INFOPLIST_KEY_GIDClientID = "801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Roamly needs continuous location access to trigger audio narration as you drive through your tour route.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Roamly needs your location to provide GPS-triggered narration during tours.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

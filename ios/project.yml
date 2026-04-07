@@ -54,5 +54,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_GIDClientID: "801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com"
+        INFOPLIST_KEY_CFBundleURLTypes: "[{CFBundleURLSchemes = [com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r];}]"
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Roamly needs your location to provide GPS-triggered narration during tours."
         INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Roamly needs continuous location access to trigger audio narration as you drive through your tour route."

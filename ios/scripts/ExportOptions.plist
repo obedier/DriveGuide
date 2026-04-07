@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- "app-store-connect" for TestFlight / App Store upload -->
+    <key>method</key>
+    <string>app-store-connect</string>
+
+    <key>teamID</key>
+    <string>U3972W2GDJ</string>
+
+    <!-- Set to true to upload directly during xcodebuild -exportArchive -->
+    <!-- Set to false if you want to upload manually with altool/notarytool -->
+    <key>uploadBitcode</key>
+    <false/>
+
+    <key>uploadSymbols</key>
+    <true/>
+
+    <!-- Let Xcode manage signing automatically -->
+    <key>signingStyle</key>
+    <string>automatic</string>
+
+    <!-- Strip Swift symbols to reduce binary size -->
+    <key>stripSwiftSymbols</key>
+    <true/>
+
+    <!-- Destination: upload straight to App Store Connect -->
+    <key>destination</key>
+    <string>upload</string>
+</dict>
+</plist>

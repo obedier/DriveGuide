@@ -1,0 +1,108 @@
+{
+  "identifier" : "6C3A4B2E-1234-5678-9ABC-DEF012345678",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "com.privatetourai.app",
+    "_developerTeamID" : "U3972W2GDJ",
+    "_lastSynchronizedDate" : 745689600
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "roamly_premium",
+      "localizations" : [
+        {
+          "description" : "Unlimited AI-guided tours with audio narration",
+          "displayName" : "Roamly Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Roamly Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "7.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "weekly_premium",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited tours, renewed weekly",
+              "displayName" : "Weekly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.privatetourai.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "Weekly Premium",
+          "subscriptionGroupID" : "roamly_premium",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "14.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "monthly_premium",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited tours, renewed monthly",
+              "displayName" : "Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.privatetourai.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Premium",
+          "subscriptionGroupID" : "roamly_premium",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "79.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "annual_premium",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited tours — best value at $6.67/mo",
+              "displayName" : "Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.privatetourai.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Annual Premium — Best Value",
+          "subscriptionGroupID" : "roamly_premium",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
