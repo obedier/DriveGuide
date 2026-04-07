@@ -72,39 +72,56 @@ class AuthService: ObservableObject {
 
         let nonce = randomNonceString()
         currentNonce = nonce
+        let hashedNonce = sha256(nonce)
 
-        let provider = ASAuthorizationAppleIDProvider()
-        let request = provider.createRequest()
-        request.requestedScopes = [.fullName, .email]
-        request.nonce = sha256(nonce)
+        // Create BOTH requests — new sign-up AND existing account
+        // This handles the case where Apple ID was previously associated
+        let appleIDProvider = ASAuthorizationAppleIDProvider()
+        let appleIDRequest = appleIDProvider.createRequest()
+        appleIDRequest.requestedScopes = [.fullName, .email]
+        appleIDRequest.nonce = hashedNonce
+
+        // Also check for existing Apple Sign-In credentials (iCloud Keychain)
+        let passwordRequest = ASAuthorizationPasswordProvider().createRequest()
 
         let delegate = AppleSignInDelegate()
-        appleSignInDelegate = delegate // retain strongly
+        appleSignInDelegate = delegate
 
         delegate.onSuccess = { [weak self] credential in
             guard let self else { return }
-            guard let tokenData = credential.identityToken,
-                  let idToken = String(data: tokenData, encoding: .utf8),
-                  let nonce = self.currentNonce else {
-                Task { @MainActor in
-                    self.error = "Apple: missing credentials"
-                    self.isLoading = false
-                }
-                return
-            }
-
             Task { @MainActor in
-                do {
-                    let firebaseCred = OAuthProvider.appleCredential(
-                        withIDToken: idToken,
-                        rawNonce: nonce,
-                        fullName: credential.fullName
-                    )
-                    let result = try await Auth.auth().signIn(with: firebaseCred)
-                    print("[Auth] Apple+Firebase success: \(result.user.uid)")
-                } catch {
-                    print("[Auth] Firebase error after Apple: \(error)")
-                    self.error = "Firebase: \(error.localizedDescription)"
+                // Handle both Apple ID credential and password credential
+                if let appleCredential = credential as? ASAuthorizationAppleIDCredential {
+                    guard let tokenData = appleCredential.identityToken,
+                          let idToken = String(data: tokenData, encoding: .utf8) else {
+                        self.error = "Apple Sign-In: missing token"
+                        self.isLoading = false
+                        return
+                    }
+
+                    do {
+                        let firebaseCred = OAuthProvider.appleCredential(
+                            withIDToken: idToken,
+                            rawNonce: nonce,
+                            fullName: appleCredential.fullName
+                        )
+                        let result = try await Auth.auth().signIn(with: firebaseCred)
+                        print("[Auth] Apple+Firebase success: \(result.user.uid)")
+                        self.error = nil
+                    } catch {
+                        self.error = "Firebase: \(error.localizedDescription)"
+                    }
+                } else if let passwordCredential = credential as? ASPasswordCredential {
+                    // User selected a saved password from iCloud Keychain
+                    do {
+                        try await Auth.auth().signIn(
+                            withEmail: passwordCredential.user,
+                            password: passwordCredential.password
+                        )
+                        self.error = nil
+                    } catch {
+                        self.error = "Sign-in: \(error.localizedDescription)"
+                    }
                 }
                 self.isLoading = false
                 self.appleSignInDelegate = nil
@@ -117,10 +134,14 @@ class AuthService: ObservableObject {
             Task { @MainActor in
                 let nsErr = error as NSError
                 if nsErr.code == ASAuthorizationError.canceled.rawValue {
-                    // User cancelled — not an error
+                    // User cancelled
+                } else if nsErr.code == ASAuthorizationError.unknown.rawValue {
+                    // Error 1000 — try with ONLY Apple ID request (no password provider)
+                    self.error = "Retrying without password provider..."
+                    self.retryAppleSignInSimple(nonce: nonce, hashedNonce: hashedNonce)
+                    return
                 } else {
-                    print("[Auth] Apple error: \(nsErr.domain) code=\(nsErr.code)")
-                    self.error = "Apple error \(nsErr.code): \(nsErr.domain) — \(error.localizedDescription)"
+                    self.error = "Apple error \(nsErr.code): \(error.localizedDescription)"
                 }
                 self.isLoading = false
                 self.appleSignInDelegate = nil
@@ -128,10 +149,56 @@ class AuthService: ObservableObject {
             }
         }
 
+        // Use both Apple ID and password requests
+        let controller = ASAuthorizationController(authorizationRequests: [appleIDRequest, passwordRequest])
+        controller.delegate = delegate
+        controller.presentationContextProvider = delegate
+        self.appleAuthController = controller
+        controller.performRequests()
+    }
+
+    // Retry with ONLY Apple ID request (no password provider fallback)
+    private func retryAppleSignInSimple(nonce: String, hashedNonce: String) {
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = hashedNonce
+
+        let delegate = AppleSignInDelegate()
+        appleSignInDelegate = delegate
+
+        delegate.onSuccess = { [weak self] credential in
+            guard let self,
+                  let appleCredential = credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = appleCredential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8) else { return }
+            Task { @MainActor in
+                do {
+                    let cred = OAuthProvider.appleCredential(withIDToken: idToken, rawNonce: nonce, fullName: appleCredential.fullName)
+                    try await Auth.auth().signIn(with: cred)
+                    self.error = nil
+                } catch { self.error = "Firebase: \(error.localizedDescription)" }
+                self.isLoading = false
+                self.appleSignInDelegate = nil
+                self.appleAuthController = nil
+            }
+        }
+        delegate.onError = { [weak self] error in
+            Task { @MainActor in
+                let e = error as NSError
+                if e.code != ASAuthorizationError.canceled.rawValue {
+                    self?.error = "Apple error \(e.code): \(error.localizedDescription)"
+                }
+                self?.isLoading = false
+                self?.appleSignInDelegate = nil
+                self?.appleAuthController = nil
+            }
+        }
+
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = delegate
         controller.presentationContextProvider = delegate
-        self.appleAuthController = controller  // retain controller during auth flow
+        self.appleAuthController = controller
         controller.performRequests()
     }
 
@@ -197,12 +264,11 @@ class AuthService: ObservableObject {
 // MARK: - Apple Sign-In Delegate (NOT @MainActor — matches Shelly's working pattern)
 
 final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    var onSuccess: ((ASAuthorizationAppleIDCredential) -> Void)?
+    var onSuccess: ((ASAuthorizationCredential) -> Void)?
     var onError: ((Error) -> Void)?
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
-        onSuccess?(credential)
+        onSuccess?(authorization.credential)
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
