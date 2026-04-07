@@ -106,15 +106,20 @@ class AuthService: ObservableObject {
         }
 
         let delegate = AppleSignInDelegate()
-        self.appleSignInDelegate = delegate  // retain
+        self.appleSignInDelegate = delegate
+        delegate.window = window
+
+        // Must create and configure controller on main thread
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = delegate
         controller.presentationContextProvider = delegate
-        delegate.window = window
+
+        print("[Auth] Apple: starting performRequests, window=\(window.frame), nonce=\(hashedNonce.prefix(8))...")
 
         do {
             let authorization = try await delegate.performRequest(controller: controller)
             self.appleSignInDelegate = nil
+            print("[Auth] Apple: authorization received, credential type=\(type(of: authorization.credential))")
 
             guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
                   let tokenData = appleCredential.identityToken,
@@ -224,6 +229,20 @@ class AuthService: ObservableObject {
         isLoading = false
     }
 
+    // MARK: - Password Reset
+
+    func resetPassword(email: String) async {
+        isLoading = true
+        error = nil
+        do {
+            try await Auth.auth().sendPasswordReset(withEmail: email)
+            error = "Password reset email sent to \(email). Check your inbox."
+        } catch {
+            self.error = "Reset failed: \(error.localizedDescription)"
+        }
+        isLoading = false
+    }
+
     // MARK: - Sign Out
 
     func signOut() {
@@ -265,9 +284,11 @@ class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthor
     var window: UIWindow?
     private var continuation: CheckedContinuation<ASAuthorization, Error>?
 
+    @MainActor
     func performRequest(controller: ASAuthorizationController) async throws -> ASAuthorization {
         try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
+            // Must be called on main thread
             controller.performRequests()
         }
     }

@@ -71,6 +71,14 @@ class AuthViewModel: ObservableObject {
         Task { await auth.signInWithEmail(email: emailText, password: passwordText) }
     }
 
+    func resetPassword() {
+        guard !emailText.isEmpty else {
+            authError = "Enter your email first, then tap Forgot Password"
+            return
+        }
+        Task { await auth.resetPassword(email: emailText) }
+    }
+
     func signOut() {
         auth.signOut()
     }

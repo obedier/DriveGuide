@@ -218,28 +218,48 @@ struct ProfileView: View {
                             }
                             .padding(.horizontal, 30)
 
-                            // Email
-                            VStack(spacing: 10) {
-                                TextField("Email", text: $authVM.emailText)
+                            // Email/Password
+                            VStack(spacing: 12) {
+                                TextField("Email", text: $authVM.emailText, prompt: Text("Email").foregroundStyle(.white.opacity(0.4)))
                                     .textContentType(.emailAddress).keyboardType(.emailAddress)
                                     .autocapitalization(.none)
-                                    .padding(12).background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                                    .padding(14)
+                                    .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
                                     .foregroundStyle(.white)
-                                SecureField("Password", text: $authVM.passwordText)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brandGold.opacity(0.3), lineWidth: 1))
+
+                                SecureField("Password", text: $authVM.passwordText, prompt: Text("Password").foregroundStyle(.white.opacity(0.4)))
                                     .textContentType(.password)
-                                    .padding(12).background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                                    .padding(14)
+                                    .background(Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
                                     .foregroundStyle(.white)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brandGold.opacity(0.3), lineWidth: 1))
+
                                 Button { authVM.signInWithEmail() } label: {
-                                    Text("Sign In with Email").fontWeight(.medium)
-                                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                    Text("Sign In with Email").fontWeight(.semibold)
+                                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                                        .background(Color.brandGold.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+                                        .foregroundStyle(.brandGold)
+                                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brandGold.opacity(0.5), lineWidth: 1))
                                 }
-                                .buttonStyle(.bordered).tint(.brandGold)
                                 .disabled(authVM.emailText.isEmpty || authVM.passwordText.isEmpty)
+
+                                // Forgot password
+                                Button {
+                                    authVM.resetPassword()
+                                } label: {
+                                    Text("Forgot Password?")
+                                        .font(.caption)
+                                        .foregroundStyle(.brandGold.opacity(0.7))
+                                }
                             }
                             .padding(.horizontal, 30).padding(.top, 10)
 
                             if let error = authVM.authError {
-                                Text(error).font(.caption).foregroundStyle(.red)
+                                Text(error)
+                                    .font(.caption).foregroundStyle(.red)
+                                    .padding(10)
+                                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                                     .padding(.horizontal, 30)
                             }
                         }
