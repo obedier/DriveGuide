@@ -34,12 +34,24 @@ final class APIClient: Sendable {
 
     func verifyLocation(_ location: String) async throws -> VerifiedLocation {
         struct VerifyRequest: Encodable { let location: String }
-        let response: VerifyLocationResponse = try await post(
-            "/tours/verify-location",
-            body: VerifyRequest(location: location),
-            timeout: shortTimeout
-        )
-        return response.location
+        // Auto-retry once on failure (handles cold start timeouts)
+        do {
+            let response: VerifyLocationResponse = try await post(
+                "/tours/verify-location",
+                body: VerifyRequest(location: location),
+                timeout: 20 // increased from 15s for cold starts
+            )
+            return response.location
+        } catch {
+            // Retry once after 1 second
+            try? await Task.sleep(for: .seconds(1))
+            let response: VerifyLocationResponse = try await post(
+                "/tours/verify-location",
+                body: VerifyRequest(location: location),
+                timeout: 20
+            )
+            return response.location
+        }
     }
 
     // MARK: - Tour Generation

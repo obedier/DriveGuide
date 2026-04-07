@@ -182,9 +182,12 @@ struct SearchCard: View {
                     }
                     .onChange(of: tourVM.searchText) { _, newValue in
                         debounceTask?.cancel()
-                        if newValue.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 {
+                        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        // Need at least 5 chars to avoid partial geocoding ("New to" instead of "New York")
+                        if trimmed.count >= 5 {
                             debounceTask = Task {
-                                try? await Task.sleep(for: .seconds(1.0))
+                                // Wait 2 seconds after last keystroke to ensure user finished typing
+                                try? await Task.sleep(for: .seconds(2.0))
                                 if !Task.isCancelled { await tourVM.verifyLocation() }
                             }
                         }
