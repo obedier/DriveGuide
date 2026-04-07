@@ -154,6 +154,7 @@ class AuthService: ObservableObject {
         controller.delegate = delegate
         controller.presentationContextProvider = delegate
         self.appleAuthController = controller
+
         controller.performRequests()
     }
 
