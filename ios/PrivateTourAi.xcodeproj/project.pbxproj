@@ -20,6 +20,7 @@
 		84BB5E2D18D63FCB24B3A601 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5EE53B4E22DD36907191343D /* Assets.xcassets */; };
 		876963824966574542FEE900 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F17E491EEA10D2EB5E20C0D /* AuthService.swift */; };
 		98F5B8991D06E26DB5604756 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 0D09726F03F0769986E69145 /* FirebaseAuth */; };
+		9D3FBA79B7EA1465F818589A /* BrandColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB0E93F968CB3C49A6F8FA4 /* BrandColors.swift */; };
 		9EEF7F2A3F01054362D6B0AA /* sample-boat-tour.json in Resources */ = {isa = PBXBuildFile; fileRef = D687DD10B485A411FD6B132A /* sample-boat-tour.json */; };
 		A2DCEB62C06748C3C683E1BE /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BF289618C066BA9FD991E66 /* AuthViewModel.swift */; };
 		AEB13C671B4FE7D606A95B0D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACCCB4168F3D367CC03ADAE /* ContentView.swift */; };
@@ -53,6 +54,7 @@
 		E1F28C24AC9A315045CC366A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FACCCB4168F3D367CC03ADAE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		FB55EDC3CA9261C3996E3303 /* GuidedTourView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedTourView.swift; sourceTree = "<group>"; };
+		FCB0E93F968CB3C49A6F8FA4 /* BrandColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandColors.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,10 +153,19 @@
 				09BA984D96957E3C208B15D7 /* Models */,
 				25A1775080F5B9D34B2735FA /* Resources */,
 				DC6B4BB903BC42FB8E4F7C5C /* Services */,
+				BE617BC8773485DCE8C2A6DF /* Utils */,
 				634D0EEFE2611DCAC02D2E3C /* ViewModels */,
 				72943EFF0140D39F706FEE51 /* Views */,
 			);
 			path = PrivateTourAi;
+			sourceTree = "<group>";
+		};
+		BE617BC8773485DCE8C2A6DF /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				FCB0E93F968CB3C49A6F8FA4 /* BrandColors.swift */,
+			);
+			path = Utils;
 			sourceTree = "<group>";
 		};
 		DC6B4BB903BC42FB8E4F7C5C /* Services */ = {
@@ -264,6 +275,7 @@
 				B36F0109EEDFB130FD2826B9 /* AudioPlayerService.swift in Sources */,
 				876963824966574542FEE900 /* AuthService.swift in Sources */,
 				A2DCEB62C06748C3C683E1BE /* AuthViewModel.swift in Sources */,
+				9D3FBA79B7EA1465F818589A /* BrandColors.swift in Sources */,
 				AEB13C671B4FE7D606A95B0D /* ContentView.swift in Sources */,
 				B02EF170436B52D58384EC15 /* GuidedTourView.swift in Sources */,
 				365120514144FD8A2B04896D /* HomeView.swift in Sources */,

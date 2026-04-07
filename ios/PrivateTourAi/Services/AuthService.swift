@@ -13,6 +13,7 @@ class AuthService: ObservableObject {
     @Published var error: String?
 
     private var currentNonce: String?
+    private var appleSignInDelegate: AppleSignInDelegate?  // retain during auth flow
 
     static let shared = AuthService()
 
@@ -105,6 +106,7 @@ class AuthService: ObservableObject {
         }
 
         let delegate = AppleSignInDelegate()
+        self.appleSignInDelegate = delegate  // retain
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = delegate
         controller.presentationContextProvider = delegate
@@ -112,6 +114,7 @@ class AuthService: ObservableObject {
 
         do {
             let authorization = try await delegate.performRequest(controller: controller)
+            self.appleSignInDelegate = nil
 
             guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
                   let tokenData = appleCredential.identityToken,
@@ -131,11 +134,12 @@ class AuthService: ObservableObject {
             let result = try await Auth.auth().signIn(with: credential)
             print("[Auth] Firebase Apple auth success: \(result.user.uid)")
         } catch {
+            self.appleSignInDelegate = nil
             let nsError = error as NSError
             if nsError.code == ASAuthorizationError.canceled.rawValue {
                 print("[Auth] Apple Sign-In cancelled")
             } else {
-                print("[Auth] Apple Sign-In error: code=\(nsError.code) \(error.localizedDescription)")
+                print("[Auth] Apple Sign-In error: code=\(nsError.code) domain=\(nsError.domain) \(error.localizedDescription)")
                 self.error = "Apple error (\(nsError.code)): \(error.localizedDescription)"
             }
         }

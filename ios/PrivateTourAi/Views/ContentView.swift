@@ -8,26 +8,22 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView()
-                .tabItem {
-                    Label("Explore", systemImage: "map.fill")
-                }
+                .tabItem { Label("Explore", systemImage: "safari.fill") }
                 .tag(0)
 
             LibraryView()
-                .tabItem {
-                    Label("Library", systemImage: "books.vertical.fill")
-                }
+                .tabItem { Label("Library", systemImage: "book.fill") }
                 .tag(1)
 
             ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.fill")
-                }
+                .tabItem { Label("Profile", systemImage: "person.fill") }
                 .tag(2)
         }
-        .tint(Color("AccentCoral"))
+        .tint(.brandGold)
     }
 }
+
+// MARK: - Library (Stitch design: dark green cards, gold text)
 
 struct LibraryView: View {
     @EnvironmentObject var tourVM: TourViewModel
@@ -35,230 +31,240 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                Color.brandDarkNavy.ignoresSafeArea()
+
                 if tourVM.savedTours.isEmpty {
                     VStack(spacing: 20) {
-                        Image(systemName: "books.vertical")
+                        Image(systemName: "safari")
                             .font(.system(size: 60))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.brandGold.opacity(0.3))
                         Text("No Saved Tours")
-                            .font(.title2.bold())
-                        Text("Tours you create will be saved here automatically")
-                            .foregroundStyle(.secondary)
+                            .font(.title2.bold()).foregroundStyle(.white)
+                        Text("Tours you create will appear here")
+                            .foregroundStyle(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
                     }
-                    .padding()
                 } else {
-                    List {
-                        ForEach(tourVM.savedTours) { tour in
-                            Button {
-                                tourVM.openSavedTour(tour)
-                                selectedTour = tour
-                            } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text(tour.title)
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
-                                        Spacer()
-                                        // Transport mode icon
-                                        Image(systemName: transportIcon(tour.transportMode ?? "car"))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Text(tour.locationQuery)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    HStack(spacing: 12) {
-                                        Label("\(tour.stops.count) stops", systemImage: "mappin.and.ellipse")
-                                        Label(formatDuration(tour.durationMinutes), systemImage: "clock")
-                                        if let km = tour.totalDistanceKm {
-                                            let isBoat = tour.transportMode == "boat"
-                                            let icon = transportIcon(tour.transportMode ?? "car")
-                                            if isBoat {
-                                                Label(String(format: "%.1f nm", km * 0.539957), systemImage: icon)
-                                            } else {
-                                                Label(String(format: "%.1f mi", km * 0.621371), systemImage: icon)
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(tourVM.savedTours) { tour in
+                                Button {
+                                    tourVM.openSavedTour(tour)
+                                    selectedTour = tour
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Text(tour.title)
+                                                .font(.headline).foregroundStyle(.brandGold)
+                                                .multilineTextAlignment(.leading)
+                                            Spacer()
+                                            Image(systemName: transportIcon(tour.transportMode ?? "car"))
+                                                .foregroundStyle(.brandGold.opacity(0.5))
+                                        }
+                                        Text(tour.locationQuery)
+                                            .font(.caption).foregroundStyle(.white.opacity(0.4))
+                                        HStack(spacing: 14) {
+                                            Label("\(tour.stops.count) Stops", systemImage: "mappin")
+                                            Label(formatDuration(tour.durationMinutes), systemImage: "clock")
+                                            if let km = tour.totalDistanceKm {
+                                                if tour.transportMode == "boat" {
+                                                    Label(String(format: "%.1f nm", km * 0.539957), systemImage: "ferry.fill")
+                                                } else {
+                                                    Label(String(format: "%.1f mi", km * 0.621371), systemImage: transportIcon(tour.transportMode ?? "car"))
+                                                }
                                             }
                                         }
+                                        .font(.caption2).foregroundStyle(.white.opacity(0.35))
                                     }
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .padding(16)
+                                    .background(Color.brandGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brandGold.opacity(0.1)))
                                 }
-                                .padding(.vertical, 4)
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) { tourVM.deleteSavedTour(tour) } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
-                        .onDelete { indexSet in
-                            for i in indexSet {
-                                tourVM.deleteSavedTour(tourVM.savedTours[i])
-                            }
-                        }
+                        .padding(.horizontal, 16).padding(.top, 8)
                     }
-                    .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Library")
+            .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text("wAIpoint").font(.caption).foregroundStyle(.brandGold)
+                        Text("Tour Library").font(.headline.bold()).foregroundStyle(.white)
+                    }
+                }
+            }
+            .toolbarBackground(Color.brandDarkNavy, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .sheet(item: $selectedTour) { tour in
-                TourDetailView(tour: tour)
-                    .environmentObject(tourVM)
+                TourDetailView(tour: tour).environmentObject(tourVM)
             }
         }
     }
 
     func transportIcon(_ mode: String) -> String {
         switch mode {
-        case "walk": return "figure.walk"
-        case "bike": return "bicycle"
-        case "boat": return "ferry.fill"
-        case "plane": return "airplane"
+        case "walk": return "figure.walk"; case "bike": return "bicycle"
+        case "boat": return "ferry.fill"; case "plane": return "airplane"
         default: return "car.fill"
         }
     }
 }
 
+// MARK: - Profile (Stitch design: navy bg, gold buttons, tier badge)
+
 struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
-    @State private var showSignIn = false
 
     var body: some View {
         NavigationStack {
-            List {
-                if authVM.isAuthenticated {
-                    // Profile section
-                    Section {
-                        HStack(spacing: 14) {
-                            if let url = authVM.photoURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().aspectRatio(contentMode: .fill)
-                                } placeholder: {
+            ZStack {
+                Color.brandDarkNavy.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        if authVM.isAuthenticated {
+                            // Profile header
+                            HStack(spacing: 14) {
+                                if let url = authVM.photoURL {
+                                    AsyncImage(url: url) { image in
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Image(systemName: "person.circle.fill")
+                                            .font(.system(size: 50)).foregroundStyle(.brandGold)
+                                    }
+                                    .frame(width: 56, height: 56).clipShape(Circle())
+                                } else {
                                     Image(systemName: "person.circle.fill")
-                                        .font(.system(size: 50))
-                                        .foregroundStyle(.secondary)
+                                        .font(.system(size: 50)).foregroundStyle(.brandGold)
                                 }
-                                .frame(width: 56, height: 56)
-                                .clipShape(Circle())
-                            } else {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 50))
-                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(authVM.displayName ?? "Explorer")
+                                        .font(.title3.bold()).foregroundStyle(.white)
+                                    if let email = authVM.email {
+                                        Text(email).font(.caption).foregroundStyle(.white.opacity(0.4))
+                                    }
+                                }
+                                Spacer()
+                                // Tier badge
+                                Text(authVM.tier.rawValue.capitalized)
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(Color.brandGold, in: Capsule())
+                                    .foregroundStyle(.brandNavy)
                             }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(authVM.displayName ?? "User")
-                                    .font(.headline)
-                                if let email = authVM.email {
-                                    Text(email)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                            .padding(20)
+
+                            // Menu items
+                            VStack(spacing: 0) {
+                                ProfileMenuItem(icon: "bell.fill", title: "Notifications")
+                                ProfileMenuItem(icon: "questionmark.circle", title: "Help & Support")
+                                Button { authVM.signOut() } label: {
+                                    ProfileMenuItem(icon: "arrow.right.square", title: "Sign Out")
                                 }
                             }
-                        }
-                    }
+                            .background(Color.brandNavy.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
+                            .padding(.horizontal, 20)
 
-                    // Subscription section
-                    Section("Subscription") {
-                        HStack {
-                            Text("Plan")
-                            Spacer()
-                            Text(authVM.tier.rawValue.capitalized)
-                                .foregroundStyle(Color("AccentCoral"))
-                                .fontWeight(.semibold)
-                        }
-                        if !authVM.subscription.tier.isUnlimited {
-                            Button("Upgrade to Premium") {
-                                // TODO: Show paywall
+                        } else {
+                            // Sign-in view
+                            VStack(spacing: 20) {
+                                Image(systemName: "safari.fill")
+                                    .font(.system(size: 60)).foregroundStyle(.brandGold)
+                                    .padding(.top, 40)
+                                Text("Welcome to wAIpoint")
+                                    .font(.title2.bold()).foregroundStyle(.white)
+                                Text("Sign in to save tours, sync across devices, and unlock premium features")
+                                    .font(.subheadline).foregroundStyle(.white.opacity(0.5))
+                                    .multilineTextAlignment(.center).padding(.horizontal, 30)
                             }
-                            .foregroundStyle(Color("AccentCoral"))
-                        }
-                        Button("Restore Purchases") {
-                            Task { await authVM.subscription.restorePurchases() }
-                        }
-                    }
+                            .padding(.bottom, 30)
 
-                    // Account section
-                    Section("Account") {
-                        Button("Sign Out", role: .destructive) {
-                            authVM.signOut()
-                        }
-                        Button("Delete Account", role: .destructive) {
-                            authVM.deleteAccount()
-                        }
-                    }
-                } else {
-                    // Sign-in section
-                    Section {
-                        VStack(spacing: 16) {
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundStyle(.secondary)
-                            Text("Sign in to Roamly")
-                                .font(.title2.bold())
-                            Text("Save tours, sync across devices, and unlock premium features")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                    }
-
-                    Section {
-                        // Google Sign-In
-                        Button {
-                            authVM.signInWithGoogle()
-                        } label: {
-                            HStack {
-                                Image(systemName: "g.circle.fill")
-                                    .font(.title2)
-                                Text("Continue with Google")
-                                    .fontWeight(.medium)
-                                Spacer()
+                            // Apple Sign-In (gold button)
+                            Button { authVM.signInWithApple() } label: {
+                                HStack {
+                                    Image(systemName: "apple.logo").font(.title3)
+                                    Text("Sign in with Apple").fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                                .background(
+                                    LinearGradient(colors: [Color.brandGold, Color.brandGold.opacity(0.8)], startPoint: .leading, endPoint: .trailing),
+                                    in: RoundedRectangle(cornerRadius: 14)
+                                )
+                                .foregroundStyle(.brandNavy)
                             }
-                        }
+                            .padding(.horizontal, 30)
 
-                        // Apple Sign-In
-                        Button {
-                            authVM.signInWithApple()
-                        } label: {
-                            HStack {
-                                Image(systemName: "apple.logo")
-                                    .font(.title2)
-                                Text("Continue with Apple")
-                                    .fontWeight(.medium)
-                                Spacer()
+                            // Google Sign-In (gold button)
+                            Button { authVM.signInWithGoogle() } label: {
+                                HStack {
+                                    Text("G").font(.title2.bold())
+                                    Text("Sign in with Google").fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity).padding(.vertical, 16)
+                                .background(
+                                    LinearGradient(colors: [Color.brandGold.opacity(0.8), Color.brandGold.opacity(0.6)], startPoint: .leading, endPoint: .trailing),
+                                    in: RoundedRectangle(cornerRadius: 14)
+                                )
+                                .foregroundStyle(.brandNavy)
+                            }
+                            .padding(.horizontal, 30)
+
+                            // Email
+                            VStack(spacing: 10) {
+                                TextField("Email", text: $authVM.emailText)
+                                    .textContentType(.emailAddress).keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .padding(12).background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                                    .foregroundStyle(.white)
+                                SecureField("Password", text: $authVM.passwordText)
+                                    .textContentType(.password)
+                                    .padding(12).background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                                    .foregroundStyle(.white)
+                                Button { authVM.signInWithEmail() } label: {
+                                    Text("Sign In with Email").fontWeight(.medium)
+                                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                }
+                                .buttonStyle(.bordered).tint(.brandGold)
+                                .disabled(authVM.emailText.isEmpty || authVM.passwordText.isEmpty)
+                            }
+                            .padding(.horizontal, 30).padding(.top, 10)
+
+                            if let error = authVM.authError {
+                                Text(error).font(.caption).foregroundStyle(.red)
+                                    .padding(.horizontal, 30)
                             }
                         }
-
-                        // Email sign-in
-                        VStack(spacing: 10) {
-                            TextField("Email", text: $authVM.emailText)
-                                .textContentType(.emailAddress)
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                            SecureField("Password", text: $authVM.passwordText)
-                                .textContentType(.password)
-                            Button {
-                                authVM.signInWithEmail()
-                            } label: {
-                                Text("Sign In with Email")
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color("AccentCoral"))
-                            .disabled(authVM.emailText.isEmpty || authVM.passwordText.isEmpty)
-                        }
-                    }
-
-                    if let error = authVM.authError {
-                        Section {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
+                        Spacer()
                     }
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("")
+            .toolbarBackground(Color.brandDarkNavy, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
+    }
+}
+
+struct ProfileMenuItem: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon).foregroundStyle(.brandGold).frame(width: 24)
+            Text(title).foregroundStyle(.white)
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.white.opacity(0.3))
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
     }
 }
