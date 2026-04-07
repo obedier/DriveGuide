@@ -64,15 +64,19 @@ class AuthService: ObservableObject {
                 return
             }
 
+            print("[Auth] Google Sign-In succeeded, exchanging with Firebase...")
             let credential = GoogleAuthProvider.credential(
                 withIDToken: idToken,
                 accessToken: result.user.accessToken.tokenString
             )
-            try await Auth.auth().signIn(with: credential)
+            let authResult = try await Auth.auth().signIn(with: credential)
+            print("[Auth] Firebase auth succeeded: \(authResult.user.uid)")
+        } catch let signInError as GIDSignInError where signInError.code == .canceled {
+            // User cancelled — not an error
+            print("[Auth] Google Sign-In cancelled by user")
         } catch {
-            if (error as NSError).code != GIDSignInError.canceled.rawValue {
-                self.error = "Google Sign-In failed: \(error.localizedDescription)"
-            }
+            print("[Auth] Google Sign-In error: \(error)")
+            self.error = "Google Sign-In failed: \(error.localizedDescription)"
         }
 
         isLoading = false
@@ -91,28 +95,47 @@ class AuthService: ObservableObject {
                   let idToken = String(data: tokenData, encoding: .utf8),
                   let nonce = currentNonce else {
                 error = "Apple Sign-In: missing credentials"
+                print("[Auth] Apple: missing identityToken or nonce")
                 isLoading = false
                 return
             }
 
-            let credential = OAuthProvider.appleCredential(
-                withIDToken: idToken,
-                rawNonce: nonce,
-                fullName: appleCredential.fullName
+            print("[Auth] Apple Sign-In succeeded, exchanging with Firebase...")
+            print("[Auth] Apple nonce present: \(nonce.prefix(8))...")
+            print("[Auth] Apple idToken length: \(idToken.count)")
+
+            // Create Firebase credential from Apple token
+            let credential = OAuthProvider.credential(
+                providerID: AuthProviderID.apple,
+                idToken: idToken,
+                rawNonce: nonce
             )
 
             do {
-                try await Auth.auth().signIn(with: credential)
+                let authResult = try await Auth.auth().signIn(with: credential)
+                print("[Auth] Firebase auth succeeded via Apple: \(authResult.user.uid)")
+
+                // Update display name from Apple if available
+                if let fullName = appleCredential.fullName {
+                    let displayName = [fullName.givenName, fullName.familyName]
+                        .compactMap { $0 }
+                        .joined(separator: " ")
+                    if !displayName.isEmpty {
+                        let changeRequest = authResult.user.createProfileChangeRequest()
+                        changeRequest.displayName = displayName
+                        try? await changeRequest.commitChanges()
+                    }
+                }
             } catch {
+                print("[Auth] Firebase Apple auth error: \(error)")
                 self.error = "Apple Sign-In failed: \(error.localizedDescription)"
             }
 
         case .failure(let err):
             let nsError = err as NSError
+            print("[Auth] Apple Sign-In failure: code=\(nsError.code), \(err.localizedDescription)")
             if nsError.code == ASAuthorizationError.canceled.rawValue {
-                // User cancelled — not an error
-            } else if nsError.code == ASAuthorizationError.unknown.rawValue {
-                self.error = "Apple Sign-In requires the Sign in with Apple capability. Check Xcode → Signing & Capabilities."
+                // User cancelled
             } else {
                 self.error = "Apple Sign-In error: \(err.localizedDescription)"
             }
