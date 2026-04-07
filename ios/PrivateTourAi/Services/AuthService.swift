@@ -17,12 +17,15 @@ class AuthService: ObservableObject {
     static let shared = AuthService()
 
     init() {
-        // Configure Firebase
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
         }
 
-        // Listen for auth state changes
+        // Configure Google Sign-In with client ID from GoogleService-Info.plist
+        if let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
+
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 self?.user = user
@@ -36,8 +39,6 @@ class AuthService: ObservableObject {
     var photoURL: URL? { user?.photoURL }
     var uid: String? { user?.uid }
 
-    // MARK: - Get ID Token for API calls
-
     func getIdToken() async -> String? {
         try? await user?.getIDToken()
     }
@@ -50,7 +51,7 @@ class AuthService: ObservableObject {
 
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first?.rootViewController else {
-            error = "Cannot find root view controller"
+            error = "Cannot present sign-in screen"
             isLoading = false
             return
         }
@@ -58,7 +59,7 @@ class AuthService: ObservableObject {
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
             guard let idToken = result.user.idToken?.tokenString else {
-                error = "Missing Google ID token"
+                error = "Google Sign-In: missing ID token"
                 isLoading = false
                 return
             }
@@ -69,7 +70,9 @@ class AuthService: ObservableObject {
             )
             try await Auth.auth().signIn(with: credential)
         } catch {
-            self.error = error.localizedDescription
+            if (error as NSError).code != GIDSignInError.canceled.rawValue {
+                self.error = "Google Sign-In failed: \(error.localizedDescription)"
+            }
         }
 
         isLoading = false
@@ -87,7 +90,7 @@ class AuthService: ObservableObject {
                   let tokenData = appleCredential.identityToken,
                   let idToken = String(data: tokenData, encoding: .utf8),
                   let nonce = currentNonce else {
-                error = "Apple Sign-In failed: missing credentials"
+                error = "Apple Sign-In: missing credentials"
                 isLoading = false
                 return
             }
@@ -101,12 +104,17 @@ class AuthService: ObservableObject {
             do {
                 try await Auth.auth().signIn(with: credential)
             } catch {
-                self.error = error.localizedDescription
+                self.error = "Apple Sign-In failed: \(error.localizedDescription)"
             }
 
         case .failure(let err):
-            if (err as NSError).code != ASAuthorizationError.canceled.rawValue {
-                self.error = err.localizedDescription
+            let nsError = err as NSError
+            if nsError.code == ASAuthorizationError.canceled.rawValue {
+                // User cancelled — not an error
+            } else if nsError.code == ASAuthorizationError.unknown.rawValue {
+                self.error = "Apple Sign-In requires the Sign in with Apple capability. Check Xcode → Signing & Capabilities."
+            } else {
+                self.error = "Apple Sign-In error: \(err.localizedDescription)"
             }
         }
 
@@ -129,12 +137,13 @@ class AuthService: ObservableObject {
             try await Auth.auth().signIn(withEmail: email, password: password)
         } catch let authError as NSError {
             if authError.code == AuthErrorCode.userNotFound.rawValue {
-                // Auto-create account
                 do {
                     try await Auth.auth().createUser(withEmail: email, password: password)
                 } catch {
                     self.error = error.localizedDescription
                 }
+            } else if authError.code == AuthErrorCode.wrongPassword.rawValue {
+                self.error = "Incorrect password"
             } else {
                 self.error = authError.localizedDescription
             }
@@ -153,8 +162,6 @@ class AuthService: ObservableObject {
             self.error = error.localizedDescription
         }
     }
-
-    // MARK: - Delete Account
 
     func deleteAccount() async {
         do {

@@ -38,12 +38,14 @@
 		561F7E4397844F57AADE7647 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		5BF289618C066BA9FD991E66 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		5EE53B4E22DD36907191343D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		637F1B7F20ED7BDBEE1886EF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		70643C46BDF7965D9E22F5F8 /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
 		7DF92431644817B1F6F91434 /* TourDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourDetailView.swift; sourceTree = "<group>"; };
 		9F17E491EEA10D2EB5E20C0D /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		9FD05ED21238818CE3398F38 /* TourViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourViewModel.swift; sourceTree = "<group>"; };
 		A4FE2F6EA41713F701462CD9 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		BD6128A58318C0CE71094662 /* TourPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourPlaybackService.swift; sourceTree = "<group>"; };
+		D5757432CC31C1ED82A16E9D /* PrivateTourAi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PrivateTourAi.entitlements; sourceTree = "<group>"; };
 		D687DD10B485A411FD6B132A /* sample-boat-tour.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "sample-boat-tour.json"; sourceTree = "<group>"; };
 		DB8F1DBFCDFDD30850833B75 /* Tour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tour.swift; sourceTree = "<group>"; };
 		DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */ = {isa = PBXFileReference; path = Subscriptions.storekit; sourceTree = "<group>"; };
@@ -143,6 +145,8 @@
 		B22D99AAEBC25D331C0D5E73 /* PrivateTourAi */ = {
 			isa = PBXGroup;
 			children = (
+				637F1B7F20ED7BDBEE1886EF /* Info.plist */,
+				D5757432CC31C1ED82A16E9D /* PrivateTourAi.entitlements */,
 				01BEB04A8D8C4C30B97396F6 /* App */,
 				09BA984D96957E3C208B15D7 /* Models */,
 				25A1775080F5B9D34B2735FA /* Resources */,
@@ -338,20 +342,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_GENERATION_MODE = GeneratedFile;
-				INFOPLIST_KEY_CFBundleDisplayName = Roamly;
-				INFOPLIST_KEY_CFBundleURLTypes = "[{CFBundleURLSchemes = [com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r];}]";
-				INFOPLIST_KEY_GIDClientID = "801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Roamly needs continuous location access to trigger audio narration as you drive through your tour route.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Roamly needs your location to provide GPS-triggered narration during tours.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				CURRENT_PROJECT_VERSION = 2;
+				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -366,20 +360,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_GENERATION_MODE = GeneratedFile;
-				INFOPLIST_KEY_CFBundleDisplayName = Roamly;
-				INFOPLIST_KEY_CFBundleURLTypes = "[{CFBundleURLSchemes = [com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r];}]";
-				INFOPLIST_KEY_GIDClientID = "801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Roamly needs continuous location access to trigger audio narration as you drive through your tour route.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Roamly needs your location to provide GPS-triggered narration during tours.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				CURRENT_PROJECT_VERSION = 2;
+				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 @main
 struct PrivateTourAiApp: App {
@@ -7,7 +8,6 @@ struct PrivateTourAiApp: App {
     @StateObject private var authViewModel = AuthViewModel()
 
     init() {
-        // Firebase is configured in AuthService.shared.init()
         _ = AuthService.shared
     }
 
@@ -16,6 +16,9 @@ struct PrivateTourAiApp: App {
             ContentView()
                 .environmentObject(tourViewModel)
                 .environmentObject(authViewModel)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }
