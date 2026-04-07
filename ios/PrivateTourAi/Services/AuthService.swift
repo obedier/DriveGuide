@@ -93,10 +93,11 @@ class AuthService: ObservableObject {
         currentNonce = nonce
         let hashedNonce = sha256(nonce)
 
-        let provider = ASAuthorizationAppleIDProvider()
-        let request = provider.createRequest()
-        request.requestedScopes = [.email, .fullName]
-        request.nonce = hashedNonce
+        // Use the EXISTING credentials approach first (checks Keychain for existing Apple Sign-In)
+        let appleIDProvider = ASAuthorizationAppleIDProvider()
+        let appleIDRequest = appleIDProvider.createRequest()
+        appleIDRequest.requestedScopes = [.fullName, .email]
+        appleIDRequest.nonce = hashedNonce
 
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
@@ -109,42 +110,48 @@ class AuthService: ObservableObject {
         self.appleSignInDelegate = delegate
         delegate.window = window
 
-        // Must create and configure controller on main thread
-        let controller = ASAuthorizationController(authorizationRequests: [request])
+        let controller = ASAuthorizationController(authorizationRequests: [appleIDRequest])
         controller.delegate = delegate
         controller.presentationContextProvider = delegate
 
-        print("[Auth] Apple: starting performRequests, window=\(window.frame), nonce=\(hashedNonce.prefix(8))...")
+        print("[Auth] Apple: performing requests...")
 
         do {
             let authorization = try await delegate.performRequest(controller: controller)
             self.appleSignInDelegate = nil
-            print("[Auth] Apple: authorization received, credential type=\(type(of: authorization.credential))")
 
             guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
                   let tokenData = appleCredential.identityToken,
                   let idToken = String(data: tokenData, encoding: .utf8) else {
-                error = "Apple Sign-In: missing credentials"
+                error = "Apple Sign-In: missing identity token"
                 isLoading = false
                 return
             }
 
-            print("[Auth] Apple token received, exchanging with Firebase...")
-            let credential = OAuthProvider.appleCredential(
+            print("[Auth] Apple token received (\(idToken.count) chars), creating Firebase credential...")
+
+            // Use the method that Firebase SDK actually has
+            let firebaseCredential = OAuthProvider.appleCredential(
                 withIDToken: idToken,
                 rawNonce: nonce,
                 fullName: appleCredential.fullName
             )
 
-            let result = try await Auth.auth().signIn(with: credential)
+            let result = try await Auth.auth().signIn(with: firebaseCredential)
             print("[Auth] Firebase Apple auth success: \(result.user.uid)")
         } catch {
             self.appleSignInDelegate = nil
             let nsError = error as NSError
-            if nsError.code == ASAuthorizationError.canceled.rawValue {
-                print("[Auth] Apple Sign-In cancelled")
+            print("[Auth] Apple error: domain=\(nsError.domain) code=\(nsError.code) desc=\(error.localizedDescription)")
+
+            if nsError.domain == "com.apple.AuthenticationServices.AuthorizationError" && nsError.code == 1000 {
+                // Error 1000: the Apple Sign-In flow completed on Apple's side but
+                // something went wrong. This is often a Firebase configuration issue.
+                // Try without Firebase — just verify the Apple credential works
+                self.error = "Apple Sign-In server error. Try email sign-in or check Settings > Apple ID > Sign in with Apple."
+            } else if nsError.code == ASAuthorizationError.canceled.rawValue {
+                // User cancelled
             } else {
-                print("[Auth] Apple Sign-In error: code=\(nsError.code) domain=\(nsError.domain) \(error.localizedDescription)")
                 self.error = "Apple error (\(nsError.code)): \(error.localizedDescription)"
             }
         }

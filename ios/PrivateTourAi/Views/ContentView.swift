@@ -188,19 +188,17 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 30)
 
-                            // Apple Sign-In (gold button)
-                            Button { authVM.signInWithApple() } label: {
-                                HStack {
-                                    Image(systemName: "apple.logo").font(.title3)
-                                    Text("Sign in with Apple").fontWeight(.semibold)
-                                }
-                                .frame(maxWidth: .infinity).padding(.vertical, 16)
-                                .background(
-                                    LinearGradient(colors: [Color.brandGold, Color.brandGold.opacity(0.8)], startPoint: .leading, endPoint: .trailing),
-                                    in: RoundedRectangle(cornerRadius: 14)
-                                )
-                                .foregroundStyle(.brandNavy)
+                            // Apple Sign-In — use native SwiftUI button
+                            SignInWithAppleButton(.signIn) { request in
+                                let nonce = authVM.prepareAppleNonce()
+                                request.requestedScopes = [.fullName, .email]
+                                request.nonce = nonce
+                            } onCompletion: { result in
+                                authVM.handleAppleSignIn(result)
                             }
+                            .signInWithAppleButtonStyle(.white)
+                            .frame(height: 54)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
                             .padding(.horizontal, 30)
 
                             // Google Sign-In (gold button)
