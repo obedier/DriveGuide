@@ -4,12 +4,20 @@ import GoogleSignIn
 
 @main
 struct PrivateTourAiApp: App {
-    @StateObject private var tourViewModel = TourViewModel()
-    @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var tourViewModel: TourViewModel
+    @StateObject private var authViewModel: AuthViewModel
     @State private var showSplash = true
 
     init() {
-        _ = AuthService.shared
+        // MUST configure Firebase BEFORE creating any ViewModels
+        // that access AuthService (which uses Firebase Auth)
+        FirebaseApp.configure()
+        if let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
+
+        _tourViewModel = StateObject(wrappedValue: TourViewModel())
+        _authViewModel = StateObject(wrappedValue: AuthViewModel())
     }
 
     var body: some Scene {

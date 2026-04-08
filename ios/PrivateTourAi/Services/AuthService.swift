@@ -19,12 +19,7 @@ class AuthService: ObservableObject {
     static let shared = AuthService()
 
     init() {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-        }
-        if let clientID = FirebaseApp.app()?.options.clientID {
-            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
-        }
+        // Firebase is configured in PrivateTourAiApp.init() BEFORE this is created
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 self?.user = user
