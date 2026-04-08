@@ -24,7 +24,7 @@ enum APIError: Error, LocalizedError {
 final class APIClient: Sendable {
     static let shared = APIClient()
 
-    private let baseURL = "https://private-tourai-api-i32snp7xla-ue.a.run.app/v1"
+    private let baseURL = "https://waipoint.o11r.com/v1"
 
     // Longer timeout for AI-powered endpoints
     private let shortTimeout: TimeInterval = 20

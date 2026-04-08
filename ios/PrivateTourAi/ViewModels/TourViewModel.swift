@@ -316,12 +316,12 @@ class TourViewModel: ObservableObject {
 
     func shareTour() -> URL? {
         guard let shareId = currentTour?.shareId else { return nil }
-        return URL(string: "https://private-tourai-api-i32snp7xla-ue.a.run.app/tour/\(shareId)")
+        return URL(string: "https://waipoint.o11r.com/tour/\(shareId)")
     }
 
     func shareTourById(_ tour: Tour) -> URL? {
         guard let shareId = tour.shareId else { return nil }
-        return URL(string: "https://private-tourai-api-i32snp7xla-ue.a.run.app/tour/\(shareId)")
+        return URL(string: "https://waipoint.o11r.com/tour/\(shareId)")
     }
 
     func clearTour() {

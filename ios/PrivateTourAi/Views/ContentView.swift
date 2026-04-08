@@ -348,7 +348,7 @@ struct ProfileView: View {
                                     ProfileMenuItem(icon: "bell.fill", title: "Notifications")
                                 }
                                 Button {
-                                    if let url = URL(string: "mailto:support@waipoint.app?subject=wAIpoint%20Support") {
+                                    if let url = URL(string: "https://waipoint.o11r.com/support?subject=wAIpoint%20Support") {
                                         UIApplication.shared.open(url)
                                     }
                                 } label: {
