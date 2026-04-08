@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "wAIpoint Coverage - South Florida"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-80.5, 25.5],
+          [-80.5, 26.8],
+          [-79.8, 26.8],
+          [-79.8, 25.5],
+          [-80.5, 25.5]
+        ]]
+      }
+    }
+  ]
+}
