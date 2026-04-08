@@ -188,8 +188,8 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 30)
 
-                            // Apple Sign-In (native SwiftUI button — Firebase verified pattern)
-                            SignInWithAppleButton(.signIn) { request in
+                            // Apple Sign-In
+                            SignInWithAppleButton(.continue) { request in
                                 let hashedNonce = authVM.prepareAppleNonce()
                                 request.requestedScopes = [.fullName, .email]
                                 request.nonce = hashedNonce
@@ -201,18 +201,15 @@ struct ProfileView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                             .padding(.horizontal, 30)
 
-                            // Google Sign-In (gold button)
+                            // Google Sign-In (matching gold style)
                             Button { authVM.signInWithGoogle() } label: {
-                                HStack {
+                                HStack(spacing: 10) {
                                     Text("G").font(.title2.bold())
-                                    Text("Sign in with Google").fontWeight(.semibold)
+                                    Text("Continue with Google").fontWeight(.semibold)
                                 }
-                                .frame(maxWidth: .infinity).padding(.vertical, 16)
-                                .background(
-                                    LinearGradient(colors: [Color.brandGold.opacity(0.8), Color.brandGold.opacity(0.6)], startPoint: .leading, endPoint: .trailing),
-                                    in: RoundedRectangle(cornerRadius: 14)
-                                )
-                                .foregroundStyle(.brandNavy)
+                                .frame(maxWidth: .infinity).frame(height: 54)
+                                .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                                .foregroundStyle(.black)
                             }
                             .padding(.horizontal, 30)
 
