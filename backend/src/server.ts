@@ -108,6 +108,13 @@ async function start(): Promise<void> {
   await app.register(audioRoutes, { prefix: '/v1' });
   await app.register(libraryRoutes, { prefix: '/v1' });
 
+
+  // Privacy Policy
+  app.get("/privacy", async (_request, reply) => {
+    reply.type("text/html");
+    return "<html><head><title>wAIpoint Privacy Policy</title><style>body{font-family:-apple-system,sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#333;line-height:1.6}h1{color:#1B2D4F}</style></head><body><h1>wAIpoint Privacy Policy</h1><p>Last updated: April 2026</p><h2>Information We Collect</h2><p>Location data for GPS narration, account info for sign-in, tour preferences for personalization.</p><h2>How We Use It</h2><p>Generate tours, trigger audio, save to library, process payments.</p><h2>Data Sharing</h2><p>We do not sell data. Shared with Google (Maps/AI/TTS), Firebase (auth), Apple (payments).</p><h2>Contact</h2><p>support@waipoint.app</p></body></html>";
+  });
+
   // Graceful shutdown
   const shutdown = async () => {
     app.log.info('Shutting down...');
