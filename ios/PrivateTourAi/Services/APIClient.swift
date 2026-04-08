@@ -27,8 +27,8 @@ final class APIClient: Sendable {
     private let baseURL = "https://private-tourai-api-i32snp7xla-ue.a.run.app/v1"
 
     // Longer timeout for AI-powered endpoints
-    private let shortTimeout: TimeInterval = 15
-    private let longTimeout: TimeInterval = 120
+    private let shortTimeout: TimeInterval = 20
+    private let longTimeout: TimeInterval = 180  // 3 min for tour gen (Gemini + Maps + route)
 
     // MARK: - Location Verification
 
