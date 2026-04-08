@@ -73,6 +73,23 @@ struct GuidedTourView: View {
                     Spacer()
 
                     HStack(spacing: 12) {
+                        // Turn-by-turn navigation
+                        Button {
+                            if let stop = playback.currentStop ?? tour.stops.first {
+                                let origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                let dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                let waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+                                var url = "https://www.google.com/maps/dir/?api=1&origin=\(origin)&destination=\(dest)&travelmode=driving"
+                                if !waypoints.isEmpty { url += "&waypoints=\(waypoints)" }
+                                if let mapsUrl = URL(string: url) { UIApplication.shared.open(mapsUrl) }
+                            }
+                        } label: {
+                            Image(systemName: "location.north.fill")
+                                .font(.caption)
+                                .padding(8)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+
                         Button { withAnimation { audioOnly.toggle() } } label: {
                             Image(systemName: audioOnly ? "text.bubble" : "speaker.wave.2.fill")
                                 .font(.caption)

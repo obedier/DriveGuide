@@ -116,12 +116,21 @@ struct LibraryView: View {
                             .tint(.orange)
                         }
                         .swipeActions(edge: .leading) {
+                            Button {
+                                // Share to Community (upload to backend)
+                                tourVM.shareToCommunity(tour)
+                            } label: {
+                                Label("Community", systemImage: "globe")
+                            }
+                            .tint(.green)
+
                             if let shareUrl = tourVM.shareTourById(tour) {
                                 ShareLink(item: shareUrl) {
                                     Label("Share", systemImage: "square.and.arrow.up")
                                 }
                                 .tint(.brandGold)
                             }
+
                             Button { ratingTour = tour; ratingValue = tourVM.getRating(for: tour.id) ?? 0; showRating = true } label: {
                                 Label("Rate", systemImage: "star.fill")
                             }

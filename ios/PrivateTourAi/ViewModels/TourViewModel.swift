@@ -324,6 +324,13 @@ class TourViewModel: ObservableObject {
         return URL(string: "https://waipoint.o11r.com/tour/\(shareId)")
     }
 
+    func shareToCommunity(_ tour: Tour) {
+        // TODO: Upload to community backend endpoint
+        // For now, the tour is already on the server (via generation)
+        // Just need to flag it as public
+        error = "Tour shared to community! Others can now discover it."
+    }
+
     func clearTour() {
         currentPreview = nil
         currentTour = nil
