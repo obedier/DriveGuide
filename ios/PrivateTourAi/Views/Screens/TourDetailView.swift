@@ -7,7 +7,9 @@ struct TourDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStop: TourStop?
     @State private var showGuidedTour = false
+    @State private var showPaywall = false
     @State private var showRegenerate = false
+    @StateObject private var store = StoreKitService.shared
     @State private var regeneratePrompt = ""
     @State private var isRegenerating = false
 
@@ -66,18 +68,22 @@ struct TourDetailView: View {
                         // Action buttons
                         VStack(spacing: 10) {
                             Button {
-                                showGuidedTour = true
+                                if store.isPremium {
+                                    showGuidedTour = true
+                                } else {
+                                    showPaywall = true
+                                }
                             } label: {
                                 HStack {
-                                    Image(systemName: "headphones")
-                                    Text("Start Guided Tour")
+                                    Image(systemName: store.isPremium ? "headphones" : "lock.fill")
+                                    Text(store.isPremium ? "Start Guided Tour" : "Unlock Guided Tour")
                                         .fontWeight(.semibold)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(Color("AccentCoral"))
+                            .tint(.brandGold)
 
                             Button {
                                 // For boat tours, build a Google Maps URL from stops (since VectorCharts URL is a style JSON)
@@ -188,6 +194,9 @@ struct TourDetailView: View {
         }
         .fullScreenCover(isPresented: $showGuidedTour) {
             GuidedTourView(tour: tour)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
         }
     }
 

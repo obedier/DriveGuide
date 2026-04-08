@@ -123,6 +123,8 @@ struct LibraryView: View {
 
 struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
+    @StateObject private var store = StoreKitService.shared
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -155,24 +157,76 @@ struct ProfileView: View {
                                 }
                                 Spacer()
                                 // Tier badge
-                                Text(authVM.tier.rawValue.capitalized)
+                                Text(store.isPremium ? store.currentTier : "Free")
                                     .font(.caption.bold())
                                     .padding(.horizontal, 10).padding(.vertical, 5)
-                                    .background(Color.brandGold, in: Capsule())
-                                    .foregroundStyle(.brandNavy)
+                                    .background(store.isPremium ? Color.brandGold : Color.white.opacity(0.2), in: Capsule())
+                                    .foregroundStyle(store.isPremium ? .brandNavy : .white)
                             }
                             .padding(20)
 
+                            // Subscription section
+                            if !store.isPremium {
+                                Button { showPaywall = true } label: {
+                                    HStack {
+                                        Image(systemName: "crown.fill").foregroundStyle(.brandGold)
+                                        Text("Upgrade to Premium").fontWeight(.semibold).foregroundStyle(.brandGold)
+                                        Spacer()
+                                        Image(systemName: "chevron.right").foregroundStyle(.brandGold.opacity(0.5))
+                                    }
+                                    .padding(16)
+                                    .background(Color.brandGold.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brandGold.opacity(0.3)))
+                                }
+                                .padding(.horizontal, 20)
+                            } else {
+                                HStack {
+                                    Image(systemName: "crown.fill").foregroundStyle(.brandGold)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Premium \(store.currentTier)").font(.subheadline.bold()).foregroundStyle(.brandGold)
+                                        Text("Unlimited tours & audio").font(.caption).foregroundStyle(.white.opacity(0.4))
+                                    }
+                                    Spacer()
+                                    Button("Manage") {
+                                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                                            UIApplication.shared.open(url)
+                                        }
+                                    }
+                                    .font(.caption).foregroundStyle(.brandGold)
+                                }
+                                .padding(16)
+                                .background(Color.brandGold.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+                                .padding(.horizontal, 20)
+                            }
+
                             // Menu items
                             VStack(spacing: 0) {
-                                ProfileMenuItem(icon: "bell.fill", title: "Notifications")
-                                ProfileMenuItem(icon: "questionmark.circle", title: "Help & Support")
+                                Button { /* TODO: notification settings */ } label: {
+                                    ProfileMenuItem(icon: "bell.fill", title: "Notifications")
+                                }
+                                Button {
+                                    if let url = URL(string: "mailto:support@waipoint.app?subject=wAIpoint%20Support") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                } label: {
+                                    ProfileMenuItem(icon: "questionmark.circle", title: "Help & Support")
+                                }
+                                Button {
+                                    Task { await store.restorePurchases() }
+                                } label: {
+                                    ProfileMenuItem(icon: "arrow.clockwise", title: "Restore Purchases")
+                                }
                                 Button { authVM.signOut() } label: {
                                     ProfileMenuItem(icon: "arrow.right.square", title: "Sign Out")
                                 }
                             }
                             .background(Color.brandNavy.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
                             .padding(.horizontal, 20)
+
+                            // Version
+                            Text("wAIpoint v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
+                                .font(.caption2).foregroundStyle(.white.opacity(0.2))
+                                .padding(.top, 20)
 
                         } else {
                             // Sign-in view
@@ -286,6 +340,9 @@ struct ProfileView: View {
             .navigationTitle("")
             .toolbarBackground(Color.brandDarkNavy, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+            }
         }
     }
 }
