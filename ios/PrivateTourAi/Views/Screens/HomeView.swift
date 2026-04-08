@@ -178,8 +178,9 @@ struct SearchCard: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.brandGold)
-                TextField("City, neighborhood, or a...", text: $tourVM.searchText)
+                TextField("Search a place...", text: $tourVM.searchText)
                     .focused($isSearchFocused)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(.white)
                     .submitLabel(.search)
                     .onSubmit {
