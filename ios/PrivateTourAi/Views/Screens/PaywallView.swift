@@ -5,6 +5,7 @@ struct PaywallView: View {
     @StateObject private var store = StoreKitService.shared
     @Environment(\.dismiss) private var dismiss
     @State private var selectedProduct: Product?
+    @State private var selectedFallback: Int = 2  // default annual
     @State private var purchasing = false
 
     var body: some View {
@@ -26,19 +27,29 @@ struct PaywallView: View {
                     .padding(.top, 20)
 
                     // Subscription cards
-                    HStack(spacing: 12) {
-                        ForEach(store.products, id: \.id) { product in
-                            SubscriptionCard(
-                                product: product,
-                                isSelected: selectedProduct?.id == product.id,
-                                isBestValue: product.id == "com.privatetourai.annual",
-                                monthlyPrice: store.monthlyEquivalent(for: product)
-                            ) {
-                                selectedProduct = product
+                    if store.products.isEmpty {
+                        // Fallback when StoreKit products not available
+                        HStack(spacing: 12) {
+                            FallbackCard(name: "Weekly", price: "$7.99", period: "/week", isBestValue: false, isSelected: selectedFallback == 0) { selectedFallback = 0 }
+                            FallbackCard(name: "Monthly", price: "$14.99", period: "/month", isBestValue: false, isSelected: selectedFallback == 1) { selectedFallback = 1 }
+                            FallbackCard(name: "Annual", price: "$79.99", period: "/year", isBestValue: true, isSelected: selectedFallback == 2) { selectedFallback = 2 }
+                        }
+                        .padding(.horizontal, 16)
+                    } else {
+                        HStack(spacing: 12) {
+                            ForEach(store.products, id: \.id) { product in
+                                SubscriptionCard(
+                                    product: product,
+                                    isSelected: selectedProduct?.id == product.id,
+                                    isBestValue: product.id == "com.privatetourai.annual",
+                                    monthlyPrice: store.monthlyEquivalent(for: product)
+                                ) {
+                                    selectedProduct = product
+                                }
                             }
                         }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
 
                     // Features list
                     VStack(alignment: .leading, spacing: 14) {
@@ -53,12 +64,16 @@ struct PaywallView: View {
 
                     // Subscribe button
                     Button {
-                        guard let product = selectedProduct else { return }
-                        purchasing = true
-                        Task {
-                            let success = await store.purchase(product)
-                            purchasing = false
-                            if success { dismiss() }
+                        if let product = selectedProduct {
+                            purchasing = true
+                            Task {
+                                let success = await store.purchase(product)
+                                purchasing = false
+                                if success { dismiss() }
+                            }
+                        } else if store.products.isEmpty {
+                            // Products not loaded — inform user
+                            store.error = "Subscriptions are being set up. Please try again from TestFlight or App Store."
                         }
                     } label: {
                         HStack {
@@ -76,7 +91,7 @@ struct PaywallView: View {
                         )
                         .foregroundStyle(.brandNavy)
                     }
-                    .disabled(selectedProduct == nil || purchasing)
+                    .disabled(purchasing)
                     .padding(.horizontal, 30)
 
                     // Restore + terms
@@ -181,6 +196,40 @@ struct SubscriptionCard: View {
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(isSelected ? Color.brandGold : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
                     )
+            )
+        }
+    }
+}
+
+struct FallbackCard: View {
+    let name: String
+    let price: String
+    let period: String
+    let isBestValue: Bool
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                if isBestValue {
+                    Text("BEST VALUE")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(.brandGold, in: Capsule())
+                        .foregroundStyle(.brandNavy)
+                }
+                Text(name).font(.headline.bold()).foregroundStyle(isSelected ? .brandGold : .white)
+                Text(price).font(.title3.bold()).foregroundStyle(.white)
+                Text(period).font(.caption2).foregroundStyle(.white.opacity(0.5))
+                if isBestValue {
+                    Text("$6.67/mo").font(.caption2).foregroundStyle(.brandGold)
+                }
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 16).fill(Color.brandNavy)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(isSelected ? Color.brandGold : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1))
             )
         }
     }

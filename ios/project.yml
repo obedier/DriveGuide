@@ -33,6 +33,10 @@ targets:
     resources:
       - path: PrivateTourAi/Resources/Assets.xcassets
       - path: PrivateTourAi/Resources/GoogleService-Info.plist
+      - path: PrivateTourAi/Resources/Subscriptions.storekit
+    scheme:
+      testPlans: []
+      storeKitConfiguration: PrivateTourAi/Resources/Subscriptions.storekit
     dependencies:
       - package: FirebaseAuth
         product: FirebaseAuth
