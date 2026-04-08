@@ -51,8 +51,8 @@
 		D5757432CC31C1ED82A16E9D /* PrivateTourAi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PrivateTourAi.entitlements; sourceTree = "<group>"; };
 		D687DD10B485A411FD6B132A /* sample-boat-tour.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "sample-boat-tour.json"; sourceTree = "<group>"; };
 		DB8F1DBFCDFDD30850833B75 /* Tour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tour.swift; sourceTree = "<group>"; };
-		DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */ = {isa = PBXFileReference; path = Subscriptions.storekit; sourceTree = "<group>"; };
-		E1CEB0F53140D452C3D85619 /* PrivateTourAi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PrivateTourAi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Subscriptions.storekit; sourceTree = "<group>"; };
+		E1CEB0F53140D452C3D85619 /* PrivateTourAi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PrivateTourAi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1F28C24AC9A315045CC366A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FACCCB4168F3D367CC03ADAE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		FB55EDC3CA9261C3996E3303 /* GuidedTourView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedTourView.swift; sourceTree = "<group>"; };
@@ -225,11 +225,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-					17DA9DC1EAC59C4ADB98AB1F = {
-						DevelopmentTeam = U3972W2GDJ;
-					};
-				};
 			};
 			buildConfigurationList = 438AA113CE55714A43DCF628 /* Build configuration list for PBXProject "PrivateTourAi" */;
 			developmentRegion = en;
@@ -361,6 +356,7 @@
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = U3972W2GDJ;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -379,6 +375,7 @@
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = U3972W2GDJ;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

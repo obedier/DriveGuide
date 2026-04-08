@@ -188,28 +188,49 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 30)
 
-                            // Apple Sign-In
-                            SignInWithAppleButton(.continue) { request in
-                                let hashedNonce = authVM.prepareAppleNonce()
-                                request.requestedScopes = [.fullName, .email]
-                                request.nonce = hashedNonce
-                            } onCompletion: { result in
-                                authVM.handleAppleResult(result)
+                            // Apple Sign-In (gold overlay on native button)
+                            ZStack {
+                                SignInWithAppleButton(.continue) { request in
+                                    let hashedNonce = authVM.prepareAppleNonce()
+                                    request.requestedScopes = [.fullName, .email]
+                                    request.nonce = hashedNonce
+                                } onCompletion: { result in
+                                    authVM.handleAppleResult(result)
+                                }
+                                .signInWithAppleButtonStyle(.black)
+                                .frame(height: 54)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .opacity(0.01) // invisible but tappable
+
+                                // Gold visual layer
+                                HStack(spacing: 10) {
+                                    Image(systemName: "apple.logo").font(.title3)
+                                    Text("Continue with Apple").fontWeight(.semibold)
+                                }
+                                .frame(maxWidth: .infinity).frame(height: 54)
+                                .background(
+                                    LinearGradient(colors: [.brandGold, Color(red: 0.85, green: 0.73, blue: 0.45)],
+                                                   startPoint: .leading, endPoint: .trailing),
+                                    in: RoundedRectangle(cornerRadius: 14)
+                                )
+                                .foregroundStyle(.brandNavy)
+                                .allowsHitTesting(false) // taps pass through to real button
                             }
-                            .signInWithAppleButtonStyle(.white)
-                            .frame(height: 54)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
                             .padding(.horizontal, 30)
 
-                            // Google Sign-In (matching gold style)
+                            // Google Sign-In (matching gold)
                             Button { authVM.signInWithGoogle() } label: {
                                 HStack(spacing: 10) {
                                     Text("G").font(.title2.bold())
                                     Text("Continue with Google").fontWeight(.semibold)
                                 }
                                 .frame(maxWidth: .infinity).frame(height: 54)
-                                .background(.white, in: RoundedRectangle(cornerRadius: 14))
-                                .foregroundStyle(.black)
+                                .background(
+                                    LinearGradient(colors: [.brandGold.opacity(0.85), Color(red: 0.85, green: 0.73, blue: 0.45).opacity(0.85)],
+                                                   startPoint: .leading, endPoint: .trailing),
+                                    in: RoundedRectangle(cornerRadius: 14)
+                                )
+                                .foregroundStyle(.brandNavy)
                             }
                             .padding(.horizontal, 30)
 
