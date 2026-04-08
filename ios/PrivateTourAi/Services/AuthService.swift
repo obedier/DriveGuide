@@ -13,13 +13,10 @@ class AuthService: ObservableObject {
     @Published var error: String?
 
     private var currentNonce: String?
-    private var appleSignInDelegate: AppleSignInDelegate?
-    private var appleAuthController: ASAuthorizationController?  // MUST retain
 
     static let shared = AuthService()
 
     init() {
-        // Firebase is configured in PrivateTourAiApp.init() BEFORE this is created
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 self?.user = user
@@ -35,196 +32,21 @@ class AuthService: ObservableObject {
 
     func getIdToken() async -> String? { try? await user?.getIDToken() }
 
-    // MARK: - Google Sign-In
+    // MARK: - Apple Sign-In
+    //
+    // Correct pattern (verified from Firebase quickstart + SDK source):
+    // 1. SignInWithAppleButton sets hashed nonce on request
+    // 2. onCompletion receives ASAuthorization with identity token
+    // 3. OAuthProvider.appleCredential() creates Firebase credential
+    // 4. Auth.auth().signIn(with:) exchanges with Firebase
+    //
+    // NEVER use OAuthProvider(providerID: .apple) — it fatalErrors on device
 
-    func signInWithGoogle() async {
-        isLoading = true
-        error = nil
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first?.rootViewController else {
-            error = "Cannot present sign-in"; isLoading = false; return
-        }
-        do {
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
-            guard let idToken = result.user.idToken?.tokenString else {
-                error = "Google: missing token"; isLoading = false; return
-            }
-            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: result.user.accessToken.tokenString)
-            try await Auth.auth().signIn(with: credential)
-        } catch let e as GIDSignInError where e.code == .canceled {
-            // cancelled
-        } catch {
-            self.error = "Google error: \(error.localizedDescription)"
-        }
-        isLoading = false
-    }
-
-    // MARK: - Apple Sign-In (Shelly-proven pattern: callback delegate, no async bridge)
-
-    func signInWithApple() {
-        isLoading = true
-        error = nil
-
+    func prepareAppleNonce() -> String {
         let nonce = randomNonceString()
         currentNonce = nonce
-        let hashedNonce = sha256(nonce)
-
-        // Create BOTH requests — new sign-up AND existing account
-        // This handles the case where Apple ID was previously associated
-        let appleIDProvider = ASAuthorizationAppleIDProvider()
-        let appleIDRequest = appleIDProvider.createRequest()
-        appleIDRequest.requestedScopes = [.fullName, .email]
-        appleIDRequest.nonce = hashedNonce
-
-        // Also check for existing Apple Sign-In credentials (iCloud Keychain)
-        let passwordRequest = ASAuthorizationPasswordProvider().createRequest()
-
-        let delegate = AppleSignInDelegate()
-        appleSignInDelegate = delegate
-
-        delegate.onSuccess = { [weak self] credential in
-            guard let self else { return }
-            Task { @MainActor in
-                // Handle both Apple ID credential and password credential
-                if let appleCredential = credential as? ASAuthorizationAppleIDCredential {
-                    guard let tokenData = appleCredential.identityToken,
-                          let idToken = String(data: tokenData, encoding: .utf8) else {
-                        self.error = "Apple Sign-In: missing token"
-                        self.isLoading = false
-                        return
-                    }
-
-                    do {
-                        let firebaseCred = OAuthProvider.appleCredential(
-                            withIDToken: idToken,
-                            rawNonce: nonce,
-                            fullName: appleCredential.fullName
-                        )
-                        let result = try await Auth.auth().signIn(with: firebaseCred)
-                        print("[Auth] Apple+Firebase success: \(result.user.uid)")
-                        self.error = nil
-                    } catch {
-                        self.error = "Firebase: \(error.localizedDescription)"
-                    }
-                } else if let passwordCredential = credential as? ASPasswordCredential {
-                    // User selected a saved password from iCloud Keychain
-                    do {
-                        try await Auth.auth().signIn(
-                            withEmail: passwordCredential.user,
-                            password: passwordCredential.password
-                        )
-                        self.error = nil
-                    } catch {
-                        self.error = "Sign-in: \(error.localizedDescription)"
-                    }
-                }
-                self.isLoading = false
-                self.appleSignInDelegate = nil
-                self.appleAuthController = nil
-            }
-        }
-
-        delegate.onError = { [weak self] error in
-            guard let self else { return }
-            Task { @MainActor in
-                let nsErr = error as NSError
-                if nsErr.code == ASAuthorizationError.canceled.rawValue {
-                    // User cancelled
-                } else if nsErr.code == ASAuthorizationError.unknown.rawValue {
-                    // Error 1000 — try with ONLY Apple ID request (no password provider)
-                    self.error = "Retrying without password provider..."
-                    self.retryAppleSignInSimple(nonce: nonce, hashedNonce: hashedNonce)
-                    return
-                } else {
-                    self.error = "Apple error \(nsErr.code): \(error.localizedDescription)"
-                }
-                self.isLoading = false
-                self.appleSignInDelegate = nil
-                self.appleAuthController = nil
-            }
-        }
-
-        // Use both Apple ID and password requests
-        let controller = ASAuthorizationController(authorizationRequests: [appleIDRequest, passwordRequest])
-        controller.delegate = delegate
-        controller.presentationContextProvider = delegate
-        self.appleAuthController = controller
-
-        controller.performRequests()
+        return sha256(nonce)
     }
-
-    // Retry with ONLY Apple ID request (no password provider fallback)
-    private func retryAppleSignInSimple(nonce: String, hashedNonce: String) {
-        let provider = ASAuthorizationAppleIDProvider()
-        let request = provider.createRequest()
-        request.requestedScopes = [.fullName, .email]
-        request.nonce = hashedNonce
-
-        let delegate = AppleSignInDelegate()
-        appleSignInDelegate = delegate
-
-        delegate.onSuccess = { [weak self] credential in
-            guard let self,
-                  let appleCredential = credential as? ASAuthorizationAppleIDCredential,
-                  let tokenData = appleCredential.identityToken,
-                  let idToken = String(data: tokenData, encoding: .utf8) else { return }
-            Task { @MainActor in
-                do {
-                    let cred = OAuthProvider.appleCredential(withIDToken: idToken, rawNonce: nonce, fullName: appleCredential.fullName)
-                    try await Auth.auth().signIn(with: cred)
-                    self.error = nil
-                } catch { self.error = "Firebase: \(error.localizedDescription)" }
-                self.isLoading = false
-                self.appleSignInDelegate = nil
-                self.appleAuthController = nil
-            }
-        }
-        delegate.onError = { [weak self] error in
-            Task { @MainActor in
-                let e = error as NSError
-                if e.code != ASAuthorizationError.canceled.rawValue {
-                    self?.error = "Apple error \(e.code): \(error.localizedDescription)"
-                }
-                self?.isLoading = false
-                self?.appleSignInDelegate = nil
-                self?.appleAuthController = nil
-            }
-        }
-
-        let controller = ASAuthorizationController(authorizationRequests: [request])
-        controller.delegate = delegate
-        controller.presentationContextProvider = delegate
-        self.appleAuthController = controller
-        controller.performRequests()
-    }
-
-    // MARK: - Apple Sign-In via Firebase OAuthProvider (web-based, handles 2FA)
-
-    func signInWithAppleViaFirebase() async {
-        isLoading = true
-        error = nil
-
-        let provider = OAuthProvider(providerID: AuthProviderID.apple)
-        provider.scopes = ["email", "name"]
-
-        do {
-            let credential = try await provider.credential(with: nil)
-            let result = try await Auth.auth().signIn(with: credential)
-            print("[Auth] Apple via Firebase success: \(result.user.uid)")
-        } catch {
-            let nsErr = error as NSError
-            if nsErr.code == AuthErrorCode.webContextCancelled.rawValue {
-                // User cancelled
-            } else {
-                print("[Auth] Apple via Firebase error: \(error)")
-                self.error = "Apple sign-in: \(error.localizedDescription)"
-            }
-        }
-
-        isLoading = false
-    }
-
-    // MARK: - Apple Sign-In (SignInWithAppleButton result handler)
 
     func handleAppleSignInResult(_ result: Result<ASAuthorization, Error>) async {
         isLoading = true
@@ -235,35 +57,69 @@ class AuthService: ObservableObject {
             guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
                   let tokenData = appleCredential.identityToken,
                   let idToken = String(data: tokenData, encoding: .utf8) else {
-                error = "Apple Sign-In: missing identity token"
+                error = "Apple: missing identity token"
                 isLoading = false
                 return
             }
 
             guard let nonce = currentNonce else {
-                error = "Apple Sign-In: missing nonce — try again"
+                error = "Apple: missing nonce — try again"
                 isLoading = false
                 return
             }
 
             do {
-                let firebaseCred = OAuthProvider.appleCredential(
+                let credential = OAuthProvider.appleCredential(
                     withIDToken: idToken,
                     rawNonce: nonce,
                     fullName: appleCredential.fullName
                 )
-                let result = try await Auth.auth().signIn(with: firebaseCred)
+                let result = try await Auth.auth().signIn(with: credential)
                 print("[Auth] Apple+Firebase success: \(result.user.uid)")
             } catch {
                 print("[Auth] Firebase Apple error: \(error)")
-                self.error = "Firebase: \(error.localizedDescription)"
+                self.error = "Sign-in failed: \(error.localizedDescription)"
             }
 
         case .failure(let err):
             let nsErr = err as NSError
             if nsErr.code != ASAuthorizationError.canceled.rawValue {
-                self.error = "Apple error \(nsErr.code): \(err.localizedDescription)"
+                self.error = "Apple error: \(err.localizedDescription)"
             }
+        }
+
+        isLoading = false
+    }
+
+    // MARK: - Google Sign-In
+
+    func signInWithGoogle() async {
+        isLoading = true
+        error = nil
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first?.rootViewController else {
+            error = "Cannot present sign-in"
+            isLoading = false
+            return
+        }
+
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            guard let idToken = result.user.idToken?.tokenString else {
+                error = "Google: missing token"
+                isLoading = false
+                return
+            }
+            let credential = GoogleAuthProvider.credential(
+                withIDToken: idToken,
+                accessToken: result.user.accessToken.tokenString
+            )
+            try await Auth.auth().signIn(with: credential)
+        } catch let e as GIDSignInError where e.code == .canceled {
+            // cancelled
+        } catch {
+            self.error = "Google error: \(error.localizedDescription)"
         }
 
         isLoading = false
@@ -272,7 +128,8 @@ class AuthService: ObservableObject {
     // MARK: - Email/Password
 
     func signInWithEmail(email: String, password: String) async {
-        isLoading = true; self.error = nil
+        isLoading = true
+        self.error = nil
         do {
             try await Auth.auth().signIn(withEmail: email, password: password)
         } catch let authError as NSError {
@@ -289,7 +146,8 @@ class AuthService: ObservableObject {
     // MARK: - Password Reset
 
     func resetPassword(email: String) async {
-        isLoading = true; self.error = nil
+        isLoading = true
+        self.error = nil
         do {
             try await Auth.auth().sendPasswordReset(withEmail: email)
             self.error = "Reset email sent to \(email)"
@@ -304,17 +162,9 @@ class AuthService: ObservableObject {
         GIDSignIn.sharedInstance.signOut()
     }
 
-    func deleteAccount() async {
-        try? await user?.delete()
-    }
+    func deleteAccount() async { try? await user?.delete() }
 
-    // MARK: - Nonce helpers
-
-    func prepareAppleNonce() -> String {
-        let nonce = randomNonceString()
-        currentNonce = nonce
-        return sha256(nonce)
-    }
+    // MARK: - Nonce Helpers
 
     private func randomNonceString(length: Int = 32) -> String {
         var bytes = [UInt8](repeating: 0, count: length)
@@ -325,28 +175,5 @@ class AuthService: ObservableObject {
 
     private func sha256(_ input: String) -> String {
         SHA256.hash(data: Data(input.utf8)).compactMap { String(format: "%02x", $0) }.joined()
-    }
-}
-
-// MARK: - Apple Sign-In Delegate (NOT @MainActor — matches Shelly's working pattern)
-
-final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
-    var onSuccess: ((ASAuthorizationCredential) -> Void)?
-    var onError: ((Error) -> Void)?
-
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        onSuccess?(authorization.credential)
-    }
-
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        onError?(error)
-    }
-
-    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first else {
-            return ASPresentationAnchor()
-        }
-        return window
     }
 }

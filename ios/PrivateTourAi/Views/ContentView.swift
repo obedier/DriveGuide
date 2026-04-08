@@ -188,16 +188,17 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 30)
 
-                            // Apple Sign-In via Firebase OAuthProvider (handles 2FA in web view)
-                            Button { authVM.signInWithAppleViaFirebase() } label: {
-                                HStack {
-                                    Image(systemName: "apple.logo").font(.title3)
-                                    Text("Sign in with Apple").fontWeight(.semibold)
-                                }
-                                .frame(maxWidth: .infinity).padding(.vertical, 16)
-                                .background(.white, in: RoundedRectangle(cornerRadius: 14))
-                                .foregroundStyle(.black)
+                            // Apple Sign-In (native SwiftUI button — Firebase verified pattern)
+                            SignInWithAppleButton(.signIn) { request in
+                                let hashedNonce = authVM.prepareAppleNonce()
+                                request.requestedScopes = [.fullName, .email]
+                                request.nonce = hashedNonce
+                            } onCompletion: { result in
+                                authVM.handleAppleResult(result)
                             }
+                            .signInWithAppleButtonStyle(.white)
+                            .frame(height: 54)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
                             .padding(.horizontal, 30)
 
                             // Google Sign-In (gold button)
