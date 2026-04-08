@@ -39,15 +39,17 @@ struct LibraryView: View {
                 Color.brandDarkNavy.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Section picker
+                    // Section picker — tight to nav title
                     Picker("", selection: $selectedSection) {
                         Text("Library").tag(0)
                         Text("Archive").tag(1)
                         Text("Community").tag(2)
                     }
                     .pickerStyle(.segmented)
+                    .colorMultiply(.brandGold)
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    .padding(.top, 2)
+                    .padding(.bottom, 6)
 
                     if selectedSection == 0 {
                         libraryContent
@@ -95,22 +97,40 @@ struct LibraryView: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(tourVM.savedTours) { tour in
-                            TourListCard(tour: tour, rating: tourVM.getRating(for: tour.id)) {
-                                tourVM.openSavedTour(tour)
-                                selectedTour = tour
+                List {
+                    ForEach(tourVM.savedTours) { tour in
+                        TourListCard(tour: tour, rating: tourVM.getRating(for: tour.id)) {
+                            tourVM.openSavedTour(tour)
+                            selectedTour = tour
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) { tourVM.deleteSavedTour(tour) } label: {
+                                Label("Delete", systemImage: "trash")
                             }
-                            .contextMenu {
-                                Button { tourVM.archiveTour(tour) } label: { Label("Archive", systemImage: "archivebox") }
-                                Button { ratingTour = tour; ratingValue = tourVM.getRating(for: tour.id) ?? 0; showRating = true } label: { Label("Rate", systemImage: "star") }
-                                Button(role: .destructive) { tourVM.deleteSavedTour(tour) } label: { Label("Delete", systemImage: "trash") }
+                            Button { tourVM.archiveTour(tour) } label: {
+                                Label("Archive", systemImage: "archivebox")
                             }
+                            .tint(.orange)
+                        }
+                        .swipeActions(edge: .leading) {
+                            if let shareUrl = tourVM.shareTourById(tour) {
+                                ShareLink(item: shareUrl) {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.brandGold)
+                            }
+                            Button { ratingTour = tour; ratingValue = tourVM.getRating(for: tour.id) ?? 0; showRating = true } label: {
+                                Label("Rate", systemImage: "star.fill")
+                            }
+                            .tint(.yellow)
                         }
                     }
-                    .padding(.horizontal, 16).padding(.top, 8)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
     }
