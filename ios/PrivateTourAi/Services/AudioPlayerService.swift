@@ -21,23 +21,38 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
         try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try? session.setActive(true)
 
-        // Download audio files
+        // Download audio files (with disk cache)
+        let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("AudioCache", isDirectory: true)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
         audioData = []
         for (i, url) in audioUrls.enumerated() {
-            print("[AudioPlayer] Downloading segment \(i + 1)/\(audioUrls.count): \(url.prefix(80))...")
+            // Check disk cache first
+            let cacheKey = url.components(separatedBy: "/").last ?? "\(i)"
+            let cacheFile = cacheDir.appendingPathComponent(cacheKey)
+
+            if let cached = try? Data(contentsOf: cacheFile), cached.count > 100 {
+                audioData.append(cached)
+                print("[AudioPlayer] Segment \(i + 1): cached (\(cached.count) bytes)")
+                continue
+            }
+
+            print("[AudioPlayer] Downloading segment \(i + 1)/\(audioUrls.count)...")
             if let audioUrl = URL(string: url) {
                 do {
                     let (data, response) = try await URLSession.shared.data(from: audioUrl)
                     let httpResponse = response as? HTTPURLResponse
                     if httpResponse?.statusCode == 200, data.count > 100 {
                         audioData.append(data)
-                        print("[AudioPlayer] Segment \(i + 1): \(data.count) bytes")
+                        try? data.write(to: cacheFile) // Save to disk cache
+                        print("[AudioPlayer] Segment \(i + 1): downloaded + cached (\(data.count) bytes)")
                     } else {
-                        print("[AudioPlayer] Segment \(i + 1): bad response \(httpResponse?.statusCode ?? 0), \(data.count) bytes")
+                        print("[AudioPlayer] Segment \(i + 1): bad response \(httpResponse?.statusCode ?? 0)")
                         audioData.append(Data())
                     }
                 } catch {
-                    print("[AudioPlayer] Segment \(i + 1) download error: \(error)")
+                    print("[AudioPlayer] Segment \(i + 1) error: \(error)")
                     audioData.append(Data())
                 }
             } else {

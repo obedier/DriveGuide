@@ -276,20 +276,21 @@ struct StopRow: View {
             VStack(spacing: 0) {
                 ZStack {
                     Circle()
-                        .fill(Color("AccentCoral"))
-                        .frame(width: 28, height: 28)
+                        .fill(Color.brandGold)
+                        .frame(width: 30, height: 30)
+                        .shadow(color: .brandGold.opacity(0.3), radius: 4)
                     Text("\(stop.sequenceOrder + 1)")
                         .font(.caption2.bold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.brandNavy)
                 }
                 if !isLast {
                     Rectangle()
-                        .fill(Color("AccentCoral").opacity(0.3))
+                        .fill(Color.brandGold.opacity(0.3))
                         .frame(width: 2)
                         .frame(maxHeight: .infinity)
                 }
             }
-            .frame(width: 28)
+            .frame(width: 30)
 
             VStack(alignment: .leading, spacing: 4) {
                 // Photo
@@ -307,6 +308,17 @@ struct StopRow: View {
                     Text(stop.name)
                         .font(.subheadline.bold())
                     Spacer()
+                    // Open in Google Maps
+                    Button {
+                        let url = URL(string: "https://www.google.com/maps/search/?api=1&query=\(stop.latitude),\(stop.longitude)")!
+                        UIApplication.shared.open(url)
+                    } label: {
+                        Image(systemName: "map.fill")
+                            .font(.caption)
+                            .foregroundStyle(.brandGold)
+                            .padding(4)
+                            .background(Color.brandGold.opacity(0.15), in: Circle())
+                    }
                     Image(systemName: categoryIcon)
                         .font(.caption)
                         .foregroundStyle(.secondary)

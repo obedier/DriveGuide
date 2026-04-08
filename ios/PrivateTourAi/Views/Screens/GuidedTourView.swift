@@ -30,11 +30,12 @@ struct GuidedTourView: View {
                         )) {
                             ZStack {
                                 Circle()
-                                    .fill(isCurrent ? Color("AccentCoral") : isVisited ? .green : Color(.systemGray4))
+                                    .fill(isCurrent ? Color.brandGold : isVisited ? .green : Color.brandGold.opacity(0.7))
                                     .frame(width: 36, height: 36)
+                                    .shadow(color: isCurrent ? .brandGold.opacity(0.5) : .clear, radius: 8)
                                 if isCurrent {
                                     Circle()
-                                        .stroke(Color("AccentCoral"), lineWidth: 3)
+                                        .stroke(Color.brandGold, lineWidth: 3)
                                         .frame(width: 44, height: 44)
                                 }
                                 Text("\(stop.sequenceOrder + 1)")
