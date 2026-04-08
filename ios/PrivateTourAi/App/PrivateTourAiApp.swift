@@ -28,7 +28,17 @@ struct PrivateTourAiApp: App {
                     .environmentObject(tourViewModel)
                     .environmentObject(authViewModel)
                     .onOpenURL { url in
-                        GIDSignIn.sharedInstance.handle(url)
+                        // Handle deep links: waipoint://tour/<shareId> or https://...cloud.run.app/tour/<shareId>
+                        if url.scheme == "waipoint" || url.host?.contains("run.app") == true {
+                            let path = url.pathComponents
+                            if let tourIdx = path.firstIndex(of: "tour"),
+                               tourIdx + 1 < path.count {
+                                let shareId = path[tourIdx + 1]
+                                tourViewModel.openSharedTour(shareId: shareId)
+                            }
+                        } else {
+                            GIDSignIn.sharedInstance.handle(url)
+                        }
                     }
 
                 if showSplash {

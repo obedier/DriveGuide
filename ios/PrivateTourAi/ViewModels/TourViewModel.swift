@@ -207,6 +207,26 @@ class TourViewModel: ObservableObject {
         currentPreview = nil
     }
 
+    // MARK: - Shared Tour (deep link)
+
+    func openSharedTour(shareId: String) {
+        Task {
+            isGenerating = true
+            generationProgress = "Loading shared tour..."
+            do {
+                let tour = try await APIClient.shared.getSharedTour(shareId: shareId)
+                storage.save(tour)
+                savedTours = storage.loadAll()
+                currentTour = tour
+                showTourDetail = true
+                generationProgress = ""
+            } catch {
+                self.error = "Could not load shared tour"
+            }
+            isGenerating = false
+        }
+    }
+
     func deleteSavedTour(_ tour: Tour) {
         storage.delete(tour.id)
         savedTours = storage.loadAll()
@@ -258,7 +278,7 @@ class TourViewModel: ObservableObject {
 
     func shareTour() -> URL? {
         guard let shareId = currentTour?.shareId else { return nil }
-        return URL(string: "https://privatetourai.app/tour/\(shareId)")
+        return URL(string: "https://private-tourai-api-i32snp7xla-ue.a.run.app/tour/\(shareId)")
     }
 
     func clearTour() {

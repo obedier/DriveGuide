@@ -201,7 +201,9 @@ struct ProfileView: View {
 
                             // Menu items
                             VStack(spacing: 0) {
-                                Button { /* TODO: notification settings */ } label: {
+                                NavigationLink {
+                                    NotificationSettingsView()
+                                } label: {
                                     ProfileMenuItem(icon: "bell.fill", title: "Notifications")
                                 }
                                 Button {
