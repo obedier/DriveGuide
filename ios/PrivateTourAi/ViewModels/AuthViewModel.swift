@@ -55,6 +55,10 @@ class AuthViewModel: ObservableObject {
         Task { await auth.signInWithApple() }
     }
 
+    func signInWithAppleViaFirebase() {
+        Task { await auth.signInWithAppleViaFirebase() }
+    }
+
     func prepareAppleNonce() -> String {
         auth.prepareAppleNonce()
     }

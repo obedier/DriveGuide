@@ -198,6 +198,32 @@ class AuthService: ObservableObject {
         controller.performRequests()
     }
 
+    // MARK: - Apple Sign-In via Firebase OAuthProvider (web-based, handles 2FA)
+
+    func signInWithAppleViaFirebase() async {
+        isLoading = true
+        error = nil
+
+        let provider = OAuthProvider(providerID: AuthProviderID.apple)
+        provider.scopes = ["email", "name"]
+
+        do {
+            let credential = try await provider.credential(with: nil)
+            let result = try await Auth.auth().signIn(with: credential)
+            print("[Auth] Apple via Firebase success: \(result.user.uid)")
+        } catch {
+            let nsErr = error as NSError
+            if nsErr.code == AuthErrorCode.webContextCancelled.rawValue {
+                // User cancelled
+            } else {
+                print("[Auth] Apple via Firebase error: \(error)")
+                self.error = "Apple sign-in: \(error.localizedDescription)"
+            }
+        }
+
+        isLoading = false
+    }
+
     // MARK: - Apple Sign-In (SignInWithAppleButton result handler)
 
     func handleAppleSignInResult(_ result: Result<ASAuthorization, Error>) async {
