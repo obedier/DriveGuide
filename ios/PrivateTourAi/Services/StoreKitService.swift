@@ -11,17 +11,17 @@ class StoreKitService: ObservableObject {
     @Published var error: String?
 
     private let productIDs = [
-        "com.privatetourai.weekly",
-        "com.privatetourai.monthly",
-        "com.privatetourai.annual"
+        "com.privatetourai.premium.weekly",
+        "com.privatetourai.premium.monthly",
+        "com.privatetourai.premium.annual"
     ]
 
     var isPremium: Bool { !purchasedProductIDs.isEmpty }
 
     var currentTier: String {
-        if purchasedProductIDs.contains("com.privatetourai.annual") { return "Annual" }
-        if purchasedProductIDs.contains("com.privatetourai.monthly") { return "Monthly" }
-        if purchasedProductIDs.contains("com.privatetourai.weekly") { return "Weekly" }
+        if purchasedProductIDs.contains(where: { $0.contains("annual") }) { return "Annual" }
+        if purchasedProductIDs.contains(where: { $0.contains("monthly") }) { return "Monthly" }
+        if purchasedProductIDs.contains(where: { $0.contains("weekly") }) { return "Weekly" }
         return "Free"
     }
 

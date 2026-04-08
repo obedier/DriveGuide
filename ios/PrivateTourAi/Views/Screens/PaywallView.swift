@@ -41,7 +41,7 @@ struct PaywallView: View {
                                 SubscriptionCard(
                                     product: product,
                                     isSelected: selectedProduct?.id == product.id,
-                                    isBestValue: product.id == "com.privatetourai.annual",
+                                    isBestValue: product.id.contains("annual"),
                                     monthlyPrice: store.monthlyEquivalent(for: product)
                                 ) {
                                     selectedProduct = product

@@ -42,7 +42,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.privatetourai.weekly",
+          "productID" : "com.privatetourai.premium.weekly",
           "recurringSubscriptionPeriod" : "P1W",
           "referenceName" : "Weekly Premium",
           "subscriptionGroupID" : "roamly_premium",
@@ -67,7 +67,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.privatetourai.monthly",
+          "productID" : "com.privatetourai.premium.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Monthly Premium",
           "subscriptionGroupID" : "roamly_premium",
@@ -92,7 +92,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.privatetourai.annual",
+          "productID" : "com.privatetourai.premium.annual",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Annual Premium — Best Value",
           "subscriptionGroupID" : "roamly_premium",
