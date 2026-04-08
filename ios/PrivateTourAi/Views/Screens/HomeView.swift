@@ -31,8 +31,11 @@ struct HomeView: View {
             }
             .mapStyle(.standard(elevation: .realistic, emphasis: .muted))
             .ignoresSafeArea()
-            // Dark overlay for brand feel
+            // Dark overlay for brand feel — tap to dismiss keyboard
             Color.brandDarkNavy.opacity(0.3).ignoresSafeArea()
+                .onTapGesture {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
 
             VStack(spacing: 0) {
                 SearchCard()
@@ -47,10 +50,16 @@ struct HomeView: View {
                     PreviewCard(preview: preview) { tourVM.showTourDetail = true }
                         .padding(.horizontal, 16)
                         .transition(.move(edge: .bottom))
+                        .gesture(DragGesture(minimumDistance: 50).onEnded { v in
+                            if abs(v.translation.width) > 100 { withAnimation { tourVM.currentPreview = nil } }
+                        })
                 } else if let tour = tourVM.currentTour {
                     TourReadyCard(tour: tour) { tourVM.showTourDetail = true }
                         .padding(.horizontal, 16)
                         .transition(.move(edge: .bottom))
+                        .gesture(DragGesture(minimumDistance: 50).onEnded { v in
+                            if abs(v.translation.width) > 100 { withAnimation { tourVM.clearTour() } }
+                        })
                 }
 
                 if let error = tourVM.error {
@@ -277,25 +286,34 @@ struct SearchCard: View {
                     }
 
                     if tourVM.showAdvancedSettings {
-                        VStack(spacing: 6) {
-                            HStack {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 16) {
                                 Toggle(isOn: $tourVM.useAsStartLocation) {
-                                    Label("Start here", systemImage: "flag.fill").font(.caption)
+                                    Label("Start here", systemImage: "flag.fill")
+                                        .font(.caption).foregroundStyle(.white.opacity(0.7))
                                 }
                                 .toggleStyle(.switch).tint(.brandGold)
                                 Toggle(isOn: $tourVM.useAsEndLocation) {
-                                    Label("End here", systemImage: "flag.checkered").font(.caption)
+                                    Label("End here", systemImage: "flag.checkered")
+                                        .font(.caption).foregroundStyle(.white.opacity(0.7))
                                 }
                                 .toggleStyle(.switch).tint(.brandGold)
                             }
                             HStack {
-                                Text("Speed").font(.caption).foregroundStyle(.white.opacity(0.5))
+                                Text("Speed (mph)").font(.caption).foregroundStyle(.white.opacity(0.6))
                                 Spacer()
                                 TextField("Auto", value: $tourVM.speedMph, format: .number)
-                                    .textFieldStyle(.roundedBorder).frame(width: 70).font(.caption)
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 80).font(.caption)
                             }
                             TextField("Special focus: \"homes of movie stars\"...", text: $tourVM.customPrompt, axis: .vertical)
-                                .font(.caption).lineLimit(2...3).textFieldStyle(.roundedBorder)
+                                .font(.caption).lineLimit(2...3)
+                                .padding(10)
+                                .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                                .foregroundStyle(.white)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.brandGold.opacity(0.2)))
                         }
                     }
 

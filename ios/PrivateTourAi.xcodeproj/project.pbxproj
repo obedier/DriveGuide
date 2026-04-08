@@ -34,6 +34,7 @@
 		B36F0109EEDFB130FD2826B9 /* AudioPlayerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70643C46BDF7965D9E22F5F8 /* AudioPlayerService.swift */; };
 		B50477E1B9793550726225C3 /* TourPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6128A58318C0CE71094662 /* TourPlaybackService.swift */; };
 		CB2104F73A964DEC887B3CA9 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 51935A7BAF6A066FB2326933 /* RevenueCat */; };
+		FB18339CC609E1939DAF4D4C /* RatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7215695A4C329363BD37F36 /* RatingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		BD6128A58318C0CE71094662 /* TourPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourPlaybackService.swift; sourceTree = "<group>"; };
 		D5757432CC31C1ED82A16E9D /* PrivateTourAi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PrivateTourAi.entitlements; sourceTree = "<group>"; };
 		D687DD10B485A411FD6B132A /* sample-boat-tour.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "sample-boat-tour.json"; sourceTree = "<group>"; };
+		D7215695A4C329363BD37F36 /* RatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingView.swift; sourceTree = "<group>"; };
 		DB8F1DBFCDFDD30850833B75 /* Tour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tour.swift; sourceTree = "<group>"; };
 		DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */ = {isa = PBXFileReference; path = Subscriptions.storekit; sourceTree = "<group>"; };
 		E1CEB0F53140D452C3D85619 /* PrivateTourAi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PrivateTourAi.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -122,6 +124,7 @@
 				E1F28C24AC9A315045CC366A /* HomeView.swift */,
 				EFCE2DF22A8DACA8B4367F34 /* NotificationSettingsView.swift */,
 				A6D8BF7528FF45EC33423FBB /* PaywallView.swift */,
+				D7215695A4C329363BD37F36 /* RatingView.swift */,
 				AAFE91E17A5C6502C3AF0450 /* SplashView.swift */,
 				7DF92431644817B1F6F91434 /* TourDetailView.swift */,
 			);
@@ -295,6 +298,7 @@
 				6CB2CE99B24302E0EA224C0F /* NotificationSettingsView.swift in Sources */,
 				92B77BDA13D866983A1A71EC /* PaywallView.swift in Sources */,
 				836E0EED642536A651E8480F /* PrivateTourAiApp.swift in Sources */,
+				FB18339CC609E1939DAF4D4C /* RatingView.swift in Sources */,
 				2CADABEEA9A22012968CA3E0 /* SplashView.swift in Sources */,
 				5B19A2E7DE5EB59039B9732A /* StoreKitService.swift in Sources */,
 				13956C58C9655988615F57B9 /* SubscriptionService.swift in Sources */,

@@ -12,6 +12,7 @@ class TourViewModel: ObservableObject {
 
     // Saved tours
     @Published var savedTours: [Tour] = []
+    @Published var archivedTours: [Tour] = []
 
     // Location verification state
     @Published var verifiedLocation: VerifiedLocation?
@@ -44,6 +45,7 @@ class TourViewModel: ObservableObject {
     init() {
         loadSampleToursIfNeeded()
         savedTours = storage.loadAll()
+        archivedTours = storage.loadArchived()
     }
 
     private func loadSampleToursIfNeeded() {
@@ -236,6 +238,42 @@ class TourViewModel: ObservableObject {
         }
     }
 
+    func archiveTour(_ tour: Tour) {
+        storage.archive(tour.id)
+        savedTours = storage.loadAll()
+        archivedTours = storage.loadArchived()
+    }
+
+    func unarchiveTour(_ tour: Tour) {
+        storage.unarchive(tour.id)
+        savedTours = storage.loadAll()
+        archivedTours = storage.loadArchived()
+    }
+
+    func deleteArchivedTour(_ tour: Tour) {
+        storage.delete(tour.id)
+        archivedTours = storage.loadArchived()
+    }
+
+    func deleteAllArchived() {
+        for tour in archivedTours {
+            storage.delete(tour.id)
+        }
+        archivedTours = []
+    }
+
+    // MARK: - Ratings
+
+    func rateTour(_ tour: Tour, rating: Int) {
+        storage.setRating(tourId: tour.id, rating: rating)
+        savedTours = storage.loadAll()
+        // TODO: Upload rating to backend for community
+    }
+
+    func getRating(for tourId: String) -> Int? {
+        storage.getRating(tourId: tourId)
+    }
+
     // MARK: - Start Tour (open in Google Maps)
 
     func startTour() {
@@ -322,13 +360,36 @@ class TourStorage {
         }
     }
 
-    func loadAll() -> [Tour] {
-        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles) else {
-            return []
+    private var archivedIDs: Set<String> {
+        get {
+            let url = directory.appendingPathComponent(".archived.json")
+            guard let data = try? Data(contentsOf: url),
+                  let ids = try? JSONDecoder().decode(Set<String>.self, from: data) else { return [] }
+            return ids
         }
+        set {
+            let url = directory.appendingPathComponent(".archived.json")
+            try? JSONEncoder().encode(newValue).write(to: url)
+        }
+    }
 
+    private var ratings: [String: Int] {
+        get {
+            let url = directory.appendingPathComponent(".ratings.json")
+            guard let data = try? Data(contentsOf: url),
+                  let dict = try? JSONDecoder().decode([String: Int].self, from: data) else { return [:] }
+            return dict
+        }
+        set {
+            let url = directory.appendingPathComponent(".ratings.json")
+            try? JSONEncoder().encode(newValue).write(to: url)
+        }
+    }
+
+    private func allTours() -> [Tour] {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles) else { return [] }
         return files
-            .filter { $0.pathExtension == "json" }
+            .filter { $0.pathExtension == "json" && !$0.lastPathComponent.hasPrefix(".") }
             .sorted { a, b in
                 let dateA = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
                 let dateB = (try? b.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
@@ -340,9 +401,40 @@ class TourStorage {
             }
     }
 
+    func loadAll() -> [Tour] {
+        let archived = archivedIDs
+        return allTours().filter { !archived.contains($0.id) }
+    }
+
+    func loadArchived() -> [Tour] {
+        let archived = archivedIDs
+        return allTours().filter { archived.contains($0.id) }
+    }
+
+    func archive(_ tourId: String) {
+        var ids = archivedIDs
+        ids.insert(tourId)
+        archivedIDs = ids
+    }
+
+    func unarchive(_ tourId: String) {
+        var ids = archivedIDs
+        ids.remove(tourId)
+        archivedIDs = ids
+    }
+
     func delete(_ tourId: String) {
         let url = directory.appendingPathComponent("\(tourId).json")
         try? FileManager.default.removeItem(at: url)
+        var ids = archivedIDs; ids.remove(tourId); archivedIDs = ids
+    }
+
+    func setRating(tourId: String, rating: Int) {
+        var r = ratings; r[tourId] = rating; ratings = r
+    }
+
+    func getRating(tourId: String) -> Int? {
+        ratings[tourId]
     }
 }
 

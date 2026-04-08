@@ -28,77 +28,43 @@ struct ContentView: View {
 struct LibraryView: View {
     @EnvironmentObject var tourVM: TourViewModel
     @State private var selectedTour: Tour?
+    @State private var selectedSection = 0  // 0=Library, 1=Archive, 2=Community
+    @State private var showRating = false
+    @State private var ratingTour: Tour?
+    @State private var ratingValue = 0
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.brandDarkNavy.ignoresSafeArea()
 
-                if tourVM.savedTours.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "safari")
-                            .font(.system(size: 60))
-                            .foregroundStyle(.brandGold.opacity(0.3))
-                        Text("No Saved Tours")
-                            .font(.title2.bold()).foregroundStyle(.white)
-                        Text("Tours you create will appear here")
-                            .foregroundStyle(.white.opacity(0.4))
-                            .multilineTextAlignment(.center)
+                VStack(spacing: 0) {
+                    // Section picker
+                    Picker("", selection: $selectedSection) {
+                        Text("Library").tag(0)
+                        Text("Archive").tag(1)
+                        Text("Community").tag(2)
                     }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(tourVM.savedTours) { tour in
-                                Button {
-                                    tourVM.openSavedTour(tour)
-                                    selectedTour = tour
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack {
-                                            Text(tour.title)
-                                                .font(.headline).foregroundStyle(.brandGold)
-                                                .multilineTextAlignment(.leading)
-                                            Spacer()
-                                            Image(systemName: transportIcon(tour.transportMode ?? "car"))
-                                                .foregroundStyle(.brandGold.opacity(0.5))
-                                        }
-                                        Text(tour.locationQuery)
-                                            .font(.caption).foregroundStyle(.white.opacity(0.4))
-                                        HStack(spacing: 14) {
-                                            Label("\(tour.stops.count) Stops", systemImage: "mappin")
-                                            Label(formatDuration(tour.durationMinutes), systemImage: "clock")
-                                            if let km = tour.totalDistanceKm {
-                                                if tour.transportMode == "boat" {
-                                                    Label(String(format: "%.1f nm", km * 0.539957), systemImage: "ferry.fill")
-                                                } else {
-                                                    Label(String(format: "%.1f mi", km * 0.621371), systemImage: transportIcon(tour.transportMode ?? "car"))
-                                                }
-                                            }
-                                        }
-                                        .font(.caption2).foregroundStyle(.white.opacity(0.35))
-                                    }
-                                    .padding(16)
-                                    .background(Color.brandGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brandGold.opacity(0.1)))
-                                }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button(role: .destructive) { tourVM.deleteSavedTour(tour) } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 16).padding(.top, 8)
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+
+                    if selectedSection == 0 {
+                        libraryContent
+                    } else if selectedSection == 1 {
+                        archiveContent
+                    } else {
+                        communityContent
                     }
                 }
+
             }
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 0) {
                         Text("wAIpoint").font(.caption).foregroundStyle(.brandGold)
-                        Text("Tour Library").font(.headline.bold()).foregroundStyle(.white)
+                        Text("Tours").font(.headline.bold()).foregroundStyle(.white)
                     }
                 }
             }
@@ -107,7 +73,162 @@ struct LibraryView: View {
             .sheet(item: $selectedTour) { tour in
                 TourDetailView(tour: tour).environmentObject(tourVM)
             }
+            .sheet(isPresented: $showRating) {
+                if let tour = ratingTour {
+                    TourRatingView(tourTitle: tour.title, rating: $ratingValue) {
+                        tourVM.rateTour(tour, rating: ratingValue)
+                    }
+                }
+            }
         }
+    }
+
+    // MARK: - Library Content
+
+    var libraryContent: some View {
+        Group {
+            if tourVM.savedTours.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "safari").font(.system(size: 60)).foregroundStyle(.brandGold.opacity(0.3))
+                    Text("No Saved Tours").font(.title2.bold()).foregroundStyle(.white)
+                    Text("Tours you create will appear here").foregroundStyle(.white.opacity(0.4))
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(tourVM.savedTours) { tour in
+                            TourListCard(tour: tour, rating: tourVM.getRating(for: tour.id)) {
+                                tourVM.openSavedTour(tour)
+                                selectedTour = tour
+                            }
+                            .contextMenu {
+                                Button { tourVM.archiveTour(tour) } label: { Label("Archive", systemImage: "archivebox") }
+                                Button { ratingTour = tour; ratingValue = tourVM.getRating(for: tour.id) ?? 0; showRating = true } label: { Label("Rate", systemImage: "star") }
+                                Button(role: .destructive) { tourVM.deleteSavedTour(tour) } label: { Label("Delete", systemImage: "trash") }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16).padding(.top, 8)
+                }
+            }
+        }
+    }
+
+    // MARK: - Archive Content
+
+    var archiveContent: some View {
+        Group {
+            if tourVM.archivedTours.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "archivebox").font(.system(size: 60)).foregroundStyle(.white.opacity(0.2))
+                    Text("No Archived Tours").font(.title2.bold()).foregroundStyle(.white)
+                    Text("Long-press a tour to archive it").foregroundStyle(.white.opacity(0.4))
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                VStack(spacing: 0) {
+                    HStack {
+                        Spacer()
+                        Button("Delete All") { tourVM.deleteAllArchived() }
+                            .font(.caption).foregroundStyle(.red)
+                            .padding(.trailing, 20).padding(.top, 8)
+                    }
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(tourVM.archivedTours) { tour in
+                                TourListCard(tour: tour, rating: nil) {
+                                    tourVM.openSavedTour(tour)
+                                    selectedTour = tour
+                                }
+                                .opacity(0.7)
+                                .contextMenu {
+                                    Button { tourVM.unarchiveTour(tour) } label: { Label("Unarchive", systemImage: "tray.and.arrow.up") }
+                                    Button(role: .destructive) { tourVM.deleteArchivedTour(tour) } label: { Label("Delete", systemImage: "trash") }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.top, 4)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Community Content
+
+    var communityContent: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "globe").font(.system(size: 60)).foregroundStyle(.brandGold.opacity(0.3))
+            Text("Community Tours").font(.title2.bold()).foregroundStyle(.white)
+            Text("Discover rated tours from other explorers nearby.\nComing soon!").foregroundStyle(.white.opacity(0.4)).multilineTextAlignment(.center)
+
+            // Upload button
+            if !tourVM.savedTours.isEmpty {
+                Button {
+                    // TODO: Upload tour to community backend
+                } label: {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share a Tour to Community")
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(.brandGold.opacity(0.2), in: RoundedRectangle(cornerRadius: 14))
+                    .foregroundStyle(.brandGold)
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.brandGold.opacity(0.3)))
+                }
+                .padding(.horizontal, 30)
+            }
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    func transportIcon(_ mode: String) -> String {
+        switch mode {
+        case "walk": return "figure.walk"; case "bike": return "bicycle"
+        case "boat": return "ferry.fill"; case "plane": return "airplane"
+        default: return "car.fill"
+        }
+    }
+}
+
+// MARK: - Reusable Tour List Card
+
+struct TourListCard: View {
+    let tour: Tour
+    let rating: Int?
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(tour.title).font(.headline).foregroundStyle(.brandGold).multilineTextAlignment(.leading)
+                    Spacer()
+                    Image(systemName: transportIcon(tour.transportMode ?? "car")).foregroundStyle(.brandGold.opacity(0.5))
+                }
+                Text(tour.locationQuery).font(.caption).foregroundStyle(.white.opacity(0.4))
+                HStack(spacing: 14) {
+                    Label("\(tour.stops.count) Stops", systemImage: "mappin")
+                    Label(formatDuration(tour.durationMinutes), systemImage: "clock")
+                    if let km = tour.totalDistanceKm {
+                        if tour.transportMode == "boat" {
+                            Label(String(format: "%.1f nm", km * 0.539957), systemImage: "ferry.fill")
+                        } else {
+                            Label(String(format: "%.1f mi", km * 0.621371), systemImage: transportIcon(tour.transportMode ?? "car"))
+                        }
+                    }
+                    if let r = rating {
+                        StarRatingDisplay(rating: r)
+                    }
+                }
+                .font(.caption2).foregroundStyle(.white.opacity(0.35))
+            }
+            .padding(16)
+            .background(Color.brandGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brandGold.opacity(0.1)))
+        }
+        .buttonStyle(.plain)
     }
 
     func transportIcon(_ mode: String) -> String {
