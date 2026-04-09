@@ -16,7 +16,11 @@ class StoreKitService: ObservableObject {
         "com.privatetourai.premium.annual"
     ]
 
-    var isPremium: Bool { !purchasedProductIDs.isEmpty }
+    var isPremium: Bool {
+        if !purchasedProductIDs.isEmpty { return true }
+        // Fallback: check cached status while StoreKit loads
+        return UserDefaults.standard.bool(forKey: "isPremiumCached")
+    }
 
     var currentTier: String {
         if purchasedProductIDs.contains(where: { $0.contains("annual") }) { return "Annual" }
@@ -57,6 +61,7 @@ class StoreKitService: ObservableObject {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 purchasedProductIDs.insert(transaction.productID)
+                UserDefaults.standard.set(true, forKey: "isPremiumCached")
                 await transaction.finish()
                 isLoading = false
                 return true
@@ -92,12 +97,28 @@ class StoreKitService: ObservableObject {
 
     func updatePurchasedProducts() async {
         var purchased: Set<String> = []
+        print("[Store] Checking entitlements...")
         for await result in Transaction.currentEntitlements {
-            if let transaction = try? checkVerified(result) {
-                purchased.insert(transaction.productID)
+            switch result {
+            case .verified(let transaction):
+                if transaction.revocationDate == nil {
+                    purchased.insert(transaction.productID)
+                    print("[Store] ACTIVE entitlement: \(transaction.productID), expires: \(transaction.expirationDate?.description ?? "never")")
+                } else {
+                    print("[Store] REVOKED entitlement: \(transaction.productID)")
+                }
+            case .unverified(let transaction, let error):
+                if transaction.revocationDate == nil {
+                    purchased.insert(transaction.productID)
+                    print("[Store] UNVERIFIED entitlement (granting): \(transaction.productID), error: \(error)")
+                }
             }
         }
+        print("[Store] Entitlements check complete: \(purchased.count) active, isPremium: \(!purchased.isEmpty)")
         purchasedProductIDs = purchased
+
+        // Persist premium status locally as fallback
+        UserDefaults.standard.set(!purchased.isEmpty, forKey: "isPremiumCached")
     }
 
     // MARK: - Transaction Listener

@@ -14,6 +14,10 @@ class TourViewModel: ObservableObject {
     @Published var savedTours: [Tour] = []
     @Published var archivedTours: [Tour] = []
 
+    // Community tours
+    @Published var communityTours: [APIClient.CommunityTourItem] = []
+    @Published var isLoadingCommunity = false
+
     // Location verification state
     @Published var verifiedLocation: VerifiedLocation?
     @Published var isVerifying = false
@@ -127,8 +131,21 @@ class TourViewModel: ObservableObject {
         }
 
         do {
-            let startAddr = useAsStartLocation ? (verifiedLocation?.formattedAddress ?? searchText) : nil
-            let endAddr = useAsEndLocation ? (verifiedLocation?.formattedAddress ?? searchText) : nil
+            // When toggled on, get current location address for start/end
+            var startAddr: String? = nil
+            var endAddr: String? = nil
+            if useAsStartLocation || useAsEndLocation {
+                let currentAddress: String? = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
+                    locationManager.requestLocation { result in
+                        switch result {
+                        case .success(let addr): cont.resume(returning: addr)
+                        case .failure: cont.resume(returning: nil)
+                        }
+                    }
+                }
+                if useAsStartLocation { startAddr = currentAddress ?? "current location" }
+                if useAsEndLocation { endAddr = currentAddress ?? "current location" }
+            }
             let result = try await APIClient.shared.generatePreview(
                 location: location,
                 durationMinutes: selectedDuration,
@@ -324,11 +341,29 @@ class TourViewModel: ObservableObject {
         return URL(string: "https://waipoint.o11r.com/tour/\(shareId)")
     }
 
+    @Published var communityMessage: String?
+
     func shareToCommunity(_ tour: Tour) {
-        // TODO: Upload to community backend endpoint
-        // For now, the tour is already on the server (via generation)
-        // Just need to flag it as public
-        error = "Tour shared to community! Others can now discover it."
+        Task {
+            do {
+                try await APIClient.shared.publishTour(tour: tour)
+                communityMessage = "Tour published to community!"
+                await loadCommunityTours()
+            } catch {
+                communityMessage = "Failed to publish: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func loadCommunityTours() async {
+        isLoadingCommunity = true
+        defer { isLoadingCommunity = false }
+        do {
+            let response = try await APIClient.shared.getCommunityTours()
+            communityTours = response.tours
+        } catch {
+            print("[Community] Failed to load: \(error)")
+        }
     }
 
     func clearTour() {

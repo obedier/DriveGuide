@@ -36,7 +36,6 @@ targets:
       - path: PrivateTourAi/Resources/Subscriptions.storekit
     scheme:
       testPlans: []
-      storeKitConfiguration: PrivateTourAi/Resources/Subscriptions.storekit
     dependencies:
       - package: FirebaseAuth
         product: FirebaseAuth
@@ -71,6 +70,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        MARKETING_VERSION: "1.1"
-        CURRENT_PROJECT_VERSION: 4
+        MARKETING_VERSION: "2.0"
+        CURRENT_PROJECT_VERSION: 1
         CODE_SIGN_ENTITLEMENTS: PrivateTourAi/PrivateTourAi.entitlements

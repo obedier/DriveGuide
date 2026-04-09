@@ -31,6 +31,9 @@ struct LibraryView: View {
     @State private var selectedSection = 0  // 0=Library, 1=Archive, 2=Community
     @State private var showRating = false
     @State private var ratingTour: Tour?
+    @State private var showCommunityRating = false
+    @State private var ratingTourId = ""
+    @State private var ratingTourTitle = ""
     @State private var ratingValue = 0
 
     var body: some View {
@@ -58,6 +61,24 @@ struct LibraryView: View {
                     } else {
                         communityContent
                     }
+
+                    // Community message banner
+                    if let msg = tourVM.communityMessage {
+                        HStack {
+                            Image(systemName: msg.contains("Failed") ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                .foregroundStyle(msg.contains("Failed") ? .orange : .green)
+                            Text(msg).font(.caption).foregroundStyle(.white)
+                            Spacer()
+                            Button { tourVM.communityMessage = nil } label: {
+                                Image(systemName: "xmark").font(.caption).foregroundStyle(.white.opacity(0.5))
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
 
             }
@@ -80,6 +101,11 @@ struct LibraryView: View {
                     TourRatingView(tourTitle: tour.title, rating: $ratingValue) {
                         tourVM.rateTour(tour, rating: ratingValue)
                     }
+                }
+            }
+            .sheet(isPresented: $showCommunityRating) {
+                RateTourSheet(tourTitle: ratingTourTitle, tourId: ratingTourId, isPresented: $showCommunityRating) {
+                    Task { await tourVM.loadCommunityTours() }
                 }
             }
         }
@@ -187,29 +213,67 @@ struct LibraryView: View {
     // MARK: - Community Content
 
     var communityContent: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "globe").font(.system(size: 60)).foregroundStyle(.brandGold.opacity(0.3))
-            Text("Community Tours").font(.title2.bold()).foregroundStyle(.white)
-            Text("Discover rated tours from other explorers nearby.\nComing soon!").foregroundStyle(.white.opacity(0.4)).multilineTextAlignment(.center)
-
-            // Upload button
-            if !tourVM.savedTours.isEmpty {
-                Button {
-                    // TODO: Upload tour to community backend
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share a Tour to Community")
-                    }
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(.brandGold.opacity(0.2), in: RoundedRectangle(cornerRadius: 14))
-                    .foregroundStyle(.brandGold)
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.brandGold.opacity(0.3)))
+        Group {
+            if tourVM.isLoadingCommunity {
+                VStack(spacing: 16) {
+                    ProgressView().tint(.brandGold)
+                    Text("Loading community tours...").foregroundStyle(.white.opacity(0.4))
                 }
-                .padding(.horizontal, 30)
+                .frame(maxHeight: .infinity)
+            } else if tourVM.communityTours.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "globe").font(.system(size: 60)).foregroundStyle(.brandGold.opacity(0.3))
+                    Text("Community Tours").font(.title2.bold()).foregroundStyle(.white)
+                    Text("Discover tours shared by other explorers.\nBe the first to share one!").foregroundStyle(.white.opacity(0.4)).multilineTextAlignment(.center)
+
+                    if !tourVM.savedTours.isEmpty {
+                        Menu {
+                            ForEach(tourVM.savedTours) { tour in
+                                Button(tour.title) { tourVM.shareToCommunity(tour) }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Share a Tour to Community")
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 14)
+                            .background(.brandGold.opacity(0.2), in: RoundedRectangle(cornerRadius: 14))
+                            .foregroundStyle(.brandGold)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.brandGold.opacity(0.3)))
+                        }
+                        .padding(.horizontal, 30)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(tourVM.communityTours) { item in
+                            CommunityTourCard(item: item, onTap: {
+                                if let shareId = item.share_id {
+                                    Task {
+                                        do {
+                                            let tour = try await APIClient.shared.getSharedTour(shareId: shareId)
+                                            tourVM.currentTour = tour
+                                            tourVM.showTourDetail = true
+                                        } catch {
+                                            tourVM.communityMessage = "Failed to load tour"
+                                        }
+                                    }
+                                }
+                            }, onRate: {
+                                ratingTourId = item.id
+                                ratingTourTitle = item.title
+                                showCommunityRating = true
+                            })
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                }
             }
         }
-        .frame(maxHeight: .infinity)
+        .task { await tourVM.loadCommunityTours() }
     }
 
     func transportIcon(_ mode: String) -> String {
@@ -269,12 +333,198 @@ struct TourListCard: View {
     }
 }
 
+// MARK: - Community Tour Card
+
+struct CommunityTourCard: View {
+    let item: APIClient.CommunityTourItem
+    let onTap: () -> Void
+    let onRate: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(item.title).font(.headline).foregroundStyle(.brandGold).multilineTextAlignment(.leading)
+                    Spacer()
+                    Image(systemName: transportIcon(item.transport_mode)).foregroundStyle(.brandGold.opacity(0.5))
+                }
+                Text(item.location).font(.caption).foregroundStyle(.white.opacity(0.4))
+
+                // 5-star rating display
+                HStack(spacing: 4) {
+                    FiveStarDisplay(rating: item.rating ?? 0)
+                    if let count = item.rating_count, count > 0 {
+                        Text("(\(count))").font(.caption2).foregroundStyle(.white.opacity(0.3))
+                    }
+                    Spacer()
+                    Button { onRate() } label: {
+                        Text("Rate").font(.caption2.bold()).foregroundStyle(.brandGold)
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(Color.brandGold.opacity(0.15), in: Capsule())
+                    }
+                }
+
+                HStack(spacing: 14) {
+                    Label("\(item.duration_minutes) min", systemImage: "clock")
+                    if let km = item.distance_km {
+                        Label(String(format: "%.1f mi", km * 0.621371), systemImage: transportIcon(item.transport_mode))
+                    }
+                }
+                .font(.caption2).foregroundStyle(.white.opacity(0.35))
+            }
+            .padding(16)
+            .background(Color.brandGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brandGold.opacity(0.1)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    func transportIcon(_ mode: String) -> String {
+        switch mode {
+        case "walk": return "figure.walk"; case "bike": return "bicycle"
+        case "boat": return "ferry.fill"; case "plane": return "airplane"
+        default: return "car.fill"
+        }
+    }
+}
+
+// MARK: - 5-Star Display
+
+struct FiveStarDisplay: View {
+    let rating: Double
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(1...5, id: \.self) { star in
+                Image(systemName: starIcon(for: star))
+                    .font(.caption2)
+                    .foregroundStyle(.brandGold)
+            }
+        }
+    }
+
+    private func starIcon(for star: Int) -> String {
+        let value = rating
+        if Double(star) <= value { return "star.fill" }
+        if Double(star) - 0.5 <= value { return "star.leadinghalf.filled" }
+        return "star"
+    }
+}
+
+// MARK: - Rate Tour Sheet
+
+struct RateTourSheet: View {
+    let tourTitle: String
+    let tourId: String
+    @Binding var isPresented: Bool
+    var onRated: () -> Void
+
+    @State private var selectedRating = 0
+    @State private var reviewText = ""
+    @State private var isSubmitting = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.brandDarkNavy.ignoresSafeArea()
+
+                VStack(spacing: 24) {
+                    Text(tourTitle)
+                        .font(.headline).foregroundStyle(.brandGold)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 20)
+
+                    Text("How was this tour?")
+                        .font(.subheadline).foregroundStyle(.white.opacity(0.6))
+
+                    // Tap-to-rate stars
+                    HStack(spacing: 12) {
+                        ForEach(1...5, id: \.self) { star in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.15)) { selectedRating = star }
+                            } label: {
+                                Image(systemName: star <= selectedRating ? "star.fill" : "star")
+                                    .font(.system(size: 36))
+                                    .foregroundStyle(.brandGold)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+
+                    // Review text
+                    TextField("Write a review (optional)", text: $reviewText, axis: .vertical)
+                        .lineLimit(3...6)
+                        .padding(14)
+                        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.white)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brandGold.opacity(0.2)))
+                        .padding(.horizontal, 20)
+
+                    if let error = errorMessage {
+                        Text(error).font(.caption).foregroundStyle(.orange)
+                    }
+
+                    // Submit button
+                    Button {
+                        submitRating()
+                    } label: {
+                        HStack {
+                            if isSubmitting {
+                                ProgressView().tint(.brandNavy)
+                            }
+                            Text("Submit Rating")
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                        .background(selectedRating > 0 ? Color.brandGold : Color.brandGold.opacity(0.3), in: RoundedRectangle(cornerRadius: 14))
+                        .foregroundStyle(.brandNavy).font(.headline)
+                    }
+                    .disabled(selectedRating == 0 || isSubmitting)
+                    .padding(.horizontal, 20)
+
+                    Spacer()
+                }
+            }
+            .navigationTitle("Rate Tour")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { isPresented = false }
+                        .foregroundStyle(.brandGold)
+                }
+            }
+            .toolbarBackground(Color.brandDarkNavy, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        }
+    }
+
+    private func submitRating() {
+        isSubmitting = true
+        Task {
+            do {
+                try await APIClient.shared.rateTour(
+                    tourId: tourId,
+                    rating: selectedRating,
+                    review: reviewText.isEmpty ? nil : reviewText
+                )
+                isPresented = false
+                onRated()
+            } catch {
+                errorMessage = error.localizedDescription
+                isSubmitting = false
+            }
+        }
+    }
+}
+
 // MARK: - Profile (Stitch design: navy bg, gold buttons, tier badge)
 
 struct ProfileView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @StateObject private var store = StoreKitService.shared
     @State private var showPaywall = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
 
     var body: some View {
         NavigationStack {
@@ -352,16 +602,9 @@ struct ProfileView: View {
                             // Menu items
                             VStack(spacing: 0) {
                                 NavigationLink {
-                                    NotificationSettingsView()
+                                    SettingsView()
                                 } label: {
-                                    ProfileMenuItem(icon: "bell.fill", title: "Notifications")
-                                }
-                                Button {
-                                    if let url = URL(string: "https://waipoint.o11r.com/support?subject=wAIpoint%20Support") {
-                                        UIApplication.shared.open(url)
-                                    }
-                                } label: {
-                                    ProfileMenuItem(icon: "questionmark.circle", title: "Help & Support")
+                                    ProfileMenuItem(icon: "gearshape.fill", title: "Settings")
                                 }
                                 Button {
                                     Task { await store.restorePurchases() }
@@ -375,10 +618,13 @@ struct ProfileView: View {
                             .background(Color.brandNavy.opacity(0.5), in: RoundedRectangle(cornerRadius: 16))
                             .padding(.horizontal, 20)
 
-                            // Version
-                            Text("wAIpoint v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
-                                .font(.caption2).foregroundStyle(.white.opacity(0.2))
-                                .padding(.top, 20)
+                            // Delete account
+                            Button { showDeleteConfirm = true } label: {
+                                Text("Delete Account")
+                                    .font(.caption)
+                                    .foregroundStyle(.red.opacity(0.6))
+                            }
+                            .padding(.top, 16)
 
                         } else {
                             // Sign-in view
@@ -494,6 +740,33 @@ struct ProfileView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
+            }
+            .alert("Delete Account", isPresented: $showDeleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Everything", role: .destructive) {
+                    isDeleting = true
+                    Task {
+                        do {
+                            try await AuthService.shared.deleteAccount()
+                        } catch {
+                            print("[Profile] Delete error: \(error)")
+                        }
+                        isDeleting = false
+                    }
+                }
+            } message: {
+                Text("This will permanently delete your account, all saved tours, ratings, and subscription data. This cannot be undone.")
+            }
+            .overlay {
+                if isDeleting {
+                    ZStack {
+                        Color.black.opacity(0.5).ignoresSafeArea()
+                        VStack(spacing: 12) {
+                            ProgressView().tint(.brandGold)
+                            Text("Deleting account...").foregroundStyle(.white)
+                        }
+                    }
+                }
             }
         }
     }

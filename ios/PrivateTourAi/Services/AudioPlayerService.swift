@@ -6,75 +6,173 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var isPlaying = false
     @Published var currentSegmentIndex: Int = 0
     @Published var playbackProgress: Double = 0
-    @Published var segmentFinished = false  // signals simulation to advance
+    @Published var segmentFinished = false
+    @Published var isBuffering = false
 
     private var player: AVAudioPlayer?
-    private var audioData: [Data] = []
-    private var segments: [NarrationSegment] = []
+    private var audioData: [Data?] = []  // nil = not yet downloaded
+    private(set) var segments: [NarrationSegment] = []
+    private var audioUrls: [String] = []
     private var progressTimer: Timer?
+    private var bufferTask: Task<Void, Never>?
 
-    func prepare(segments: [NarrationSegment], audioUrls: [String]) async {
+    private let cacheDir: URL = {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("AudioCache", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    private let bufferAhead = 3  // Buffer 3 ahead for smoother skip
+    var voiceEngine: String = "google"
+    var voicePreference: String = "premium"
+
+    // MARK: - Setup
+
+    func setup(segments: [NarrationSegment], audioUrls: [String]) {
         self.segments = segments
+        self.audioUrls = audioUrls
+        self.audioData = Array(repeating: nil, count: segments.count)
 
-        // Configure audio session for playback
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers, .duckOthers])
         try? session.setActive(true)
 
-        // Download audio files (with disk cache)
-        let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("AudioCache", isDirectory: true)
-        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        print("[AudioPlayer] Setup with \(segments.count) segments, will buffer progressively")
+    }
 
-        audioData = []
-        for (i, url) in audioUrls.enumerated() {
-            // Check disk cache first
-            let cacheKey = url.components(separatedBy: "/").last ?? "\(i)"
-            let cacheFile = cacheDir.appendingPathComponent(cacheKey)
+    /// Setup without pre-generated URLs (will generate per-segment on demand)
+    func setupForOnDemand(segments: [NarrationSegment], voiceEngine: String, voicePreference: String) {
+        self.segments = segments
+        self.audioUrls = Array(repeating: "", count: segments.count)
+        self.audioData = Array(repeating: nil, count: segments.count)
+        self.voiceEngine = voiceEngine
+        self.voicePreference = voicePreference
 
-            if let cached = try? Data(contentsOf: cacheFile), cached.count > 100 {
-                audioData.append(cached)
-                print("[AudioPlayer] Segment \(i + 1): cached (\(cached.count) bytes)")
-                continue
-            }
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers, .duckOthers])
+        try? session.setActive(true)
 
-            print("[AudioPlayer] Downloading segment \(i + 1)/\(audioUrls.count)...")
-            if let audioUrl = URL(string: url) {
-                do {
-                    let (data, response) = try await URLSession.shared.data(from: audioUrl)
-                    let httpResponse = response as? HTTPURLResponse
-                    if httpResponse?.statusCode == 200, data.count > 100 {
-                        audioData.append(data)
-                        try? data.write(to: cacheFile) // Save to disk cache
-                        print("[AudioPlayer] Segment \(i + 1): downloaded + cached (\(data.count) bytes)")
-                    } else {
-                        print("[AudioPlayer] Segment \(i + 1): bad response \(httpResponse?.statusCode ?? 0)")
-                        audioData.append(Data())
-                    }
-                } catch {
-                    print("[AudioPlayer] Segment \(i + 1) error: \(error)")
-                    audioData.append(Data())
-                }
+        print("[AudioPlayer] Setup for on-demand generation (\(voiceEngine)), \(segments.count) segments")
+    }
+
+    // MARK: - Progressive Buffering
+
+    func bufferFrom(_ index: Int) async {
+        let end = min(index + bufferAhead, segments.count)
+        for i in index..<end {
+            if audioData[i] != nil { continue }
+            if audioUrls[i].isEmpty {
+                // Generate URL on demand
+                await generateAndDownload(at: i)
             } else {
-                audioData.append(Data())
+                await downloadSegment(at: i)
             }
         }
-        print("[AudioPlayer] Prepared \(audioData.filter { !$0.isEmpty }.count)/\(audioData.count) audio segments")
     }
+
+    func bufferInitial() async {
+        isBuffering = true
+        await bufferFrom(0)
+        isBuffering = false
+    }
+
+    /// Continue buffering ahead in background as playback progresses
+    func ensureBuffered(around index: Int) {
+        bufferTask?.cancel()
+        bufferTask = Task {
+            await bufferFrom(index)
+        }
+    }
+
+    private func generateAndDownload(at index: Int) async {
+        guard index < segments.count else { return }
+        let seg = segments[index]
+        do {
+            let url = try await APIClient.shared.generateSegmentAudio(
+                text: seg.narrationText,
+                contentHash: seg.contentHash,
+                voiceEngine: voiceEngine,
+                voicePreference: voicePreference
+            )
+            audioUrls[index] = url
+            await downloadSegment(at: index)
+        } catch {
+            print("[AudioPlayer] Generate failed for segment \(index + 1): \(error)")
+            audioData[index] = Data()
+        }
+    }
+
+    private func downloadSegment(at index: Int) async {
+        guard index < audioUrls.count else { return }
+        let url = audioUrls[index]
+
+        // Check disk cache
+        let cacheKey = url.components(separatedBy: "/").last ?? "\(index)"
+        let cacheFile = cacheDir.appendingPathComponent(cacheKey)
+
+        if let cached = try? Data(contentsOf: cacheFile), cached.count > 100 {
+            audioData[index] = cached
+            print("[AudioPlayer] Segment \(index + 1): disk cache (\(cached.count) bytes)")
+            return
+        }
+
+        // Download
+        guard let audioUrl = URL(string: url) else {
+            audioData[index] = Data()
+            return
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: audioUrl)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 200, data.count > 100 {
+                audioData[index] = data
+                try? data.write(to: cacheFile)
+                print("[AudioPlayer] Segment \(index + 1): downloaded (\(data.count) bytes)")
+            } else {
+                audioData[index] = Data()
+                print("[AudioPlayer] Segment \(index + 1): bad response \(status)")
+            }
+        } catch {
+            audioData[index] = Data()
+            print("[AudioPlayer] Segment \(index + 1) error: \(error)")
+        }
+    }
+
+    // MARK: - Playback
 
     func playSegment(at index: Int) {
         stop()
         currentSegmentIndex = index
         segmentFinished = false
 
-        guard index < audioData.count, audioData[index].count > 100 else {
+        // If segment not yet downloaded, buffer it first
+        if index < audioData.count && audioData[index] == nil {
+            print("[AudioPlayer] Segment \(index) not buffered yet, downloading...")
+            Task {
+                await bufferFrom(index)
+                if let data = audioData[index], data.count > 100 {
+                    startPlaying(data: data, index: index)
+                } else {
+                    segmentFinished = true
+                }
+            }
+            return
+        }
+
+        guard index < audioData.count, let data = audioData[index], data.count > 100 else {
             print("[AudioPlayer] No audio data for segment \(index), marking as finished")
             segmentFinished = true
             return
         }
 
+        startPlaying(data: data, index: index)
+    }
+
+    private func startPlaying(data: Data, index: Int) {
         do {
-            player = try AVAudioPlayer(data: audioData[index])
+            player = try AVAudioPlayer(data: data)
             player?.delegate = self
             player?.prepareToPlay()
             player?.play()
@@ -87,13 +185,15 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
                     self.playbackProgress = player.currentTime / max(player.duration, 1)
                 }
             }
+
+            // Buffer ahead while playing
+            ensureBuffered(around: index + 1)
         } catch {
             print("[AudioPlayer] Error playing segment \(index): \(error)")
             segmentFinished = true
         }
     }
 
-    // AVAudioPlayerDelegate — called when segment finishes naturally
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
             self.isPlaying = false
@@ -102,6 +202,13 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
             self.segmentFinished = true
             print("[AudioPlayer] Segment \(self.currentSegmentIndex) finished playing")
         }
+    }
+
+    func seek(to progress: Double) {
+        guard let player else { return }
+        let target = max(0, min(progress, 1.0)) * player.duration
+        player.currentTime = target
+        playbackProgress = progress
     }
 
     func pause() {
@@ -122,6 +229,15 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
         playbackProgress = 0
         segmentFinished = false
         progressTimer?.invalidate()
+    }
+
+    func clearAll() {
+        stop()
+        bufferTask?.cancel()
+        audioData = []
+        audioUrls = []
+        segments = []
+        currentSegmentIndex = 0
     }
 
     func skipToNext() {
@@ -145,5 +261,11 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     var totalSegments: Int { segments.count }
-    var hasAudio: Bool { !audioData.isEmpty && audioData.contains(where: { $0.count > 100 }) }
+    var hasAudio: Bool { audioData.contains(where: { ($0?.count ?? 0) > 100 }) }
+
+    // Legacy compatibility
+    func prepare(segments: [NarrationSegment], audioUrls: [String]) async {
+        setup(segments: segments, audioUrls: audioUrls)
+        await bufferInitial()
+    }
 }

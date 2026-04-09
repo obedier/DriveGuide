@@ -162,7 +162,14 @@ class AuthService: ObservableObject {
         GIDSignIn.sharedInstance.signOut()
     }
 
-    func deleteAccount() async { try? await user?.delete() }
+    func deleteAccount() async throws {
+        // Delete server-side data first
+        try? await APIClient.shared.deleteAccount()
+        // Then delete Firebase auth account
+        try await user?.delete()
+        // Sign out of Google
+        GIDSignIn.sharedInstance.signOut()
+    }
 
     // MARK: - Nonce Helpers
 

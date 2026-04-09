@@ -1,10 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { generateTourAudio, synthesizeOrCache } from '../services/audio/tts.js';
+import { synthesizeWithKokoro, isKokoroAvailable } from '../services/audio/kokoro.js';
 import { getDb } from '../lib/db.js';
 
 export async function audioRoutes(app: FastifyInstance): Promise<void> {
   // POST /tours/:id/audio — generate audio for a tour in the DB
-  app.post<{ Params: { id: string }; Body: { language?: string; voice_preference?: string } }>('/tours/:id/audio', async (request, reply) => {
+  app.post<{ Params: { id: string }; Body: { language?: string; voice_preference?: string; voice_engine?: string } }>('/tours/:id/audio', async (request, reply) => {
     const db = getDb();
     const tour = db.prepare('SELECT id, status FROM tours WHERE id = ?')
       .get(request.params.id) as { id: string; status: string } | undefined;
@@ -15,6 +16,22 @@ export async function audioRoutes(app: FastifyInstance): Promise<void> {
 
     if (tour.status !== 'ready') {
       return reply.code(400).send({ error: { code: 'TOUR_NOT_READY', message: 'Tour is not ready for audio generation' } });
+    }
+
+    const voiceEngine = request.body?.voice_engine;
+
+    // Use Kokoro if requested and available
+    if (voiceEngine === 'kokoro') {
+      try {
+        const segmentRows = db.prepare('SELECT id, narration_text, content_hash, language FROM narration_segments WHERE tour_id = ? ORDER BY sequence_order')
+          .all(tour.id) as Array<{ id: string; narration_text: string; content_hash: string; language: string }>;
+
+        const result = await synthesizeWithKokoro(segmentRows);
+        return { tour_id: tour.id, ...result };
+      } catch (err) {
+        app.log.warn(`Kokoro TTS failed, falling back to Google: ${err}`);
+        // Fall through to Google TTS
+      }
     }
 
     const result = await generateTourAudio(tour.id, request.body?.language, request.body?.voice_preference === 'premium' ? 'premium' : 'standard');
@@ -28,11 +45,24 @@ export async function audioRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /audio/generate — generate audio from inline narration segments (for saved/offline tours)
-  app.post<{ Body: { segments: Array<{ id: string; narration_text: string; content_hash: string; language?: string }>; voice_preference?: string } }>('/audio/generate', async (request, reply) => {
-    const { segments, voice_preference } = request.body;
+  app.post<{ Body: { segments: Array<{ id: string; narration_text: string; content_hash: string; language?: string }>; voice_preference?: string; voice_engine?: string } }>('/audio/generate', async (request, reply) => {
+    const { segments, voice_preference, voice_engine } = request.body;
 
     if (!segments || segments.length === 0) {
       return reply.code(400).send({ error: { code: 'INVALID_INPUT', message: 'segments array is required' } });
+    }
+
+    // Use Kokoro if requested
+    if (voice_engine === 'kokoro') {
+      try {
+        const result = await synthesizeWithKokoro(
+          segments.map((s) => ({ id: s.id, narration_text: s.narration_text, content_hash: s.content_hash, language: s.language ?? 'en' })),
+        );
+        return result;
+      } catch (err) {
+        app.log.warn(`Kokoro TTS failed, falling back to Google: ${err}`);
+        // Fall through to Google TTS
+      }
     }
 
     const results = [];
@@ -58,6 +88,17 @@ export async function audioRoutes(app: FastifyInstance): Promise<void> {
       segments: results,
       total_duration_seconds: totalDuration,
       total_size_bytes: totalSize,
+    };
+  });
+
+  // GET /audio/engines — list available voice engines
+  app.get('/audio/engines', async () => {
+    const kokoroUp = await isKokoroAvailable();
+    return {
+      engines: [
+        { id: 'google', name: 'Google Cloud TTS', available: true, qualities: ['standard', 'premium'] },
+        { id: 'kokoro', name: 'Kokoro 82M', available: kokoroUp, voices: ['af_heart', 'af_bella', 'am_adam', 'am_michael', 'bf_emma', 'bm_george'] },
+      ],
     };
   });
 }

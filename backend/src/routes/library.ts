@@ -92,4 +92,32 @@ export async function libraryRoutes(app: FastifyInstance): Promise<void> {
 
     return { status: 'updated' };
   });
+
+  // DELETE /account — delete user account and all associated data
+  app.delete('/account', {
+    preHandler: requireAuth,
+  }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const db = getDb();
+
+    // Delete all user data in order (respecting foreign keys)
+    db.prepare('DELETE FROM community_ratings WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM saved_tours WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM tour_downloads WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM purchases WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM subscriptions WHERE user_id = ?').run(userId);
+
+    // Delete user's tours and their stops/segments/audio
+    const tourIds = db.prepare('SELECT id FROM tours WHERE user_id = ?').all(userId) as Array<{ id: string }>;
+    for (const t of tourIds) {
+      db.prepare('DELETE FROM narration_segments WHERE tour_id = ?').run(t.id);
+      db.prepare('DELETE FROM tour_stops WHERE tour_id = ?').run(t.id);
+    }
+    db.prepare('DELETE FROM tours WHERE user_id = ?').run(userId);
+
+    // Delete user record
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+
+    return reply.code(200).send({ status: 'deleted', message: 'Account and all data deleted' });
+  });
 }

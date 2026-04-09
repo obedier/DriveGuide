@@ -1,11 +1,16 @@
 import SwiftUI
 import UserNotifications
 
-struct NotificationSettingsView: View {
+struct SettingsView: View {
     @State private var tourAlerts = true
     @State private var newFeatures = true
     @State private var promotions = false
     @State private var notificationsEnabled = false
+    @State private var useMetric = false
+    @State private var autoPlayAudio = true
+    @State private var cacheAudioOffline = true
+    @AppStorage("voiceEngine") private var voiceEngine = "google"
+    @AppStorage("voiceQuality") private var voiceQuality = "premium"
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -14,51 +19,106 @@ struct NotificationSettingsView: View {
                 Color.brandDarkNavy.ignoresSafeArea()
 
                 List {
-                    Section {
-                        if !notificationsEnabled {
-                            VStack(spacing: 12) {
-                                Image(systemName: "bell.slash")
-                                    .font(.title).foregroundStyle(.brandGold)
-                                Text("Notifications are disabled")
-                                    .font(.headline).foregroundStyle(.white)
-                                Text("Enable in Settings to receive tour updates")
-                                    .font(.caption).foregroundStyle(.white.opacity(0.5))
-                                Button("Open Settings") {
-                                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                                        UIApplication.shared.open(url)
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent).tint(.brandGold)
+                    // MARK: - Tour Defaults
+                    Section("Tour Defaults") {
+                        Toggle(isOn: $autoPlayAudio) {
+                            Label("Auto-Play Audio", systemImage: "play.circle")
+                        }
+                        Toggle(isOn: $cacheAudioOffline) {
+                            Label("Cache Audio Offline", systemImage: "arrow.down.circle")
+                        }
+                        Toggle(isOn: $useMetric) {
+                            Label("Use Metric Units", systemImage: "ruler")
+                        }
+                    }
+                    .listRowBackground(Color.brandNavy)
+
+                    // MARK: - Voice
+                    Section("Voice Engine") {
+                        Picker("Engine", selection: $voiceEngine) {
+                            Text("Google Cloud (Natural)").tag("google")
+                            Text("Kokoro (Ultra-Realistic)").tag("kokoro")
+                        }
+                        .pickerStyle(.menu)
+
+                        if voiceEngine == "google" {
+                            Picker("Quality", selection: $voiceQuality) {
+                                Text("Standard").tag("standard")
+                                Text("Premium (Journey)").tag("premium")
                             }
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .pickerStyle(.menu)
+                        } else {
+                            HStack {
+                                Image(systemName: "sparkles").foregroundStyle(.brandGold)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Kokoro 82M").font(.subheadline)
+                                    Text("Open-source, ultra-natural speech synthesis").font(.caption).foregroundStyle(.white.opacity(0.5))
+                                }
+                            }
                         }
                     }
                     .listRowBackground(Color.brandNavy)
 
-                    Section("Tour Notifications") {
-                        Toggle(isOn: $tourAlerts) {
-                            Label("Tour Completed", systemImage: "checkmark.circle")
-                        }
-                        Toggle(isOn: $tourAlerts) {
-                            Label("Audio Ready", systemImage: "speaker.wave.2")
+                    // MARK: - Notifications
+                    Section("Notifications") {
+                        if !notificationsEnabled {
+                            Button {
+                                if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "bell.slash").foregroundStyle(.orange)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Notifications Disabled").foregroundStyle(.white)
+                                        Text("Tap to enable in iOS Settings").font(.caption).foregroundStyle(.white.opacity(0.4))
+                                    }
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right").foregroundStyle(.white.opacity(0.3))
+                                }
+                            }
+                        } else {
+                            Toggle(isOn: $tourAlerts) {
+                                Label("Tour Completed", systemImage: "checkmark.circle")
+                            }
+                            Toggle(isOn: $tourAlerts) {
+                                Label("Audio Ready", systemImage: "speaker.wave.2")
+                            }
+                            Toggle(isOn: $newFeatures) {
+                                Label("New Features", systemImage: "sparkles")
+                            }
+                            Toggle(isOn: $promotions) {
+                                Label("Promotions & Offers", systemImage: "tag")
+                            }
                         }
                     }
                     .listRowBackground(Color.brandNavy)
 
-                    Section("Updates") {
-                        Toggle(isOn: $newFeatures) {
-                            Label("New Features", systemImage: "sparkles")
+                    // MARK: - About
+                    Section("About") {
+                        HStack {
+                            Label("Version", systemImage: "info.circle")
+                            Spacer()
+                            Text("\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
+                                .foregroundStyle(.white.opacity(0.4))
                         }
-                        Toggle(isOn: $promotions) {
-                            Label("Promotions & Offers", systemImage: "tag")
+                        Link(destination: URL(string: "https://waipoint.o11r.com/privacy")!) {
+                            Label("Privacy Policy", systemImage: "hand.raised")
+                        }
+                        Link(destination: URL(string: "https://waipoint.o11r.com/terms")!) {
+                            Label("Terms of Service", systemImage: "doc.text")
+                        }
+                        Link(destination: URL(string: "https://waipoint.o11r.com/support")!) {
+                            Label("Help & Support", systemImage: "questionmark.circle")
                         }
                     }
                     .listRowBackground(Color.brandNavy)
                 }
                 .scrollContentBackground(.hidden)
                 .tint(.brandGold)
+                .foregroundStyle(.white)
             }
-            .navigationTitle("Notifications")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

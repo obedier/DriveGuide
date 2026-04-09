@@ -101,8 +101,16 @@ struct PaywallView: View {
                         }
                         .font(.caption).foregroundStyle(.brandGold)
 
-                        Text("Cancel anytime. Terms & Privacy.")
+                        Text("Subscription auto-renews unless canceled at least 24 hours before the end of the current period. Manage in Settings > Apple ID > Subscriptions.")
                             .font(.caption2).foregroundStyle(.white.opacity(0.3))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+
+                        HStack(spacing: 16) {
+                            Link("Terms of Service", destination: URL(string: "https://waipoint.o11r.com/terms")!)
+                            Link("Privacy Policy", destination: URL(string: "https://waipoint.o11r.com/privacy")!)
+                        }
+                        .font(.caption2).foregroundStyle(.brandGold.opacity(0.5))
                     }
 
                     if let error = store.error {

@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseAuth
 
 enum APIError: Error, LocalizedError {
     case invalidURL
@@ -28,7 +29,7 @@ final class APIClient: Sendable {
 
     // Longer timeout for AI-powered endpoints
     private let shortTimeout: TimeInterval = 20
-    private let longTimeout: TimeInterval = 180  // 3 min for tour gen (Gemini + Maps + route)
+    private let longTimeout: TimeInterval = 300  // 5 min for tour gen + Kokoro audio
 
     // MARK: - Location Verification
 
@@ -127,15 +128,123 @@ final class APIClient: Sendable {
         return tour
     }
 
-    // MARK: - Audio
+    // MARK: - Community
 
-    func generateAudio(tourId: String) async throws -> AudioResponse {
-        return try await post("/tours/\(tourId)/audio", body: EmptyBody(), timeout: longTimeout)
+    func publishTour(tour: Tour) async throws {
+        struct PublishRequest: Encodable { let tour: Tour }
+        struct PublishResponse: Decodable { let status: String }
+        let _: PublishResponse = try await authPost("/tours/community/publish", body: PublishRequest(tour: tour))
     }
 
-    func generateAudioInline(segments: [NarrationSegment]) async throws -> AudioResponse {
+    func unpublishTour(tourId: String) async throws {
+        struct StatusResponse: Decodable { let status: String }
+        let _: StatusResponse = try await authPost("/tours/\(tourId)/unpublish", body: EmptyBody())
+    }
+
+    struct CommunityTourItem: Decodable, Identifiable {
+        let id: String
+        let title: String
+        let description: String
+        let location: String
+        let duration_minutes: Int
+        let transport_mode: String
+        let center_lat: Double?
+        let center_lng: Double?
+        let distance_km: Double?
+        let share_id: String?
+        let rating: Double?
+        let rating_count: Int?
+        let created_at: String?
+    }
+
+    struct CommunityResponse: Decodable {
+        let tours: [CommunityTourItem]
+        let pagination: Pagination
+        struct Pagination: Decodable {
+            let total: Int
+            let page: Int
+            let limit: Int
+            let has_more: Bool
+        }
+    }
+
+    func getCommunityTours(lat: Double? = nil, lng: Double? = nil, radiusKm: Double = 100) async throws -> CommunityResponse {
+        var path = "/tours/community?"
+        if let lat, let lng {
+            path += "lat=\(lat)&lng=\(lng)&radius_km=\(radiusKm)&"
+        }
+        path += "limit=50"
+        return try await get(path)
+    }
+
+    // MARK: - Account
+
+    func deleteAccount() async throws {
+        struct DeleteResponse: Decodable { let status: String }
+        var request = try await authenticatedRequest(path: "/account", method: "DELETE", timeout: shortTimeout)
+        let _: DeleteResponse = try await execute(request)
+    }
+
+    // MARK: - Ratings
+
+    func rateTour(tourId: String, rating: Int, review: String? = nil) async throws {
+        struct RateRequest: Encodable { let rating: Int; let review: String? }
+        struct RateResponse: Decodable { let status: String }
+        let _: RateResponse = try await authPost("/tours/\(tourId)/rate", body: RateRequest(rating: rating, review: review))
+    }
+
+    struct RatingItem: Decodable {
+        let rating: Int
+        let review: String?
+        let author: String
+        let created_at: String
+    }
+
+    func getTourRatings(tourId: String) async throws -> [RatingItem] {
+        struct Response: Decodable { let ratings: [RatingItem] }
+        let response: Response = try await get("/tours/\(tourId)/ratings")
+        return response.ratings
+    }
+
+    // MARK: - Per-Segment Audio (for progressive buffering)
+
+    func generateSegmentAudio(text: String, contentHash: String, voiceEngine: String = "google", voicePreference: String = "premium") async throws -> String {
+        if voiceEngine == "kokoro" {
+            // Call Kokoro service directly for single segment
+            struct KokoroRequest: Encodable { let text: String; let content_hash: String; let voice: String; let speed: Double }
+            struct KokoroResponse: Decodable { let audio_url: String }
+            let kokoroUrl = "https://kokoro-tts-801121217326.us-east1.run.app"
+            guard let url = URL(string: "\(kokoroUrl)/synthesize") else { throw APIError.invalidURL }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = longTimeout
+            request.httpBody = try JSONEncoder().encode(KokoroRequest(text: text, content_hash: contentHash, voice: "af_heart", speed: 0.95))
+            let response: KokoroResponse = try await execute(request)
+            return response.audio_url
+        } else {
+            // Use Google TTS via backend
+            struct TTSRequest: Encodable { let segments: [Seg]; let voice_preference: String; let voice_engine: String
+                struct Seg: Encodable { let id: String; let narration_text: String; let content_hash: String; let language: String }
+            }
+            let req = TTSRequest(segments: [.init(id: "s", narration_text: text, content_hash: contentHash, language: "en")], voice_preference: voicePreference, voice_engine: "google")
+            let response: AudioResponse = try await post("/audio/generate", body: req, timeout: longTimeout)
+            return response.segments.first?.audioUrl ?? ""
+        }
+    }
+
+    // MARK: - Audio
+
+    func generateAudio(tourId: String, voicePreference: String = "premium", voiceEngine: String = "google") async throws -> AudioResponse {
+        struct AudioRequest: Encodable { let voice_preference: String; let voice_engine: String }
+        return try await post("/tours/\(tourId)/audio", body: AudioRequest(voice_preference: voicePreference, voice_engine: voiceEngine), timeout: longTimeout)
+    }
+
+    func generateAudioInline(segments: [NarrationSegment], voicePreference: String = "premium", voiceEngine: String = "google") async throws -> AudioResponse {
         struct InlineRequest: Encodable {
             let segments: [SegmentInput]
+            let voice_preference: String
+            let voice_engine: String
         }
         struct SegmentInput: Encodable {
             let id: String
@@ -146,7 +255,7 @@ final class APIClient: Sendable {
 
         let input = InlineRequest(segments: segments.map { seg in
             SegmentInput(id: seg.id, narration_text: seg.narrationText, content_hash: seg.contentHash, language: seg.language)
-        })
+        }, voice_preference: voicePreference, voice_engine: voiceEngine)
         return try await post("/audio/generate", body: input, timeout: longTimeout)
     }
 
@@ -172,6 +281,22 @@ final class APIClient: Sendable {
         request.httpMethod = method
         request.timeoutInterval = timeout
         return request
+    }
+
+    private func authenticatedRequest(path: String, method: String, timeout: TimeInterval) async throws -> URLRequest {
+        var request = try buildRequest(path: path, method: method, timeout: timeout)
+        if let user = Auth.auth().currentUser {
+            let token = try await user.getIDToken()
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    private func authPost<T: Decodable, B: Encodable>(_ path: String, body: B, timeout: TimeInterval? = nil) async throws -> T {
+        var request = try await authenticatedRequest(path: path, method: "POST", timeout: timeout ?? shortTimeout)
+        request.httpBody = try JSONEncoder().encode(body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        return try await execute(request)
     }
 
     private func execute<T: Decodable>(_ request: URLRequest) async throws -> T {

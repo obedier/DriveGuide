@@ -1,8 +1,11 @@
 import Foundation
 import CoreLocation
+import SwiftUI
 
 @MainActor
 class TourPlaybackService: ObservableObject {
+    @AppStorage("voiceQuality") var voiceQuality = "premium"
+    @AppStorage("voiceEngine") var voiceEngine = "google"
     @Published var isActive = false
     @Published var currentStopIndex: Int = -1  // -1 = intro
     @Published var currentSegmentType: String = "intro"
@@ -18,7 +21,35 @@ class TourPlaybackService: ObservableObject {
 
     // MARK: - Prepare Tour
 
+    // Static cache: tourId+engine -> audioUrls (persists across sheet presentations)
+    private static var audioUrlCache: [String: [String]] = [:]
+    private var preparedTourId: String?
+    private var preparedEngine: String?
+
+    private var cacheKey: String { "\(tour?.id ?? ""):\(voiceEngine)" }
+
     func prepareTour(_ tour: Tour) async {
+        // Skip if already prepared in this instance
+        if preparedTourId == tour.id && preparedEngine == voiceEngine && audioReady {
+            return
+        }
+
+        // Check static cache — audio URLs from previous session
+        let key = "\(tour.id):\(voiceEngine)"
+        // Check URL cache (from previous session)
+        if let cachedUrls = Self.audioUrlCache[key] {
+            self.tour = tour
+            self.segments = tour.narrationSegments.sorted { $0.sequenceOrder < $1.sequenceOrder }
+            audioProgress = "Loading audio..."
+            audioPlayer.setup(segments: segments, audioUrls: cachedUrls)
+            await audioPlayer.bufferInitial()  // Only downloads first 2 segments
+            audioReady = audioPlayer.hasAudio
+            audioProgress = ""
+            preparedTourId = tour.id
+            preparedEngine = voiceEngine
+            if audioReady { return }
+        }
+
         self.tour = tour
         self.segments = tour.narrationSegments.sorted { $0.sequenceOrder < $1.sequenceOrder }
 
@@ -27,29 +58,42 @@ class TourPlaybackService: ObservableObject {
             return
         }
 
-        audioProgress = "Generating audio narration (\(segments.count) segments)..."
-        do {
-            // Try tour-based endpoint first, fall back to inline if tour not on server
-            let response: AudioResponse
+        let engine = voiceEngine
+        let quality = voiceQuality
+        audioProgress = engine == "kokoro" ? "Preparing Kim..." : "Preparing audio..."
+
+        if engine == "kokoro" {
+            // Kokoro: on-demand per segment (fast first audio, ~5s)
+            audioPlayer.setupForOnDemand(segments: segments, voiceEngine: engine, voicePreference: quality)
+            await audioPlayer.bufferInitial()
+        } else {
+            // Google: batch all URLs at once (fast, <3s total)
             do {
-                response = try await APIClient.shared.generateAudio(tourId: tour.id)
+                let response: AudioResponse
+                do {
+                    response = try await APIClient.shared.generateAudio(tourId: tour.id, voicePreference: quality, voiceEngine: engine)
+                } catch {
+                    response = try await APIClient.shared.generateAudioInline(segments: segments, voicePreference: quality, voiceEngine: engine)
+                }
+                let audioUrls = response.segments.map(\.audioUrl)
+                audioPlayer.setup(segments: segments, audioUrls: audioUrls)
+                await audioPlayer.bufferInitial()
+                if audioPlayer.hasAudio {
+                    Self.audioUrlCache["\(tour.id):\(engine)"] = audioUrls
+                }
             } catch {
-                print("[Playback] Tour-based audio failed, trying inline: \(error)")
-                audioProgress = "Generating audio (inline)..."
-                response = try await APIClient.shared.generateAudioInline(segments: segments)
+                print("[Playback] Google audio error: \(error)")
+                audioProgress = "Audio unavailable — text narration mode"
+                audioReady = false
+                return
             }
+        }
 
-            let audioUrls = response.segments.map(\.audioUrl)
-            audioProgress = "Downloading \(audioUrls.count) audio segments..."
-
-            await audioPlayer.prepare(segments: segments, audioUrls: audioUrls)
-            audioReady = audioPlayer.hasAudio
-            audioProgress = audioReady ? "" : "Audio generation failed — using text narration"
-            print("[Playback] Audio ready: \(audioReady), segments: \(segments.count)")
-        } catch {
-            print("[Playback] Audio generation error: \(error)")
-            audioProgress = "Audio unavailable — text narration mode"
-            audioReady = false
+        audioReady = audioPlayer.hasAudio
+        audioProgress = ""
+        if audioReady {
+            preparedTourId = tour.id
+            preparedEngine = engine
         }
     }
 
@@ -110,6 +154,84 @@ class TourPlaybackService: ObservableObject {
                 self.isActive = false
                 self.isSimulating = false
             }
+        }
+    }
+
+    // MARK: - Voice Switching
+
+    func switchVoice(engine: String, quality: String) {
+        print("[Playback] Switching voice: \(voiceEngine) -> \(engine)")
+        // Set engine BEFORE regenerating — pass explicitly to avoid @AppStorage sync issues
+        voiceEngine = engine
+        voiceQuality = quality
+        Task {
+            // Regenerate with explicit engine parameter
+            await regenerateAudioWith(engine: engine, quality: quality)
+        }
+    }
+
+    // MARK: - Regenerate Audio
+
+    func regenerateAudio() async {
+        await regenerateAudioWith(engine: voiceEngine, quality: voiceQuality)
+    }
+
+    private func regenerateAudioWith(engine: String, quality: String) async {
+        guard let tour else { return }
+
+        // Wipe entire audio cache to force fresh downloads
+        let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("AudioCache", isDirectory: true)
+        try? FileManager.default.removeItem(at: cacheDir)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
+        // Stop current playback and reset
+        audioPlayer.stop()
+        audioPlayer.clearAll()
+        isActive = false
+        audioReady = false
+        // Clear ALL cached URLs for this tour (both engines)
+        Self.audioUrlCache.removeValue(forKey: "\(tour.id):google")
+        Self.audioUrlCache.removeValue(forKey: "\(tour.id):kokoro")
+        preparedTourId = nil
+        preparedEngine = nil
+
+        // Generate with explicit engine (don't rely on @AppStorage)
+        self.tour = tour
+        self.segments = tour.narrationSegments.sorted { $0.sequenceOrder < $1.sequenceOrder }
+        guard !segments.isEmpty else { return }
+
+        audioProgress = engine == "kokoro" ? "Preparing Kim..." : "Preparing Gary..."
+
+        if engine == "kokoro" {
+            audioPlayer.setupForOnDemand(segments: segments, voiceEngine: engine, voicePreference: quality)
+            await audioPlayer.bufferInitial()
+        } else {
+            do {
+                let response: AudioResponse
+                do {
+                    response = try await APIClient.shared.generateAudio(tourId: tour.id, voicePreference: quality, voiceEngine: engine)
+                } catch {
+                    response = try await APIClient.shared.generateAudioInline(segments: segments, voicePreference: quality, voiceEngine: engine)
+                }
+                let audioUrls = response.segments.map(\.audioUrl)
+                audioPlayer.setup(segments: segments, audioUrls: audioUrls)
+                await audioPlayer.bufferInitial()
+                if audioPlayer.hasAudio {
+                    Self.audioUrlCache["\(tour.id):\(engine)"] = audioUrls
+                }
+            } catch {
+                audioProgress = "Audio unavailable"
+                audioReady = false
+                return
+            }
+        }
+
+        audioReady = audioPlayer.hasAudio
+        audioProgress = ""
+        if audioReady {
+            preparedTourId = tour.id
+            preparedEngine = engine
         }
     }
 

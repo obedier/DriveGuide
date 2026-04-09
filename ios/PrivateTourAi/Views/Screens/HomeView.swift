@@ -47,14 +47,14 @@ struct HomeView: View {
                 Spacer()
 
                 if let preview = tourVM.currentPreview, !tourVM.isGenerating {
-                    PreviewCard(preview: preview) { tourVM.showTourDetail = true }
+                    PreviewCard(preview: preview, onTap: { tourVM.showTourDetail = true }, onDismiss: { withAnimation { tourVM.currentPreview = nil } })
                         .padding(.horizontal, 16)
                         .transition(.move(edge: .bottom))
                         .gesture(DragGesture(minimumDistance: 50).onEnded { v in
                             if abs(v.translation.width) > 100 { withAnimation { tourVM.currentPreview = nil } }
                         })
                 } else if let tour = tourVM.currentTour {
-                    TourReadyCard(tour: tour) { tourVM.showTourDetail = true }
+                    TourReadyCard(tour: tour, onTap: { tourVM.showTourDetail = true }, onDismiss: { withAnimation { tourVM.clearTour() } })
                         .padding(.horizontal, 16)
                         .transition(.move(edge: .bottom))
                         .gesture(DragGesture(minimumDistance: 50).onEnded { v in
@@ -124,50 +124,66 @@ struct HomeView: View {
 struct GenerationView: View {
     let progress: String
     @State private var rotation: Double = 0
+    @State private var pulse: Bool = false
+    @State private var ringScale: CGFloat = 0.9
 
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
 
-            // Compass rose
+            // Animated compass
             ZStack {
+                // Outer pulsing ring
                 Circle()
-                    .fill(RadialGradient(colors: [.brandGreen.opacity(0.3), .clear], center: .center, startRadius: 40, endRadius: 100))
+                    .stroke(.brandGold.opacity(0.15), lineWidth: 3)
                     .frame(width: 200, height: 200)
+                    .scaleEffect(pulse ? 1.15 : 0.95)
+                    .opacity(pulse ? 0 : 0.6)
 
+                // Radial glow
+                Circle()
+                    .fill(RadialGradient(colors: [.brandGold.opacity(0.2), .clear], center: .center, startRadius: 30, endRadius: 100))
+                    .frame(width: 200, height: 200)
+                    .scaleEffect(ringScale)
+
+                // Inner ring
                 Circle()
                     .stroke(.brandGold.opacity(0.4), lineWidth: 2)
                     .frame(width: 160, height: 160)
+                    .rotationEffect(.degrees(-rotation * 0.3))
 
+                // Compass needle
                 Image(systemName: "safari.fill")
                     .font(.system(size: 70))
                     .foregroundStyle(.brandGold)
                     .rotationEffect(.degrees(rotation))
+                    .scaleEffect(pulse ? 1.05 : 0.95)
 
+                // W logo
                 Text("W")
                     .font(.title2.bold())
-                    .foregroundStyle(.brandGold)
+                    .foregroundStyle(.brandNavy)
             }
 
-            // Loading spinner
-            ProgressView()
-                .tint(.brandGold)
-                .scaleEffect(1.2)
-
-            // Progress messages
+            // Progress messages (no separate spinner — compass IS the animation)
             Text(progress)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
+                .contentTransition(.numericText())
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.brandDarkNavy.opacity(0.85))
         .onAppear {
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
                 rotation = 360
+            }
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                pulse = true
+                ringScale = 1.1
             }
         }
     }
@@ -289,12 +305,12 @@ struct SearchCard: View {
                         VStack(spacing: 8) {
                             HStack(spacing: 16) {
                                 Toggle(isOn: $tourVM.useAsStartLocation) {
-                                    Label("Start here", systemImage: "flag.fill")
+                                    Label("Start from my location", systemImage: "location.fill")
                                         .font(.caption).foregroundStyle(.white.opacity(0.7))
                                 }
                                 .toggleStyle(.switch).tint(.brandGold)
                                 Toggle(isOn: $tourVM.useAsEndLocation) {
-                                    Label("End here", systemImage: "flag.checkered")
+                                    Label("End at my location", systemImage: "location.fill.viewfinder")
                                         .font(.caption).foregroundStyle(.white.opacity(0.7))
                                 }
                                 .toggleStyle(.switch).tint(.brandGold)
@@ -425,11 +441,20 @@ struct ThemeChip: View {
 // MARK: - Bottom Cards
 
 struct PreviewCard: View {
-    let preview: TourPreview; let onTap: () -> Void
+    let preview: TourPreview; let onTap: () -> Void; var onDismiss: (() -> Void)? = nil
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(preview.title).font(.headline).foregroundStyle(.brandGold)
+                HStack {
+                    Text(preview.title).font(.headline).foregroundStyle(.brandGold)
+                    Spacer()
+                    if let dismiss = onDismiss {
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3).foregroundStyle(.white.opacity(0.4))
+                        }
+                    }
+                }
                 Text(preview.description).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(2)
                 HStack {
                     Label("\(preview.stopCount) stops", systemImage: "mappin.and.ellipse")
@@ -450,7 +475,7 @@ struct PreviewCard: View {
 }
 
 struct TourReadyCard: View {
-    let tour: Tour; let onTap: () -> Void
+    let tour: Tour; let onTap: () -> Void; var onDismiss: (() -> Void)? = nil
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
@@ -458,6 +483,12 @@ struct TourReadyCard: View {
                     Text(tour.title).font(.headline).foregroundStyle(.brandGold)
                     Spacer()
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    if let dismiss = onDismiss {
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3).foregroundStyle(.white.opacity(0.4))
+                        }
+                    }
                 }
                 Text("\(tour.stops.count) stops \u{2022} \(formatDuration(tour.durationMinutes))")
                     .font(.caption).foregroundStyle(.white.opacity(0.5))
@@ -471,12 +502,46 @@ struct TourReadyCard: View {
 
 struct ErrorBanner: View {
     let message: String; let onDismiss: () -> Void
+    @State private var showDetail = false
+
+    // Extract a short user-friendly message from potentially verbose error strings
+    private var shortMessage: String {
+        if message.contains("Server error") {
+            return "Something went wrong. Tap for details."
+        }
+        if message.contains("Network error") || message.contains("timed out") {
+            return "Network issue. Please check your connection."
+        }
+        if message.count > 80 {
+            return String(message.prefix(77)) + "..."
+        }
+        return message
+    }
+
+    private var isSuccess: Bool {
+        message.contains("published") || message.contains("shared") || message.contains("saved")
+    }
+
     var body: some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-            Text(message).font(.caption).foregroundStyle(.white)
-            Spacer()
-            Button(action: onDismiss) { Image(systemName: "xmark").font(.caption).foregroundStyle(.white.opacity(0.5)) }
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(isSuccess ? .green : .orange)
+                Text(shortMessage).font(.caption).foregroundStyle(.white).lineLimit(2)
+                Spacer()
+                if message.count > 80 {
+                    Button { showDetail.toggle() } label: {
+                        Image(systemName: "info.circle").font(.caption).foregroundStyle(.white.opacity(0.4))
+                    }
+                }
+                Button(action: onDismiss) { Image(systemName: "xmark").font(.caption).foregroundStyle(.white.opacity(0.5)) }
+            }
+            if showDetail {
+                Text(message)
+                    .font(.caption2).foregroundStyle(.white.opacity(0.5))
+                    .padding(.top, 8)
+                    .textSelection(.enabled)
+            }
         }
         .padding(12)
         .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))

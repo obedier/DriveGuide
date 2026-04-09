@@ -81,7 +81,7 @@ class AuthViewModel: ObservableObject {
         auth.signOut()
     }
 
-    func deleteAccount() {
-        Task { await auth.deleteAccount() }
+    func deleteAccount() async throws {
+        try await auth.deleteAccount()
     }
 }

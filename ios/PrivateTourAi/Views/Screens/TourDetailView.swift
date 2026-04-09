@@ -67,6 +67,7 @@ struct TourDetailView: View {
 
                         // Action buttons
                         VStack(spacing: 10) {
+                            // Start Guided Tour — opens in-app navigation with narration
                             Button {
                                 if store.isPremium {
                                     showGuidedTour = true
@@ -75,7 +76,7 @@ struct TourDetailView: View {
                                 }
                             } label: {
                                 HStack {
-                                    Image(systemName: store.isPremium ? "headphones" : "lock.fill")
+                                    Image(systemName: store.isPremium ? "location.fill" : "lock.fill")
                                     Text(store.isPremium ? "Start Guided Tour" : "Unlock Guided Tour")
                                         .fontWeight(.semibold)
                                 }
@@ -85,23 +86,32 @@ struct TourDetailView: View {
                             .buttonStyle(.borderedProminent)
                             .tint(.brandGold)
 
+                            // Open full route in Google Maps
                             Button {
-                                // For boat tours, build a Google Maps URL from stops (since VectorCharts URL is a style JSON)
+                                let origin: String
+                                let dest: String
+                                let waypoints: String
+                                let travelMode: String
+
                                 if tour.transportMode == "boat" {
-                                    let origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                    let dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                    let waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
-                                    var mapsUrl = "https://www.google.com/maps/dir/?api=1&origin=\(origin)&destination=\(dest)&travelmode=driving"
-                                    if !waypoints.isEmpty { mapsUrl += "&waypoints=\(waypoints)" }
-                                    if let url = URL(string: mapsUrl) { UIApplication.shared.open(url) }
-                                } else if let urlStr = tour.mapsDirectionsUrl,
-                                          let url = URL(string: urlStr) {
-                                    UIApplication.shared.open(url)
+                                    origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                    dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                    waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+                                    travelMode = "driving"
+                                } else {
+                                    origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                    dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
+                                    waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+                                    travelMode = (tour.transportMode == "walk") ? "walking" : (tour.transportMode == "bike") ? "bicycling" : "driving"
                                 }
+
+                                var mapsUrl = "https://www.google.com/maps/dir/?api=1&origin=\(origin)&destination=\(dest)&travelmode=\(travelMode)"
+                                if !waypoints.isEmpty { mapsUrl += "&waypoints=\(waypoints)" }
+                                if let url = URL(string: mapsUrl) { UIApplication.shared.open(url) }
                             } label: {
                                 HStack {
                                     Image(systemName: "map.fill")
-                                    Text("Open Waypoints in Maps")
+                                    Text("Open Route in Maps")
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)

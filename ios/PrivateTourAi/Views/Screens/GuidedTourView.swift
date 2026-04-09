@@ -4,22 +4,34 @@ import MapKit
 struct GuidedTourView: View {
     let tour: Tour
     @StateObject private var playback = TourPlaybackService()
+    @StateObject private var nav = NavigationService()
     @Environment(\.dismiss) private var dismiss
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var isPreparing = true
     @State private var audioOnly = false
     @State private var use3DMap = false
+    @State private var followUser = false
 
     private var isBoatTour: Bool { tour.transportMode == "boat" }
 
     var body: some View {
         ZStack {
-            // Map — nautical chart for boat tours, Apple Maps for everything else
+            // Map
             if isBoatTour {
                 NauticalChartView(stops: tour.stops, currentStopIndex: playback.currentStopIndex)
                     .ignoresSafeArea()
             } else {
                 Map(position: $cameraPosition) {
+                    // User location
+                    UserAnnotation()
+
+                    // Route polylines
+                    ForEach(Array(nav.routePolylines.enumerated()), id: \.offset) { _, polyline in
+                        MapPolyline(polyline)
+                            .stroke(.brandGold, lineWidth: 5)
+                    }
+
+                    // Stop markers
                     ForEach(tour.stops) { stop in
                         let idx = tour.stops.firstIndex(where: { $0.id == stop.id }) ?? 0
                         let isCurrent = idx == playback.currentStopIndex
@@ -46,77 +58,19 @@ struct GuidedTourView: View {
                     }
                 }
                 .mapStyle(use3DMap ? .standard(elevation: .realistic, emphasis: .muted, pointsOfInterest: .including([.museum, .park, .restaurant, .hotel]), showsTraffic: false) : .standard(elevation: .realistic))
+                .mapControls { MapUserLocationButton() }
                 .ignoresSafeArea()
             }
 
-            VStack {
-                // Top bar
-                HStack {
-                    Button { stopAndDismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.4))
-                    }
-
-                    Spacer()
-
-                    if playback.isSimulating {
-                        Label("SIMULATION", systemImage: "antenna.radiowaves.left.and.right")
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.orange, in: Capsule())
-                            .foregroundStyle(.white)
-                    }
-
-                    Spacer()
-
-                    HStack(spacing: 12) {
-                        // Turn-by-turn navigation
-                        Button {
-                            if let stop = playback.currentStop ?? tour.stops.first {
-                                let origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                let dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                let waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
-                                var url = "https://www.google.com/maps/dir/?api=1&origin=\(origin)&destination=\(dest)&travelmode=driving"
-                                if !waypoints.isEmpty { url += "&waypoints=\(waypoints)" }
-                                if let mapsUrl = URL(string: url) { UIApplication.shared.open(mapsUrl) }
-                            }
-                        } label: {
-                            Image(systemName: "location.north.fill")
-                                .font(.caption)
-                                .padding(8)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-
-                        Button { withAnimation { audioOnly.toggle() } } label: {
-                            Image(systemName: audioOnly ? "text.bubble" : "speaker.wave.2.fill")
-                                .font(.caption)
-                                .padding(8)
-                                .background(.ultraThinMaterial, in: Circle())
-                        }
-
-                        if !isBoatTour {
-                            Button { withAnimation { use3DMap.toggle() } } label: {
-                                Image(systemName: use3DMap ? "map" : "view.3d")
-                                    .font(.caption)
-                                    .padding(8)
-                                    .background(.ultraThinMaterial, in: Circle())
-                            }
-                        }
-
-                        if playback.isActive {
-                            Text("\(playback.audioPlayer.currentSegmentIndex + 1)/\(max(playback.audioPlayer.totalSegments, 1))")
-                                .font(.caption2.bold())
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(.ultraThinMaterial, in: Capsule())
-                        }
-                    }
+            VStack(spacing: 0) {
+                // Turn instruction banner
+                if nav.isNavigating && !nav.currentStepInstruction.isEmpty && !isPreparing {
+                    turnInstructionBanner
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+
+                // Top controls bar
+                topControlsBar
 
                 Spacer()
 
@@ -126,37 +80,190 @@ struct GuidedTourView: View {
                 } else if audioOnly && playback.isActive {
                     AudioOnlyCard(playback: playback) { stopAndDismiss() }
                 } else {
-                    TourControlCard(playback: playback, tour: tour) { stopAndDismiss() }
+                    TourControlCard(playback: playback, tour: tour, nav: nav) { stopAndDismiss() }
                 }
             }
         }
         .task {
-            await playback.prepareTour(tour)
+            // Calculate routes and prepare audio in parallel
+            async let routeCalc: () = nav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
+            async let audioPrepare: () = playback.prepareTour(tour)
+            _ = await (routeCalc, audioPrepare)
             isPreparing = false
         }
         .onChange(of: playback.currentStopIndex) { _, newIdx in
             guard !isBoatTour, newIdx >= 0, newIdx < tour.stops.count else { return }
-            let stop = tour.stops[newIdx]
-            withAnimation(.easeInOut(duration: 1.0)) {
-                if use3DMap {
+            if !followUser {
+                let stop = tour.stops[newIdx]
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    if use3DMap {
+                        cameraPosition = .camera(MapCamera(
+                            centerCoordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
+                            distance: 800, heading: nav.heading, pitch: 60
+                        ))
+                    } else {
+                        cameraPosition = .region(MKCoordinateRegion(
+                            center: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
+                            span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)
+                        ))
+                    }
+                }
+            }
+        }
+        .onChange(of: nav.userLocation?.latitude) { _, _ in
+            if followUser, let loc = nav.userLocation {
+                withAnimation(.easeInOut(duration: 0.5)) {
                     cameraPosition = .camera(MapCamera(
-                        centerCoordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
-                        distance: 800, heading: 0, pitch: 60
-                    ))
-                } else {
-                    cameraPosition = .region(MKCoordinateRegion(
-                        center: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
-                        span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)
+                        centerCoordinate: loc,
+                        distance: 1000, heading: nav.heading, pitch: use3DMap ? 60 : 0
                     ))
                 }
+            }
+        }
+        .onChange(of: nav.arrivedAtStop) { _, arrived in
+            if arrived && playback.isActive {
+                // Auto-advance narration when arriving at stop
+                nav.advanceToNextStop()
             }
         }
         .statusBarHidden()
     }
 
+    // MARK: - Turn Instruction Banner
+
+    private var turnInstructionBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: turnIcon(for: nav.currentStepInstruction))
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 44)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(nav.currentStepInstruction)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                if nav.distanceToNextStop > 0 {
+                    let stopName = tour.stops[safe: nav.isNavigating ? playback.currentStopIndex + 1 : 0]?.name ?? "next stop"
+                    Text("\(formatDistance(nav.distanceToNextStop)) to \(stopName)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.brandNavy.opacity(0.95))
+        .padding(.top, 4)
+    }
+
+    // MARK: - Top Controls Bar
+
+    private var topControlsBar: some View {
+        HStack {
+            Button { stopAndDismiss() } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .black.opacity(0.4))
+            }
+
+            Spacer()
+
+            if playback.isSimulating {
+                Label("SIMULATION", systemImage: "antenna.radiowaves.left.and.right")
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.orange, in: Capsule())
+                    .foregroundStyle(.white)
+            } else if nav.isNavigating {
+                Label("NAVIGATING", systemImage: "location.fill")
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.green, in: Capsule())
+                    .foregroundStyle(.white)
+            }
+
+            Spacer()
+
+            HStack(spacing: 12) {
+                // Follow user toggle
+                if !isBoatTour {
+                    Button { withAnimation { followUser.toggle() } } label: {
+                        Image(systemName: followUser ? "location.fill" : "location")
+                            .font(.caption)
+                            .padding(8)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay { if followUser { Circle().fill(Color.brandGold.opacity(0.3)) } }
+                            .foregroundStyle(followUser ? .brandGold : .primary)
+                    }
+                }
+
+                Button { withAnimation { audioOnly.toggle() } } label: {
+                    Image(systemName: audioOnly ? "text.bubble" : "speaker.wave.2.fill")
+                        .font(.caption)
+                        .padding(8)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+
+                if !isBoatTour {
+                    Button { withAnimation { use3DMap.toggle() } } label: {
+                        Image(systemName: use3DMap ? "map" : "view.3d")
+                            .font(.caption)
+                            .padding(8)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                }
+
+                if playback.isActive {
+                    Text("\(playback.audioPlayer.currentSegmentIndex + 1)/\(max(playback.audioPlayer.totalSegments, 1))")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Helpers
+
     private func stopAndDismiss() {
         playback.stopTour()
+        nav.stopNavigation()
         dismiss()
+    }
+
+    private func turnIcon(for instruction: String) -> String {
+        let lower = instruction.lowercased()
+        if lower.contains("left") { return "arrow.turn.up.left" }
+        if lower.contains("right") { return "arrow.turn.up.right" }
+        if lower.contains("u-turn") { return "arrow.uturn.left" }
+        if lower.contains("merge") { return "arrow.merge" }
+        if lower.contains("arriv") { return "mappin.circle.fill" }
+        if lower.contains("straight") || lower.contains("continue") { return "arrow.up" }
+        return "arrow.up"
+    }
+
+    private func formatDistance(_ meters: CLLocationDistance) -> String {
+        if meters < 160 { return "\(Int(meters)) ft" } // ~500 ft threshold
+        let miles = meters / 1609.34
+        if miles < 0.1 { return "\(Int(meters * 3.281)) ft" }
+        return String(format: "%.1f mi", miles)
+    }
+}
+
+// Safe subscript
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
@@ -168,7 +275,7 @@ struct PreparingAudioCard: View {
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-                .tint(Color("AccentCoral"))
+                .tint(.brandGold)
             Text(progress.isEmpty ? "Preparing your guided tour..." : progress)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -190,7 +297,7 @@ struct AudioOnlyCard: View {
         VStack(spacing: 8) {
             Text(playback.segmentLabel)
                 .font(.caption.bold())
-                .foregroundStyle(Color("AccentCoral"))
+                .foregroundStyle(.brandGold)
 
             HStack(spacing: 20) {
                 Button { playback.previousSegment() } label: {
@@ -201,7 +308,7 @@ struct AudioOnlyCard: View {
                 Button { playback.togglePlayPause() } label: {
                     Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 44))
-                        .foregroundStyle(Color("AccentCoral"))
+                        .foregroundStyle(.brandGold)
                 }
 
                 Button { playback.nextSegment() } label: {
@@ -230,20 +337,32 @@ struct AudioOnlyCard: View {
 struct TourControlCard: View {
     @ObservedObject var playback: TourPlaybackService
     let tour: Tour
+    @ObservedObject var nav: NavigationService
     let onStop: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            // Segment label
-            Text(playback.isActive ? playback.segmentLabel.uppercased() : "READY TO START")
-                .font(.caption.bold())
-                .foregroundStyle(Color("AccentCoral"))
-                .padding(.top, 16)
-                .padding(.bottom, 4)
+            // Segment label with stop number
+            HStack {
+                if playback.isActive {
+                    Text(playback.segmentLabel.uppercased())
+                        .font(.caption.bold())
+                        .foregroundStyle(.brandGold)
+                    Spacer()
+                    Text("\(playback.audioPlayer.currentSegmentIndex + 1) of \(playback.audioPlayer.totalSegments)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("READY TO START")
+                        .font(.caption.bold())
+                        .foregroundStyle(.brandGold)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 4)
 
             if playback.isActive {
-                // Active tour: show photo, narration, controls
-
                 // Photo
                 if let stop = playback.currentStop, let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
                     AsyncImage(url: url) { image in
@@ -267,17 +386,16 @@ struct TourControlCard: View {
                 }
                 .frame(maxHeight: 140)
 
-                // Progress bar
+                // Scrubbing timeline
                 if playback.audioPlayer.hasAudio {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Rectangle().fill(Color(.systemGray5))
-                            Rectangle().fill(Color("AccentCoral"))
-                                .frame(width: geo.size.width * playback.audioPlayer.playbackProgress)
-                        }
-                    }
-                    .frame(height: 3)
-                    .clipShape(Capsule())
+                    Slider(
+                        value: Binding(
+                            get: { playback.audioPlayer.playbackProgress },
+                            set: { playback.audioPlayer.seek(to: $0) }
+                        ),
+                        in: 0...1
+                    )
+                    .tint(.brandGold)
                     .padding(.horizontal, 20)
                 }
 
@@ -291,7 +409,7 @@ struct TourControlCard: View {
                     Button { playback.togglePlayPause() } label: {
                         Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                             .font(.system(size: 48))
-                            .foregroundStyle(Color("AccentCoral"))
+                            .foregroundStyle(.brandGold)
                     }
 
                     Button { playback.nextSegment() } label: {
@@ -302,7 +420,6 @@ struct TourControlCard: View {
                 .foregroundStyle(.primary)
                 .padding(.vertical, 10)
 
-                // End Tour button
                 Button(action: onStop) {
                     HStack {
                         Image(systemName: "stop.fill")
@@ -318,8 +435,7 @@ struct TourControlCard: View {
                 .padding(.bottom, 14)
 
             } else {
-                // Not started: show tour summary and start buttons
-
+                // Not started
                 Text(tour.title)
                     .font(.headline)
                     .multilineTextAlignment(.center)
@@ -346,7 +462,7 @@ struct TourControlCard: View {
                     } label: {
                         HStack {
                             Image(systemName: "play.fill")
-                            Text("Simulate Tour")
+                            Text("Simulate")
                         }
                         .font(.subheadline.bold())
                         .frame(maxWidth: .infinity)
@@ -356,20 +472,45 @@ struct TourControlCard: View {
                     .tint(.orange)
 
                     Button {
+                        nav.startNavigation(targetStopIndex: 0)
                         playback.startTour()
                     } label: {
                         HStack {
                             Image(systemName: "location.fill")
-                            Text("Start Live")
+                            Text("Navigate")
                         }
                         .font(.subheadline.bold())
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color("AccentCoral"))
+                    .tint(.brandGold)
                 }
                 .padding(.horizontal, 16)
+
+                // Voice picker
+                Menu {
+                    Button {
+                        playback.switchVoice(engine: "google", quality: "premium")
+                    } label: {
+                        Label("Gary (Google Premium)", systemImage: playback.voiceEngine == "google" ? "checkmark" : "")
+                    }
+                    Button {
+                        playback.switchVoice(engine: "kokoro", quality: "premium")
+                    } label: {
+                        Label("Kim (Kokoro)", systemImage: playback.voiceEngine == "kokoro" ? "checkmark" : "")
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "person.wave.2")
+                        Text("Guide: \(playback.voiceEngine == "kokoro" ? "Kim" : "Gary")")
+                    }
+                    .font(.caption.bold())
+                    .foregroundStyle(.brandGold)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.brandGold.opacity(0.1), in: Capsule())
+                }
                 .padding(.bottom, 14)
             }
         }

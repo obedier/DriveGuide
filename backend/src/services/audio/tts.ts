@@ -75,11 +75,22 @@ export async function synthesizeOrCache(
     return { gcs_path: gcsPath, public_url: url, duration_seconds: 0, file_size_bytes: 0, content_hash: contentHash };
   }
 
-  // Generate new audio
+  // Strip symbols that TTS would annunciate
+  const cleanText = sanitizeForSpeech(text);
+
+  // Generate new audio — use SSML for Neural2 voices, plain text for Journey
+  const isJourneyVoice = voiceName.includes('Journey');
+  const input = isJourneyVoice
+    ? { text: cleanText }  // Journey voices work best with plain text
+    : { ssml: textToNaturalSsml(cleanText) };  // Neural2 benefits from SSML pauses
+
   const [response] = await ttsClient.synthesizeSpeech({
-    input: { text },
+    input,
     voice: { languageCode: ttsLanguage, name: voiceName },
-    audioConfig: { audioEncoding: 'MP3', speakingRate: 0.95, pitch: 0 },
+    audioConfig: {
+      audioEncoding: 'MP3',
+      speakingRate: 0.92,
+    },
   });
 
   const audioContent = response.audioContent as Buffer;
@@ -164,6 +175,80 @@ export async function generateTourAudio(
   }
 
   return { segments: results, total_duration_seconds: totalDuration, total_size_bytes: totalSize, voice_quality: voiceQuality };
+}
+
+/**
+ * Convert plain text to SSML with natural speech patterns:
+ * - Expand abbreviations to prevent glitchy pronunciation
+ * - Add pauses after sentences for breathing room
+ * - Add subtle emphasis on proper nouns (capitalized words mid-sentence)
+ */
+/**
+ * Strip markdown and symbols that TTS engines would annunciate literally.
+ * Converts *emphasis* to plain text, removes #, [], (), etc.
+ */
+function sanitizeForSpeech(text: string): string {
+  return text
+    // Markdown bold/italic: **word** or *word* → word (with emphasis via SSML later)
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    // Markdown headers: ## Title → Title
+    .replace(/^#{1,6}\s*/gm, '')
+    // Markdown links: [text](url) → text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Backticks
+    .replace(/`([^`]+)`/g, '$1')
+    // Underscores used as emphasis: _word_ → word
+    .replace(/_([^_]+)_/g, '$1')
+    // Hashtags: #Miami → Miami
+    .replace(/#(\w)/g, '$1')
+    // Bullet points
+    .replace(/^\s*[-•]\s*/gm, '')
+    // Remaining special chars that would be spoken
+    .replace(/[~^{}|\\]/g, '')
+    // Multiple spaces
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function textToNaturalSsml(text: string): string {
+  let processed = text
+    // Expand common abbreviations
+    .replace(/\bSt\.\s/g, 'Street ')
+    .replace(/\bAve\.\s/g, 'Avenue ')
+    .replace(/\bBlvd\.\s/g, 'Boulevard ')
+    .replace(/\bDr\.\s/g, 'Drive ')
+    .replace(/\bRd\.\s/g, 'Road ')
+    .replace(/\bHwy\.\s/g, 'Highway ')
+    .replace(/\bMt\.\s/g, 'Mount ')
+    .replace(/\bFt\.\s/g, 'Fort ')
+    .replace(/\bPl\.\s/g, 'Place ')
+    .replace(/\bCt\.\s/g, 'Court ')
+    .replace(/\bLn\.\s/g, 'Lane ')
+    .replace(/\bSq\.\s/g, 'Square ')
+    .replace(/\bN\.\s/g, 'North ')
+    .replace(/\bS\.\s/g, 'South ')
+    .replace(/\bE\.\s/g, 'East ')
+    .replace(/\bW\.\s/g, 'West ')
+    .replace(/\bNE\b/g, 'Northeast')
+    .replace(/\bNW\b/g, 'Northwest')
+    .replace(/\bSE\b/g, 'Southeast')
+    .replace(/\bSW\b/g, 'Southwest')
+    // Escape XML special chars
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Add natural pauses after sentences (period, exclamation, question mark)
+    .replace(/([.!?])\s+/g, '$1<break time="400ms"/> ')
+    // Add shorter pause after commas for breathing
+    .replace(/,\s+/g, ',<break time="200ms"/> ')
+    // Add pause before em-dashes
+    .replace(/\s*—\s*/g, '<break time="300ms"/> ')
+    // Add pause around ellipses
+    .replace(/\.\.\./g, '<break time="500ms"/>');
+
+  return `<speak>${processed}</speak>`;
 }
 
 function normalizeLangCode(lang: string): string {
