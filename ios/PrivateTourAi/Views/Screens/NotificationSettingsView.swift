@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var cacheAudioOffline = true
     @AppStorage("voiceEngine") private var voiceEngine = "google"
     @AppStorage("voiceQuality") private var voiceQuality = "premium"
+    @AppStorage("navigationEngine") private var navigationEngine = "apple"
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -53,6 +54,34 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Kokoro 82M").font(.subheadline)
                                     Text("Open-source, ultra-natural speech synthesis").font(.caption).foregroundStyle(.white.opacity(0.5))
+                                }
+                            }
+                        }
+                    }
+                    .listRowBackground(Color.brandNavy)
+
+                    // MARK: - Navigation
+                    Section("Navigation") {
+                        Picker("Map Engine", selection: $navigationEngine) {
+                            Text("Apple Maps").tag("apple")
+                            Text("MapLibre (Open Source)").tag("ferrostar")
+                        }
+                        .pickerStyle(.menu)
+
+                        if navigationEngine == "ferrostar" {
+                            HStack {
+                                Image(systemName: "car.fill").foregroundStyle(.brandGold)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("MapLibre + Ferrostar").font(.subheadline)
+                                    Text("Open-source maps with OSRM turn-by-turn routing").font(.caption).foregroundStyle(.white.opacity(0.5))
+                                }
+                            }
+                        } else {
+                            HStack {
+                                Image(systemName: "map.fill").foregroundStyle(.brandGold)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apple MapKit").font(.subheadline)
+                                    Text("Route polylines with turn instructions overlay").font(.caption).foregroundStyle(.white.opacity(0.5))
                                 }
                             }
                         }

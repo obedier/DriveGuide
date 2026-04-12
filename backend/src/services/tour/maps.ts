@@ -38,6 +38,22 @@ export interface OptimizedRoute {
 }
 
 export async function geocode(address: string): Promise<GeocodingResult> {
+  // Primary: OpenStreetMap Nominatim (free, no API key)
+  const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=1`;
+  const nominatimRes = await fetch(nominatimUrl, {
+    headers: { 'User-Agent': 'wAIpoint/2.0 (tour-generator)' },
+  });
+  const nominatimData = await nominatimRes.json() as Array<{ lat: string; lon: string; display_name: string }>;
+
+  if (nominatimData.length > 0) {
+    return {
+      latitude: parseFloat(nominatimData[0].lat),
+      longitude: parseFloat(nominatimData[0].lon),
+      formatted_address: nominatimData[0].display_name,
+    };
+  }
+
+  // Fallback: Google Maps Geocoding API
   const url = `${MAPS_BASE}/geocode/json?address=${encodeURIComponent(address)}&key=${env.googleMapsKey}`;
   const res = await fetch(url);
   const data = await res.json() as { status: string; results: Array<{ geometry: { location: { lat: number; lng: number } }; formatted_address: string }> };

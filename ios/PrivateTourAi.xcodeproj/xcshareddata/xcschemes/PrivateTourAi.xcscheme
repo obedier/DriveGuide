@@ -39,6 +39,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5519CBB347F78013C94FBB01"
+               BuildableName = "PrivateTourAiTests.xctest"
+               BlueprintName = "PrivateTourAiTests"
+               ReferencedContainer = "container:PrivateTourAi.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

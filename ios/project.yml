@@ -15,6 +15,12 @@ packages:
   RevenueCat:
     url: https://github.com/RevenueCat/purchases-ios-spm
     version: 5.18.0
+  Ferrostar:
+    url: https://github.com/stadiamaps/ferrostar
+    from: 0.21.0
+  MapLibreSwiftUI:
+    url: https://github.com/maplibre/swiftui-dsl
+    from: 0.25.0
 
 settings:
   base:
@@ -35,7 +41,8 @@ targets:
       - path: PrivateTourAi/Resources/GoogleService-Info.plist
       - path: PrivateTourAi/Resources/Subscriptions.storekit
     scheme:
-      testPlans: []
+      testTargets:
+        - PrivateTourAiTests
     dependencies:
       - package: FirebaseAuth
         product: FirebaseAuth
@@ -45,6 +52,16 @@ targets:
         product: GoogleSignInSwift
       - package: RevenueCat
         product: RevenueCat
+      - package: Ferrostar
+        product: FerrostarCore
+      - package: Ferrostar
+        product: FerrostarMapLibreUI
+      - package: Ferrostar
+        product: FerrostarSwiftUI
+      - package: MapLibreSwiftUI
+        product: MapLibreSwiftUI
+      - package: MapLibreSwiftUI
+        product: MapLibreSwiftDSL
     entitlements:
       path: PrivateTourAi/PrivateTourAi.entitlements
       properties:
@@ -70,6 +87,25 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        MARKETING_VERSION: "2.0"
-        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "2.1"
+        CURRENT_PROJECT_VERSION: 2
         CODE_SIGN_ENTITLEMENTS: PrivateTourAi/PrivateTourAi.entitlements
+
+  PrivateTourAiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PrivateTourAiTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: PrivateTourAi
+      - package: Ferrostar
+        product: FerrostarCore
+      - package: Ferrostar
+        product: FerrostarMapLibreUI
+      - package: Ferrostar
+        product: FerrostarSwiftUI
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

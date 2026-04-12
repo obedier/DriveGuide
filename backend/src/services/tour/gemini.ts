@@ -39,6 +39,8 @@ export async function generateTourContent(
   transportMode: string = 'car',
   speedMph: number | null = null,
   customPrompt: string | null = null,
+  startAddress: string | null = null,
+  endAddress: string | null = null,
 ): Promise<GeminiTourResponse> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -57,6 +59,8 @@ export async function generateTourContent(
 8. For South Florida: use the Intracoastal Waterway, New River, Stranahan River, Port Everglades channel, Miami River, Biscayne Bay — NOT roads.` : '';
   const planeNote = transportMode === 'plane' ? `\n\nIMPORTANT: This is an AERIAL tour. Stops are flyover viewpoints, not landing spots. Narration should describe what the traveler sees from above — landmarks, coastlines, city grids, natural features. Use phrases like "below you", "from this altitude", "looking down".` : '';
   const customNote = customPrompt ? `\n\nSPECIAL FOCUS: The traveler specifically wants: "${customPrompt}". Incorporate this into your stop selections and narration wherever possible.` : '';
+  const startNote = startAddress ? `\n\nSTARTING LOCATION: The traveler is starting from "${startAddress}". The FIRST stop must be on the route FROM this starting location toward ${locationName}. Plan stops along the driving path from the start location, not just clustered around the destination. The tour should feel like a journey from the start to the destination area.` : '';
+  const endNote = endAddress ? `\n\nENDING LOCATION: The traveler wants to end near "${endAddress}". The LAST stop must be on the route TOWARD this ending location. Plan the tour so the final stops lead naturally toward the end destination.` : '';
 
   const placesContext = nearbyPlaces.slice(0, 30).map((p) =>
     `- ${p.name} (${p.latitude}, ${p.longitude}) — ${p.types.slice(0, 3).join(', ')}${p.rating ? `, rating: ${p.rating}` : ''}`
@@ -64,7 +68,7 @@ export async function generateTourContent(
 
   const prompt = `You are a brilliant, charismatic local tour guide who has lived in ${locationName} for 20 years. You know every hidden corner, the best stories, the insider secrets, and the history that makes this place special. You're not a textbook — you're the friend everyone wishes they had when visiting.
 
-TASK: Create a ${durationMinutes}-minute ${transportLabel} tour of ${locationName} (${formattedAddress}). ${speedNote}${boatNote}${planeNote}${customNote}
+TASK: Create a ${durationMinutes}-minute ${transportLabel} tour of ${locationName} (${formattedAddress}). ${speedNote}${boatNote}${planeNote}${customNote}${startNote}${endNote}
 
 THEMES: ${themesStr}
 

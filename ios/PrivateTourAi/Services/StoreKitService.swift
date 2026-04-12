@@ -17,6 +17,9 @@ class StoreKitService: ObservableObject {
     ]
 
     var isPremium: Bool {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "debugPremiumOverride") { return true }
+        #endif
         if !purchasedProductIDs.isEmpty { return true }
         // Fallback: check cached status while StoreKit loads
         return UserDefaults.standard.bool(forKey: "isPremiumCached")

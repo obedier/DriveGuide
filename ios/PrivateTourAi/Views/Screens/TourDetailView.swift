@@ -204,6 +204,7 @@ struct TourDetailView: View {
         }
         .fullScreenCover(isPresented: $showGuidedTour) {
             GuidedTourView(tour: tour)
+                .ignoresSafeArea()
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()

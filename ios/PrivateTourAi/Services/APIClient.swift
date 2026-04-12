@@ -181,7 +181,7 @@ final class APIClient: Sendable {
 
     func deleteAccount() async throws {
         struct DeleteResponse: Decodable { let status: String }
-        var request = try await authenticatedRequest(path: "/account", method: "DELETE", timeout: shortTimeout)
+        let request = try await authenticatedRequest(path: "/account", method: "DELETE", timeout: shortTimeout)
         let _: DeleteResponse = try await execute(request)
     }
 

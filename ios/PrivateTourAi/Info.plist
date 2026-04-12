@@ -17,7 +17,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>1.0</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -28,7 +28,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>1</string>
 	<key>GIDClientID</key>
 	<string>801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

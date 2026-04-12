@@ -47,3 +47,4 @@ logs/
 # Test
 coverage/
 .nyc_output/
+.context/

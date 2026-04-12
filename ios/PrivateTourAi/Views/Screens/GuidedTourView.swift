@@ -5,22 +5,66 @@ struct GuidedTourView: View {
     let tour: Tour
     @StateObject private var playback = TourPlaybackService()
     @StateObject private var nav = NavigationService()
+    @StateObject private var ferrostarNav = FerrostarNavigationService()
+    @AppStorage("navigationEngine") private var navigationEngine = "apple"
     @Environment(\.dismiss) private var dismiss
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var isPreparing = true
     @State private var audioOnly = false
     @State private var use3DMap = false
     @State private var followUser = false
+    @State private var mapReady = false
+    @State private var showTurnByTurn = false
+    @State private var hasPrepared = false
 
     private var isBoatTour: Bool { tour.transportMode == "boat" }
+    private var useFerrostar: Bool { navigationEngine == "ferrostar" && !isBoatTour }
+
+    // Unified accessors for whichever navigation engine is active
+    private var activeIsNavigating: Bool { useFerrostar ? ferrostarNav.isNavigating : nav.isNavigating }
+    private var activeStepInstruction: String { useFerrostar ? ferrostarNav.currentStepInstruction : nav.currentStepInstruction }
+    private var activeDistanceToNextStop: CLLocationDistance { useFerrostar ? ferrostarNav.distanceToNextStop : nav.distanceToNextStop }
+    private var activeUserLocation: CLLocationCoordinate2D? { useFerrostar ? ferrostarNav.userLocation : nav.userLocation }
+    private var activeHeading: CLLocationDirection { useFerrostar ? ferrostarNav.heading : nav.heading }
+    private var activeArrivedAtStop: Bool { useFerrostar ? ferrostarNav.arrivedAtStop : nav.arrivedAtStop }
 
     var body: some View {
         ZStack {
-            // Map
+            // Map — boat tours render immediately (WKWebView handles its own loading),
+            // other maps delayed until fullScreenCover transition completes to avoid
+            // Metal drawable zero-size issue on iPad (CAMetalLayer ignores invalid setDrawableSize)
             if isBoatTour {
                 NauticalChartView(stops: tour.stops, currentStopIndex: playback.currentStopIndex)
                     .ignoresSafeArea()
+            } else if !mapReady {
+                Color.black.ignoresSafeArea()
+                ProgressView()
+                    .tint(.brandGold)
+                    .scaleEffect(1.5)
+            } else if useFerrostar && showTurnByTurn {
+                // Ferrostar turn-by-turn as the map layer (controls overlay on top via the VStack below)
+                FerrostarTurnByTurnView(
+                    stops: tour.stops,
+                    transportMode: tour.transportMode ?? "car",
+                    onExit: {
+                        showTurnByTurn = false
+                    }
+                )
+                .ignoresSafeArea()
+            } else if useFerrostar {
+                MapLibreNavigationView(
+                    routeCoordinates: ferrostarNav.routeCoordinates,
+                    stops: tour.stops,
+                    currentStopIndex: playback.currentStopIndex,
+                    followUser: followUser,
+                    heading: ferrostarNav.heading,
+                    use3DMap: use3DMap,
+                    isNavigating: ferrostarNav.isNavigating,
+                    userLocation: ferrostarNav.userLocation
+                )
+                .ignoresSafeArea()
             } else {
+                let _ = print("[GuidedTour] RENDERING Apple Maps")
                 Map(position: $cameraPosition) {
                     // User location
                     UserAnnotation()
@@ -62,44 +106,94 @@ struct GuidedTourView: View {
                 .ignoresSafeArea()
             }
 
-            VStack(spacing: 0) {
-                // Turn instruction banner
-                if nav.isNavigating && !nav.currentStepInstruction.isEmpty && !isPreparing {
-                    turnInstructionBanner
-                        .transition(.move(edge: .top).combined(with: .opacity))
+            if showTurnByTurn {
+                // Compact overlay for turn-by-turn mode — Ferrostar handles nav UI, we handle audio
+                VStack {
+                    // Exit button
+                    HStack {
+                        Button { stopAndDismiss() } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .black.opacity(0.5))
+                        }
+                        .padding(.leading)
+                        .padding(.top, 8)
+                        Spacer()
+                    }
+
+                    Spacer()
+
+                    // Audio player
+                    if playback.isActive {
+                        AudioOnlyCard(playback: playback) { stopAndDismiss() }
+                    }
                 }
+            } else {
+                VStack(spacing: 0) {
+                    // Turn instruction banner
+                    if activeIsNavigating && !activeStepInstruction.isEmpty && !isPreparing {
+                        turnInstructionBanner
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
 
-                // Top controls bar
-                topControlsBar
+                    // Top controls bar
+                    topControlsBar
 
-                Spacer()
+                    Spacer()
 
-                // Bottom card
-                if isPreparing {
-                    PreparingAudioCard(progress: playback.audioProgress)
-                } else if audioOnly && playback.isActive {
-                    AudioOnlyCard(playback: playback) { stopAndDismiss() }
-                } else {
-                    TourControlCard(playback: playback, tour: tour, nav: nav) { stopAndDismiss() }
+                    // Bottom card
+                    if isPreparing {
+                        PreparingAudioCard(progress: playback.audioProgress)
+                    } else if audioOnly && playback.isActive {
+                        AudioOnlyCard(playback: playback) { stopAndDismiss() }
+                    } else {
+                        TourControlCard(
+                            playback: playback,
+                            tour: tour,
+                            onStartNavigation: {
+                                if useFerrostar {
+                                    ferrostarNav.startNavigation(targetStopIndex: 0)
+                                    showTurnByTurn = true
+                                    playback.startTour()
+                                } else {
+                                    nav.startNavigation(targetStopIndex: 0)
+                                    withAnimation { followUser = true; use3DMap = true }
+                                }
+                            },
+                            onStop: { stopAndDismiss() }
+                        )
+                    }
                 }
             }
         }
         .task {
+            guard !hasPrepared else { return }
+            hasPrepared = true
             // Calculate routes and prepare audio in parallel
-            async let routeCalc: () = nav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
-            async let audioPrepare: () = playback.prepareTour(tour)
-            _ = await (routeCalc, audioPrepare)
+            if useFerrostar {
+                async let routeCalc: () = ferrostarNav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
+                async let audioPrepare: () = playback.prepareTour(tour)
+                _ = await (routeCalc, audioPrepare)
+            } else {
+                async let routeCalc: () = nav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
+                async let audioPrepare: () = playback.prepareTour(tour)
+                _ = await (routeCalc, audioPrepare)
+            }
             isPreparing = false
         }
         .onChange(of: playback.currentStopIndex) { _, newIdx in
             guard !isBoatTour, newIdx >= 0, newIdx < tour.stops.count else { return }
-            if !followUser {
-                let stop = tour.stops[newIdx]
+            let stop = tour.stops[newIdx]
+
+            if useFerrostar {
+                // MapLibre/Ferrostar handles its own camera — no action needed
+            } else if !followUser {
                 withAnimation(.easeInOut(duration: 1.0)) {
                     if use3DMap {
                         cameraPosition = .camera(MapCamera(
                             centerCoordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude),
-                            distance: 800, heading: nav.heading, pitch: 60
+                            distance: 800, heading: activeHeading, pitch: 60
                         ))
                     } else {
                         cameraPosition = .region(MKCoordinateRegion(
@@ -110,21 +204,40 @@ struct GuidedTourView: View {
                 }
             }
         }
-        .onChange(of: nav.userLocation?.latitude) { _, _ in
-            if followUser, let loc = nav.userLocation {
+        .onChange(of: activeUserLocation?.latitude) { _, _ in
+            guard !useFerrostar else { return } // MapLibre handles camera following internally
+            if followUser, let loc = activeUserLocation {
                 withAnimation(.easeInOut(duration: 0.5)) {
                     cameraPosition = .camera(MapCamera(
                         centerCoordinate: loc,
-                        distance: 1000, heading: nav.heading, pitch: use3DMap ? 60 : 0
+                        distance: 1000, heading: activeHeading, pitch: use3DMap ? 60 : 0
                     ))
                 }
             }
         }
-        .onChange(of: nav.arrivedAtStop) { _, arrived in
+        .onChange(of: activeArrivedAtStop) { _, arrived in
             if arrived && playback.isActive {
                 // Auto-advance narration when arriving at stop
-                nav.advanceToNextStop()
+                if useFerrostar {
+                    ferrostarNav.advanceToNextStop()
+                } else {
+                    nav.advanceToNextStop()
+                }
             }
+        }
+        .onAppear {
+            guard !mapReady else { return } // Only run once
+            print("[GuidedTour] onAppear — isBoatTour=\(isBoatTour), useFerrostar=\(useFerrostar), navigationEngine=\(navigationEngine)")
+            print("[GuidedTour] stops=\(tour.stops.count), transportMode=\(tour.transportMode ?? "nil")")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                print("[GuidedTour] Setting mapReady=true")
+                mapReady = true
+            }
+        }
+        .onDisappear {
+            ferrostarNav.stopNavigation()
+            nav.stopNavigation()
+            mapReady = false
         }
         .statusBarHidden()
     }
@@ -133,20 +246,20 @@ struct GuidedTourView: View {
 
     private var turnInstructionBanner: some View {
         HStack(spacing: 12) {
-            Image(systemName: turnIcon(for: nav.currentStepInstruction))
+            Image(systemName: turnIcon(for: activeStepInstruction))
                 .font(.title2)
                 .foregroundStyle(.white)
                 .frame(width: 44)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(nav.currentStepInstruction)
+                Text(activeStepInstruction)
                     .font(.subheadline.bold())
                     .foregroundStyle(.white)
                     .lineLimit(2)
 
-                if nav.distanceToNextStop > 0 {
-                    let stopName = tour.stops[safe: nav.isNavigating ? playback.currentStopIndex + 1 : 0]?.name ?? "next stop"
-                    Text("\(formatDistance(nav.distanceToNextStop)) to \(stopName)")
+                if activeDistanceToNextStop > 0 {
+                    let stopName = tour.stops[safe: activeIsNavigating ? playback.currentStopIndex + 1 : 0]?.name ?? "next stop"
+                    Text("\(formatDistance(activeDistanceToNextStop)) to \(stopName)")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
                 }
@@ -180,7 +293,7 @@ struct GuidedTourView: View {
                     .padding(.vertical, 4)
                     .background(.orange, in: Capsule())
                     .foregroundStyle(.white)
-            } else if nav.isNavigating {
+            } else if activeIsNavigating {
                 Label("NAVIGATING", systemImage: "location.fill")
                     .font(.caption2.bold())
                     .padding(.horizontal, 8)
@@ -237,7 +350,11 @@ struct GuidedTourView: View {
 
     private func stopAndDismiss() {
         playback.stopTour()
-        nav.stopNavigation()
+        if useFerrostar {
+            ferrostarNav.stopNavigation()
+        } else {
+            nav.stopNavigation()
+        }
         dismiss()
     }
 
@@ -253,9 +370,9 @@ struct GuidedTourView: View {
     }
 
     private func formatDistance(_ meters: CLLocationDistance) -> String {
-        if meters < 160 { return "\(Int(meters)) ft" } // ~500 ft threshold
+        let feet = meters * 3.281
+        if feet < 500 { return "\(Int(feet)) ft" }
         let miles = meters / 1609.34
-        if miles < 0.1 { return "\(Int(meters * 3.281)) ft" }
         return String(format: "%.1f mi", miles)
     }
 }
@@ -337,7 +454,7 @@ struct AudioOnlyCard: View {
 struct TourControlCard: View {
     @ObservedObject var playback: TourPlaybackService
     let tour: Tour
-    @ObservedObject var nav: NavigationService
+    let onStartNavigation: () -> Void
     let onStop: () -> Void
 
     var body: some View {
@@ -472,7 +589,7 @@ struct TourControlCard: View {
                     .tint(.orange)
 
                     Button {
-                        nav.startNavigation(targetStopIndex: 0)
+                        onStartNavigation()
                         playback.startTour()
                     } label: {
                         HStack {

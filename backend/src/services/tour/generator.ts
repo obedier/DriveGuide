@@ -81,6 +81,8 @@ async function generateWithTimeout(
       transportMode,
       request.speed_mph ?? null,
       request.custom_prompt ?? null,
+      request.start_address ?? null,
+      request.end_address ?? null,
     );
 
     // Step 4: Optimize route

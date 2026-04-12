@@ -1,5 +1,5 @@
 {
-  "originHash" : "6963036c90ce7ffa6ae95c3c9937934328b72f19d89dd2be4835b8b856cdcf8c",
+  "originHash" : "6f6c5bdc17e4ae59057e00fc0a89657ed96135ccdb4e56538c7bbc8b2e1a9eef",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -26,6 +26,15 @@
       "state" : {
         "revision" : "2781038865a80e2c425a1da12cc1327bcd56501f",
         "version" : "1.7.6"
+      }
+    },
+    {
+      "identity" : "ferrostar",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stadiamaps/ferrostar",
+      "state" : {
+        "revision" : "e6772768d7ff180e1f7ce6e59f8e03518067f14e",
+        "version" : "0.49.0"
       }
     },
     {
@@ -119,6 +128,15 @@
       }
     },
     {
+      "identity" : "maplibre-gl-native-distribution",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maplibre/maplibre-gl-native-distribution.git",
+      "state" : {
+        "revision" : "e0ee2c11a2859e22d3f0dd29705c18169bdafa7b",
+        "version" : "6.25.0"
+      }
+    },
+    {
       "identity" : "nanopb",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/firebase/nanopb.git",
@@ -152,6 +170,24 @@
       "state" : {
         "revision" : "a008af1a102ff3dd6cc3764bb69bf63226d0f5f6",
         "version" : "1.36.1"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
+      }
+    },
+    {
+      "identity" : "swiftui-dsl",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maplibre/swiftui-dsl",
+      "state" : {
+        "revision" : "139e83d1487f29b42a4f5db2458594170f0ff7e3",
+        "version" : "0.25.0"
       }
     }
   ],

@@ -7,13 +7,18 @@ struct NauticalChartView: UIViewRepresentable {
 
     private let apiKey = "2fdb12f93fdd4071a394008e331130fe"
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
+        let webView = WKWebView(frame: UIScreen.main.bounds, configuration: config)
+        webView.isOpaque = true
+        webView.backgroundColor = UIColor(red: 0.15, green: 0.18, blue: 0.25, alpha: 1) // dark navy matching app
         webView.scrollView.isScrollEnabled = false
+        webView.navigationDelegate = context.coordinator
         loadChart(webView)
         return webView
     }
@@ -137,5 +142,22 @@ struct NauticalChartView: UIViewRepresentable {
         """
 
         webView.loadHTMLString(html, baseURL: URL(string: "https://api.vectorcharts.com"))
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            print("[NauticalChart] ✅ WebView finished loading")
+            // Check for JS errors
+            webView.evaluateJavaScript("window.map ? 'map-ok' : 'map-nil'") { result, error in
+                if let error { print("[NauticalChart] JS error: \(error)") }
+                else { print("[NauticalChart] Map state: \(result ?? "unknown")") }
+            }
+        }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("[NauticalChart] ❌ Navigation failed: \(error)")
+        }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            print("[NauticalChart] ❌ Provisional navigation failed: \(error)")
+        }
     }
 }

@@ -49,7 +49,31 @@ class NavigationService: NSObject, ObservableObject {
             }
         }()
 
-        // Calculate route between consecutive stops
+        // First leg: from user's current location to first stop
+        if let userLoc = locationManager.location?.coordinate {
+            let request = MKDirections.Request()
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(
+                latitude: stops[0].latitude, longitude: stops[0].longitude
+            )))
+            request.transportType = mkTransportType
+            request.requestsAlternateRoutes = false
+
+            do {
+                let directions = MKDirections(request: request)
+                let response = try await directions.calculate()
+                if let route = response.routes.first {
+                    routePolylines.append(route.polyline)
+                    routeSteps.append(route.steps.filter { !$0.instructions.isEmpty })
+                    print("[Nav] Route from current location to stop 1: \(route.steps.count) steps")
+                }
+            } catch {
+                print("[Nav] Route from current location failed: \(error)")
+                routeSteps.append([])
+            }
+        }
+
+        // Subsequent legs: between consecutive stops
         for i in 0..<(stops.count - 1) {
             let request = MKDirections.Request()
             request.source = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(
