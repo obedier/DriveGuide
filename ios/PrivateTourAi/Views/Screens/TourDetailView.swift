@@ -13,13 +13,24 @@ struct TourDetailView: View {
     @State private var regeneratePrompt = ""
     @State private var isRegenerating = false
 
+    // Editable stops (local state so drag/remove/insert work without mutating immutable Tour)
+    @State private var editableStops: [TourStop] = []
+    @State private var isEditing = false
+    @State private var showAddStopSheet = false
+    @State private var insertAfterIndex: Int = 0
+
+    // Use editable stops once loaded, otherwise fall back to tour.stops
+    private var displayStops: [TourStop] {
+        editableStops.isEmpty ? tour.stops : editableStops
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
                     // Map header
                     Map {
-                        ForEach(tour.stops) { stop in
+                        ForEach(displayStops) { stop in
                             Annotation(stop.name, coordinate: CLLocationCoordinate2D(
                                 latitude: stop.latitude, longitude: stop.longitude
                             )) {
@@ -42,7 +53,7 @@ struct TourDetailView: View {
                             .foregroundStyle(.secondary)
 
                         HStack(spacing: 20) {
-                            InfoBadge(icon: "mappin.and.ellipse", value: "\(tour.stops.count) stops")
+                            InfoBadge(icon: "mappin.and.ellipse", value: "\(displayStops.count) stops")
                             InfoBadge(icon: "clock", value: formatDuration(tour.durationMinutes))
                             if let km = tour.totalDistanceKm {
                                 let miles = km * 0.621371
@@ -67,7 +78,7 @@ struct TourDetailView: View {
 
                         // Action buttons
                         VStack(spacing: 10) {
-                            // Start Guided Tour — opens in-app navigation with narration
+                            // Start Guided Tour
                             Button {
                                 if store.isPremium {
                                     showGuidedTour = true
@@ -86,32 +97,11 @@ struct TourDetailView: View {
                             .buttonStyle(.borderedProminent)
                             .tint(.brandGold)
 
-                            // Open full route in Google Maps
-                            Button {
-                                let origin: String
-                                let dest: String
-                                let waypoints: String
-                                let travelMode: String
-
-                                if tour.transportMode == "boat" {
-                                    origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                    dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                    waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
-                                    travelMode = "driving"
-                                } else {
-                                    origin = tour.stops.first.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                    dest = tour.stops.last.map { "\($0.latitude),\($0.longitude)" } ?? ""
-                                    waypoints = tour.stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
-                                    travelMode = (tour.transportMode == "walk") ? "walking" : (tour.transportMode == "bike") ? "bicycling" : "driving"
-                                }
-
-                                var mapsUrl = "https://www.google.com/maps/dir/?api=1&origin=\(origin)&destination=\(dest)&travelmode=\(travelMode)"
-                                if !waypoints.isEmpty { mapsUrl += "&waypoints=\(waypoints)" }
-                                if let url = URL(string: mapsUrl) { UIApplication.shared.open(url) }
-                            } label: {
+                            // Open in Google Maps app (falls back to Apple Maps / web)
+                            Button { openInGoogleMaps() } label: {
                                 HStack {
                                     Image(systemName: "map.fill")
-                                    Text("Open Route in Maps")
+                                    Text("Open in Google Maps")
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -169,18 +159,70 @@ struct TourDetailView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    // Stops list
+                    // Stops list with edit controls
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("YOUR STOPS")
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-                            .padding(.top, 16)
-                            .padding(.bottom, 12)
+                        HStack {
+                            Text("YOUR STOPS")
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button { withAnimation { isEditing.toggle() } } label: {
+                                Text(isEditing ? "Done" : "Edit")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.brandGold)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+                        .padding(.bottom, 12)
 
-                        ForEach(tour.stops) { stop in
-                            StopRow(stop: stop, isLast: stop.id == tour.stops.last?.id)
-                                .onTapGesture { selectedStop = stop }
+                        if isEditing {
+                            // Editable list with drag-to-reorder
+                            ForEach(Array(displayStops.enumerated()), id: \.element.id) { idx, stop in
+                                VStack(spacing: 0) {
+                                    // Insert (+) button above this stop
+                                    Button {
+                                        insertAfterIndex = idx
+                                        showAddStopSheet = true
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "plus.circle.fill")
+                                                .foregroundStyle(.brandGold)
+                                            Text("Add stop here").font(.caption).foregroundStyle(.brandGold)
+                                            Spacer()
+                                        }
+                                        .padding(.horizontal)
+                                        .padding(.vertical, 6)
+                                    }
+
+                                    EditableStopRow(
+                                        stop: stop,
+                                        onRemove: { removeStop(at: idx) },
+                                        onMoveUp: idx > 0 ? { moveStop(from: idx, to: idx - 1) } : nil,
+                                        onMoveDown: idx < displayStops.count - 1 ? { moveStop(from: idx, to: idx + 1) } : nil
+                                    )
+                                }
+                            }
+
+                            // Add stop at end
+                            Button {
+                                insertAfterIndex = displayStops.count
+                                showAddStopSheet = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.brandGold)
+                                    Text("Add stop at end").font(.caption).foregroundStyle(.brandGold)
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 6)
+                            }
+                        } else {
+                            ForEach(displayStops) { stop in
+                                StopRow(stop: stop, isLast: stop.id == displayStops.last?.id)
+                                    .onTapGesture { selectedStop = stop }
+                            }
                         }
                     }
                 }
@@ -199,17 +241,146 @@ struct TourDetailView: View {
                 }
             }
         }
+        .onAppear {
+            if editableStops.isEmpty { editableStops = tour.stops }
+        }
         .sheet(item: $selectedStop) { stop in
-            StopDetailSheet(stop: stop, allStops: tour.stops)
+            StopDetailSheet(stop: stop, allStops: displayStops)
         }
         .fullScreenCover(isPresented: $showGuidedTour) {
-            GuidedTourView(tour: tour)
+            GuidedTourView(tour: tourWithEditedStops())
                 .ignoresSafeArea()
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
         }
+        .sheet(isPresented: $showAddStopSheet) {
+            AddStopSearchSheet(
+                nearLatitude: displayStops[safe: max(0, insertAfterIndex - 1)]?.latitude ?? tour.stops.first?.latitude ?? 0,
+                nearLongitude: displayStops[safe: max(0, insertAfterIndex - 1)]?.longitude ?? tour.stops.first?.longitude ?? 0,
+                onAdd: { newStop in
+                    insertStop(newStop, at: insertAfterIndex)
+                    showAddStopSheet = false
+                }
+            )
+        }
     }
+
+    // MARK: - Stop Editing
+
+    private func moveStop(from: Int, to: Int) {
+        guard from >= 0 && from < editableStops.count,
+              to >= 0 && to < editableStops.count else { return }
+        let stop = editableStops.remove(at: from)
+        editableStops.insert(stop, at: to)
+        resequenceStops()
+        saveChanges()
+    }
+
+    private func removeStop(at idx: Int) {
+        guard idx >= 0 && idx < editableStops.count else { return }
+        editableStops.remove(at: idx)
+        resequenceStops()
+        saveChanges()
+    }
+
+    private func insertStop(_ stop: TourStop, at idx: Int) {
+        let safeIdx = min(max(idx, 0), editableStops.count)
+        editableStops.insert(stop, at: safeIdx)
+        resequenceStops()
+        saveChanges()
+    }
+
+    private func resequenceStops() {
+        editableStops = editableStops.enumerated().map { idx, stop in
+            TourStop(
+                id: stop.id, sequenceOrder: idx, name: stop.name,
+                description: stop.description, category: stop.category,
+                latitude: stop.latitude, longitude: stop.longitude,
+                recommendedStayMinutes: stop.recommendedStayMinutes,
+                isOptional: stop.isOptional,
+                approachNarration: stop.approachNarration,
+                atStopNarration: stop.atStopNarration,
+                departureNarration: stop.departureNarration,
+                googlePlaceId: stop.googlePlaceId, photoUrl: stop.photoUrl
+            )
+        }
+    }
+
+    private func saveChanges() {
+        let updated = tourWithEditedStops()
+        TourStorage.shared.save(updated)
+        tourVM.savedTours = TourStorage.shared.loadAll()
+    }
+
+    private func tourWithEditedStops() -> Tour {
+        let json = (try? JSONEncoder().encode(tour)) ?? Data()
+        guard var obj = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else { return tour }
+        // Encode the edited stops using the Tour's coding keys
+        let stopsData = editableStops.map { stop -> [String: Any] in
+            var d: [String: Any] = [
+                "id": stop.id,
+                "sequence_order": stop.sequenceOrder,
+                "name": stop.name,
+                "description": stop.description,
+                "category": stop.category,
+                "latitude": stop.latitude,
+                "longitude": stop.longitude,
+                "recommended_stay_minutes": stop.recommendedStayMinutes,
+                "is_optional": stop.isOptional,
+                "approach_narration": stop.approachNarration,
+                "at_stop_narration": stop.atStopNarration,
+                "departure_narration": stop.departureNarration
+            ]
+            if let pid = stop.googlePlaceId { d["google_place_id"] = pid }
+            if let url = stop.photoUrl { d["photo_url"] = url }
+            return d
+        }
+        obj["stops"] = stopsData
+        guard let newData = try? JSONSerialization.data(withJSONObject: obj),
+              let newTour = try? JSONDecoder().decode(Tour.self, from: newData) else { return tour }
+        return newTour
+    }
+
+    // MARK: - Google Maps
+
+    private func openInGoogleMaps() {
+        let stops = displayStops
+        guard let origin = stops.first, let dest = stops.last else { return }
+
+        let travelMode: String = {
+            switch tour.transportMode {
+            case "walk": return "walking"
+            case "bike": return "bicycling"
+            default: return "driving"
+            }
+        }()
+
+        let originStr = "\(origin.latitude),\(origin.longitude)"
+        let destStr = "\(dest.latitude),\(dest.longitude)"
+        let waypointsStr = stops.dropFirst().dropLast().map { "\($0.latitude),\($0.longitude)" }.joined(separator: "|")
+
+        // Try Google Maps app first
+        var gmURL = "comgooglemaps://?saddr=\(originStr)&daddr=\(destStr)&directionsmode=\(travelMode)"
+        if !waypointsStr.isEmpty {
+            gmURL += "&waypoints=\(waypointsStr)"
+        }
+        if let url = URL(string: gmURL), UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+            return
+        }
+
+        // Fall back to web
+        var webURL = "https://www.google.com/maps/dir/?api=1&origin=\(originStr)&destination=\(destStr)&travelmode=\(travelMode)"
+        if !waypointsStr.isEmpty {
+            webURL += "&waypoints=\(waypointsStr)"
+        }
+        if let url = URL(string: webURL) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    // MARK: - Regenerate
 
     private func regenerateTour() async {
         isRegenerating = true
@@ -263,6 +434,62 @@ struct InfoBadge: View {
     }
 }
 
+// MARK: - Editable Stop Row
+
+struct EditableStopRow: View {
+    let stop: TourStop
+    let onRemove: () -> Void
+    let onMoveUp: (() -> Void)?
+    let onMoveDown: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Numbered circle
+            ZStack {
+                Circle()
+                    .fill(Color.brandGold)
+                    .frame(width: 30, height: 30)
+                Text("\(stop.sequenceOrder + 1)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.brandNavy)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(stop.name).font(.subheadline.bold()).lineLimit(1)
+                Text(stop.description).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+
+            Spacer()
+
+            // Reorder buttons
+            VStack(spacing: 4) {
+                Button { onMoveUp?() } label: {
+                    Image(systemName: "chevron.up.circle.fill")
+                        .foregroundStyle(onMoveUp == nil ? Color.gray.opacity(0.3) : .brandGold)
+                }
+                .disabled(onMoveUp == nil)
+                Button { onMoveDown?() } label: {
+                    Image(systemName: "chevron.down.circle.fill")
+                        .foregroundStyle(onMoveDown == nil ? Color.gray.opacity(0.3) : .brandGold)
+                }
+                .disabled(onMoveDown == nil)
+            }
+            .font(.title3)
+
+            // Remove button
+            Button(role: .destructive) { onRemove() } label: {
+                Image(systemName: "minus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6).opacity(0.3))
+        .padding(.horizontal, 4)
+    }
+}
+
 struct StopRow: View {
     let stop: TourStop
     let isLast: Bool
@@ -283,7 +510,6 @@ struct StopRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Timeline
             VStack(spacing: 0) {
                 ZStack {
                     Circle()
@@ -304,7 +530,6 @@ struct StopRow: View {
             .frame(width: 30)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Photo
                 if let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
                     AsyncImage(url: url) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
@@ -319,7 +544,6 @@ struct StopRow: View {
                     Text(stop.name)
                         .font(.subheadline.bold())
                     Spacer()
-                    // Open in Google Maps
                     Button {
                         let url = URL(string: "https://www.google.com/maps/search/?api=1&query=\(stop.latitude),\(stop.longitude)")!
                         UIApplication.shared.open(url)
@@ -368,7 +592,6 @@ struct StopDetailSheet: View {
         self._currentIndex = State(initialValue: allStops.firstIndex(where: { $0.id == stop.id }) ?? 0)
     }
 
-    // Legacy init for compatibility
     init(stop: TourStop) {
         self.stops = [stop]
         self._currentIndex = State(initialValue: 0)
@@ -382,7 +605,6 @@ struct StopDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Photo
                     if let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
                         AsyncImage(url: url) { image in
                             image.resizable().aspectRatio(contentMode: .fill)
@@ -392,7 +614,6 @@ struct StopDetailSheet: View {
                         .frame(height: 200)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                     } else {
-                        // Mini map
                         Map {
                             Annotation(stop.name, coordinate: CLLocationCoordinate2D(
                                 latitude: stop.latitude, longitude: stop.longitude
@@ -515,7 +736,6 @@ struct PreviewDetailView: View {
                         .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
                     }
 
-                    // Remaining stops teaser
                     if preview.stopCount > preview.previewStops.count {
                         HStack {
                             Image(systemName: "ellipsis.circle")
@@ -529,7 +749,6 @@ struct PreviewDetailView: View {
                         .background(Color(.systemGray6).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
                     }
 
-                    // Unlock / Continue button
                     if isUnlocking || tourVM.isGenerating {
                         HStack(spacing: 14) {
                             ProgressView()
@@ -579,5 +798,145 @@ struct PreviewDetailView: View {
             await tourVM.unlockFullTour()
             isUnlocking = false
         }
+    }
+}
+
+// MARK: - Add Stop Search Sheet
+
+struct AddStopSearchSheet: View {
+    let nearLatitude: Double
+    let nearLongitude: Double
+    let onAdd: (TourStop) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var searchText = ""
+    @State private var searchResults: [MKMapItem] = []
+    @State private var isSearching = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search field
+                HStack {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search for a place, business, or landmark", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .onSubmit { performSearch() }
+                    if !searchText.isEmpty {
+                        Button { searchText = ""; searchResults = [] } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+                .padding()
+
+                if isSearching {
+                    ProgressView().padding()
+                }
+
+                // Results
+                List(searchResults, id: \.self) { item in
+                    Button {
+                        addMapItem(item)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name ?? "Unknown place")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.primary)
+                            if let address = item.placemark.title {
+                                Text(address)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            }
+            .navigationTitle("Add Stop")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Search") { performSearch() }
+                        .disabled(searchText.isEmpty)
+                }
+            }
+            .onChange(of: searchText) { _, newValue in
+                if newValue.count > 2 {
+                    performSearch()
+                }
+            }
+        }
+    }
+
+    private func performSearch() {
+        guard !searchText.isEmpty else { return }
+        isSearching = true
+
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = searchText
+        request.region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: nearLatitude, longitude: nearLongitude),
+            span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
+        )
+
+        let search = MKLocalSearch(request: request)
+        search.start { response, error in
+            isSearching = false
+            if let error {
+                print("[AddStop] Search failed: \(error)")
+                return
+            }
+            searchResults = response?.mapItems ?? []
+        }
+    }
+
+    private func addMapItem(_ item: MKMapItem) {
+        let coord = item.placemark.coordinate
+        let name = item.name ?? "New Stop"
+        let address = item.placemark.title ?? ""
+
+        let newStop = TourStop(
+            id: UUID().uuidString,
+            sequenceOrder: 0, // Will be resequenced by caller
+            name: name,
+            description: address,
+            category: categorize(item),
+            latitude: coord.latitude,
+            longitude: coord.longitude,
+            recommendedStayMinutes: 10,
+            isOptional: false,
+            approachNarration: "Heading to \(name).",
+            atStopNarration: "Welcome to \(name).",
+            departureNarration: "Let's continue.",
+            googlePlaceId: nil,
+            photoUrl: nil
+        )
+        onAdd(newStop)
+    }
+
+    private func categorize(_ item: MKMapItem) -> String {
+        guard let category = item.pointOfInterestCategory else { return "landmark" }
+        switch category {
+        case .restaurant, .cafe, .bakery, .brewery, .winery: return "restaurant"
+        case .museum: return "museum"
+        case .park, .nationalPark, .beach: return "park"
+        case .hotel: return "hotel"
+        default: return "landmark"
+        }
+    }
+}
+
+// MARK: - Safe Array Subscript
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

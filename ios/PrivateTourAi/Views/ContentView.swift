@@ -310,11 +310,13 @@ struct TourListCard: View {
                             Label(String(format: "%.1f mi", km * 0.621371), systemImage: transportIcon(tour.transportMode ?? "car"))
                         }
                     }
+                    Spacer()
                     if let r = rating {
                         StarRatingDisplay(rating: r)
                     }
                 }
                 .font(.caption2).foregroundStyle(.white.opacity(0.35))
+                .lineLimit(1)
             }
             .padding(16)
             .background(Color.brandGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
@@ -499,6 +501,7 @@ struct RateTourSheet: View {
 
     private func submitRating() {
         isSubmitting = true
+        errorMessage = nil
         Task {
             do {
                 try await APIClient.shared.rateTour(
@@ -509,7 +512,15 @@ struct RateTourSheet: View {
                 isPresented = false
                 onRated()
             } catch {
-                errorMessage = error.localizedDescription
+                // Surface a friendly message for common cases
+                let lowerErr = error.localizedDescription.lowercased()
+                if lowerErr.contains("not_found") || lowerErr.contains("404") {
+                    errorMessage = "This tour is no longer available to rate. It may have been removed from the community."
+                } else if lowerErr.contains("unauthorized") || lowerErr.contains("401") {
+                    errorMessage = "Please sign in to rate community tours."
+                } else {
+                    errorMessage = "Couldn't submit rating: \(error.localizedDescription)"
+                }
                 isSubmitting = false
             }
         }
