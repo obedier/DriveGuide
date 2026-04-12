@@ -219,7 +219,11 @@ struct TourDetailView: View {
             }
         }
         .onAppear {
-            if editableStops.isEmpty { editableStops = tour.stops }
+            // Always use the freshest tour stops from VM (in case it was updated elsewhere)
+            let latest = tourVM.savedTours.first(where: { $0.id == tour.id })
+                ?? tourVM.archivedTours.first(where: { $0.id == tour.id })
+                ?? tour
+            editableStops = latest.stops
         }
         .sheet(item: $selectedStop) { stop in
             StopDetailSheet(stop: stop, allStops: displayStops)
@@ -317,50 +321,71 @@ struct TourDetailView: View {
     // MARK: - Editable Stops List (native iOS List with drag + swipe)
 
     private var editableStopsList: some View {
-        VStack(spacing: 0) {
-            // Native List with drag + swipe to delete
-            List {
-                ForEach(displayStops) { stop in
+        VStack(spacing: 8) {
+            ForEach(Array(displayStops.enumerated()), id: \.element.id) { idx, stop in
+                HStack(spacing: 10) {
+                    // Persistent red minus button to delete
+                    Button {
+                        removeStop(at: idx)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+
                     CompactStopRow(stop: stop)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                if let idx = displayStops.firstIndex(where: { $0.id == stop.id }) {
-                                    removeStop(at: idx)
-                                }
-                            } label: {
-                                Label("Remove", systemImage: "trash")
-                            }
+                        .frame(maxWidth: .infinity)
+
+                    // Move up / down buttons (reliable on iPhone)
+                    VStack(spacing: 2) {
+                        Button {
+                            moveStop(from: idx, to: idx - 1)
+                        } label: {
+                            Image(systemName: "chevron.up.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(idx > 0 ? .brandGold : Color.gray.opacity(0.3))
                         }
+                        .buttonStyle(.plain)
+                        .disabled(idx == 0)
+
+                        Button {
+                            moveStop(from: idx, to: idx + 1)
+                        } label: {
+                            Image(systemName: "chevron.down.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(idx < displayStops.count - 1 ? .brandGold : Color.gray.opacity(0.3))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(idx == displayStops.count - 1)
+                    }
                 }
-                .onMove { source, destination in
-                    editableStops.move(fromOffsets: source, toOffset: destination)
-                    resequenceStops()
-                    saveChanges()
-                }
+                .padding(.horizontal, 16)
             }
-            .listStyle(.plain)
-            .scrollDisabled(true)
-            .frame(height: CGFloat(displayStops.count) * 72 + 20) // Fit all rows
-            .environment(\.editMode, .constant(.active))
 
             // Helpful hint
             HStack(spacing: 6) {
-                Image(systemName: "hand.draw.fill").font(.caption2)
-                Text("Drag the handle to reorder · Swipe left to remove")
+                Image(systemName: "info.circle.fill").font(.caption2)
+                Text("Tap ○− to remove · Tap ▲ / ▼ to reorder")
                     .font(.caption2)
             }
             .foregroundStyle(.secondary)
-            .padding(.horizontal)
+            .padding(.top, 8)
             .padding(.bottom, 16)
         }
     }
 
     // MARK: - Stop Editing
 
+    /// Ensure `editableStops` is populated before any mutation.
+    private func ensureStopsLoaded() {
+        if editableStops.isEmpty && !tour.stops.isEmpty {
+            editableStops = tour.stops
+        }
+    }
+
     private func moveStop(from: Int, to: Int) {
+        ensureStopsLoaded()
         guard from >= 0 && from < editableStops.count,
               to >= 0 && to < editableStops.count else { return }
         let stop = editableStops.remove(at: from)
@@ -370,6 +395,7 @@ struct TourDetailView: View {
     }
 
     private func removeStop(at idx: Int) {
+        ensureStopsLoaded()
         guard idx >= 0 && idx < editableStops.count else { return }
         editableStops.remove(at: idx)
         resequenceStops()
@@ -377,6 +403,7 @@ struct TourDetailView: View {
     }
 
     private func insertStop(_ stop: TourStop, at idx: Int) {
+        ensureStopsLoaded()
         let safeIdx = min(max(idx, 0), editableStops.count)
         editableStops.insert(stop, at: safeIdx)
         resequenceStops()
@@ -403,6 +430,13 @@ struct TourDetailView: View {
         let updated = tourWithEditedStops()
         TourStorage.shared.save(updated)
         tourVM.savedTours = TourStorage.shared.loadAll()
+        tourVM.archivedTours = TourStorage.shared.loadArchived()
+        // Keep current tour reference fresh so reopen shows updated data
+        if tourVM.currentTour?.id == tour.id {
+            tourVM.currentTour = updated
+        }
+        // Push to cloud so other devices see the change
+        Task { try? await APIClient.shared.syncTourToCloud(updated) }
     }
 
     private func tourWithEditedStops() -> Tour {

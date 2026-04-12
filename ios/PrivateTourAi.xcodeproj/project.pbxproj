@@ -36,6 +36,7 @@
 		876963824966574542FEE900 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F17E491EEA10D2EB5E20C0D /* AuthService.swift */; };
 		893DDF8A39D43260294DB34F /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 01F78EA0F04E5E32256DA201 /* MapLibreSwiftDSL */; };
 		92B77BDA13D866983A1A71EC /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D8BF7528FF45EC33423FBB /* PaywallView.swift */; };
+		94114FC569FCD073E2D9683F /* TourStopEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309973899B92345227D9D751 /* TourStopEditingTests.swift */; };
 		98F5B8991D06E26DB5604756 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 0D09726F03F0769986E69145 /* FirebaseAuth */; };
 		9D3FBA79B7EA1465F818589A /* BrandColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB0E93F968CB3C49A6F8FA4 /* BrandColors.swift */; };
 		9EEF7F2A3F01054362D6B0AA /* sample-boat-tour.json in Resources */ = {isa = PBXBuildFile; fileRef = D687DD10B485A411FD6B132A /* sample-boat-tour.json */; };
@@ -72,6 +73,7 @@
 		252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLibreWindowRenderTest.swift; sourceTree = "<group>"; };
 		259483E42CA47A8038B2F257 /* GuidedTourAudioTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedTourAudioTest.swift; sourceTree = "<group>"; };
 		2C8CE7291C29D77129F8163A /* SubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionService.swift; sourceTree = "<group>"; };
+		309973899B92345227D9D751 /* TourStopEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourStopEditingTests.swift; sourceTree = "<group>"; };
 		35E939946D3F8A4C2D84979C /* NauticalChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NauticalChartView.swift; sourceTree = "<group>"; };
 		414312265E15A0CD338495C4 /* PrivateTourAiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateTourAiApp.swift; sourceTree = "<group>"; };
 		561F7E4397844F57AADE7647 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -231,6 +233,7 @@
 				CA3B9C6F4D3EF71718063181 /* MapLibreRenderingTests.swift */,
 				6EED82C384193B28F971E773 /* MapLibreSwiftUIRenderTest.swift */,
 				252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */,
+				309973899B92345227D9D751 /* TourStopEditingTests.swift */,
 			);
 			path = PrivateTourAiTests;
 			sourceTree = "<group>";
@@ -407,6 +410,7 @@
 				285E65A19A0CC33EEA349FDC /* MapLibreRenderingTests.swift in Sources */,
 				8211A610E154E7438DAAACED /* MapLibreSwiftUIRenderTest.swift in Sources */,
 				4BC36E1C74BF910968D6E325 /* MapLibreWindowRenderTest.swift in Sources */,
+				94114FC569FCD073E2D9683F /* TourStopEditingTests.swift in Sources */,
 				1CEDF95863FB9B26C6A7D403 /* iPadMapRenderTest.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -519,7 +523,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -553,7 +557,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
