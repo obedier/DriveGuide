@@ -191,10 +191,12 @@ struct TourDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if let shareUrl = tourVM.shareTour() {
-                        ShareLink(item: shareUrl, subject: Text(tour.title), message: Text("Check out this tour I made with Private TourAi!")) {
-                            Image(systemName: "square.and.arrow.up")
-                        }
+                    ShareLink(
+                        item: shareText(),
+                        preview: SharePreview(tour.title, image: Image(systemName: "map.fill"))
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(.brandGold)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -240,6 +242,28 @@ struct TourDetailView: View {
                 }
             )
         }
+    }
+
+    // MARK: - Share
+
+    /// Builds a shareable text string. If a shareId exists, includes a public link.
+    /// Works with Messages, Mail, Twitter, any app accepting text.
+    private func shareText() -> String {
+        var lines = [
+            "🗺️ \(tour.title)",
+            "",
+            tour.description,
+            "",
+            "\(displayStops.count) stops · \(formatDuration(tour.durationMinutes))"
+        ]
+        if let shareId = tour.shareId {
+            lines.append("")
+            lines.append("Open in wAIpoint: https://waipoint.o11r.com/tour/\(shareId)")
+        } else {
+            lines.append("")
+            lines.append("Created with wAIpoint — your AI-powered driving guide")
+        }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Smart Insertion
