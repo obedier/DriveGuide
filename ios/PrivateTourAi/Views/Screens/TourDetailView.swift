@@ -159,39 +159,17 @@ struct TourDetailView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    // Stops list header with prominent Edit + Add buttons
-                    HStack(spacing: 10) {
+                    // Stops list header (Edit/Add are in toolbar for easier hit target)
+                    HStack(spacing: 8) {
                         Text("YOUR STOPS")
                             .font(.caption.bold())
                             .foregroundStyle(.secondary)
+                        if isEditing {
+                            Text("· EDITING")
+                                .font(.caption.bold())
+                                .foregroundStyle(.brandGold)
+                        }
                         Spacer()
-                        // Add button — uses smart insertion
-                        Button {
-                            showAddStopSheet = true
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Add")
-                            }
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.brandGold)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color.brandGold.opacity(0.15), in: Capsule())
-                        }
-
-                        // Edit button
-                        Button { withAnimation { isEditing.toggle() } } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: isEditing ? "checkmark.circle.fill" : "pencil.circle.fill")
-                                Text(isEditing ? "Done" : "Edit")
-                            }
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.brandGold)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color.brandGold.opacity(0.15), in: Capsule())
-                        }
                     }
                     .padding(.horizontal)
                     .padding(.top, 16)
@@ -220,7 +198,21 @@ struct TourDetailView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    HStack(spacing: 14) {
+                        // Add stop — in toolbar so it's always easy to hit
+                        Button { showAddStopSheet = true } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.brandGold)
+                        }
+                        // Edit stops
+                        Button { withAnimation { isEditing.toggle() } } label: {
+                            Image(systemName: isEditing ? "checkmark.circle.fill" : "pencil.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.brandGold)
+                        }
+                        Button("Done") { dismiss() }
+                    }
                 }
             }
         }
