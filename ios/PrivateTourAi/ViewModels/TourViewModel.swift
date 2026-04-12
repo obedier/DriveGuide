@@ -50,6 +50,32 @@ class TourViewModel: ObservableObject {
         loadSampleToursIfNeeded()
         savedTours = storage.loadAll()
         archivedTours = storage.loadArchived()
+        // Sync with cloud on launch (async, falls back to local if offline)
+        Task { await syncWithCloud() }
+    }
+
+    // MARK: - Cloud Sync
+
+    /// Fetches the user's tours from the cloud and merges with local cache.
+    /// Runs silently — on failure, local cache is still shown.
+    func syncWithCloud() async {
+        do {
+            let response = try await APIClient.shared.getUserTours()
+            // Save each cloud tour locally (creates/updates JSON files)
+            for tour in response.tours + response.archived {
+                storage.save(tour)
+            }
+            // Update archived flags
+            let archivedIds = Set(response.archived.map { $0.id })
+            storage.syncArchivedIds(archivedIds)
+            // Reload from storage to reflect merged state
+            savedTours = storage.loadAll()
+            archivedTours = storage.loadArchived()
+            print("[TourVM] Cloud sync: \(response.tours.count) saved, \(response.archived.count) archived")
+        } catch {
+            print("[TourVM] Cloud sync failed (offline?): \(error.localizedDescription)")
+            // Silent failure — local cache is still shown
+        }
     }
 
     private func loadSampleToursIfNeeded() {
@@ -253,30 +279,40 @@ class TourViewModel: ObservableObject {
             currentTour = nil
             showTourDetail = false
         }
+        Task { try? await APIClient.shared.deleteUserTour(tourId: tour.id) }
     }
 
     func archiveTour(_ tour: Tour) {
         storage.archive(tour.id)
         savedTours = storage.loadAll()
         archivedTours = storage.loadArchived()
+        Task { try? await APIClient.shared.archiveUserTour(tourId: tour.id) }
     }
 
     func unarchiveTour(_ tour: Tour) {
         storage.unarchive(tour.id)
         savedTours = storage.loadAll()
         archivedTours = storage.loadArchived()
+        Task { try? await APIClient.shared.unarchiveUserTour(tourId: tour.id) }
     }
 
     func deleteArchivedTour(_ tour: Tour) {
         storage.delete(tour.id)
         archivedTours = storage.loadArchived()
+        Task { try? await APIClient.shared.deleteUserTour(tourId: tour.id) }
     }
 
     func deleteAllArchived() {
-        for tour in archivedTours {
+        let toursToDelete = archivedTours
+        for tour in toursToDelete {
             storage.delete(tour.id)
         }
         archivedTours = []
+        Task {
+            for tour in toursToDelete {
+                try? await APIClient.shared.deleteUserTour(tourId: tour.id)
+            }
+        }
     }
 
     // MARK: - Ratings
@@ -467,6 +503,11 @@ class TourStorage {
     func unarchive(_ tourId: String) {
         var ids = archivedIDs
         ids.remove(tourId)
+        archivedIDs = ids
+    }
+
+    /// Replace the archived-IDs set from cloud (authoritative).
+    func syncArchivedIds(_ ids: Set<String>) {
         archivedIDs = ids
     }
 

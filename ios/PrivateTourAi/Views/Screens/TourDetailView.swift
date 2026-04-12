@@ -159,66 +159,33 @@ struct TourDetailView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    // Stops list with edit controls
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Text("YOUR STOPS")
-                                .font(.caption.bold())
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Button { withAnimation { isEditing.toggle() } } label: {
+                    // Stops list header
+                    HStack {
+                        Text("YOUR STOPS")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button { withAnimation { isEditing.toggle() } } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: isEditing ? "checkmark.circle.fill" : "pencil.circle.fill")
                                 Text(isEditing ? "Done" : "Edit")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.brandGold)
                             }
+                            .font(.caption.bold())
+                            .foregroundStyle(.brandGold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.brandGold.opacity(0.12), in: Capsule())
                         }
-                        .padding(.horizontal)
-                        .padding(.top, 16)
-                        .padding(.bottom, 12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 16)
+                    .padding(.bottom, 8)
 
-                        if isEditing {
-                            // Editable list with drag-to-reorder
-                            ForEach(Array(displayStops.enumerated()), id: \.element.id) { idx, stop in
-                                VStack(spacing: 0) {
-                                    // Insert (+) button above this stop
-                                    Button {
-                                        insertAfterIndex = idx
-                                        showAddStopSheet = true
-                                    } label: {
-                                        HStack {
-                                            Image(systemName: "plus.circle.fill")
-                                                .foregroundStyle(.brandGold)
-                                            Text("Add stop here").font(.caption).foregroundStyle(.brandGold)
-                                            Spacer()
-                                        }
-                                        .padding(.horizontal)
-                                        .padding(.vertical, 6)
-                                    }
-
-                                    EditableStopRow(
-                                        stop: stop,
-                                        onRemove: { removeStop(at: idx) },
-                                        onMoveUp: idx > 0 ? { moveStop(from: idx, to: idx - 1) } : nil,
-                                        onMoveDown: idx < displayStops.count - 1 ? { moveStop(from: idx, to: idx + 1) } : nil
-                                    )
-                                }
-                            }
-
-                            // Add stop at end
-                            Button {
-                                insertAfterIndex = displayStops.count
-                                showAddStopSheet = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundStyle(.brandGold)
-                                    Text("Add stop at end").font(.caption).foregroundStyle(.brandGold)
-                                    Spacer()
-                                }
-                                .padding(.horizontal)
-                                .padding(.vertical, 6)
-                            }
-                        } else {
+                    // Stops list
+                    if isEditing {
+                        editableStopsList
+                    } else {
+                        VStack(alignment: .leading, spacing: 0) {
                             ForEach(displayStops) { stop in
                                 StopRow(stop: stop, isLast: stop.id == displayStops.last?.id)
                                     .onTapGesture { selectedStop = stop }
@@ -263,6 +230,68 @@ struct TourDetailView: View {
                     showAddStopSheet = false
                 }
             )
+        }
+    }
+
+    // MARK: - Editable Stops List (native iOS List with drag + swipe)
+
+    private var editableStopsList: some View {
+        VStack(spacing: 0) {
+            // Big, prominent "Add Stop" button
+            Button {
+                insertAfterIndex = displayStops.count
+                showAddStopSheet = true
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill").font(.title3)
+                    Text("Add Stop").fontWeight(.semibold)
+                    Spacer()
+                }
+                .foregroundStyle(.brandGold)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.brandGold.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+
+            // Native List with drag + swipe to delete
+            List {
+                ForEach(displayStops) { stop in
+                    CompactStopRow(stop: stop)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                if let idx = displayStops.firstIndex(where: { $0.id == stop.id }) {
+                                    removeStop(at: idx)
+                                }
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                }
+                .onMove { source, destination in
+                    editableStops.move(fromOffsets: source, toOffset: destination)
+                    resequenceStops()
+                    saveChanges()
+                }
+            }
+            .listStyle(.plain)
+            .scrollDisabled(true)
+            .frame(height: CGFloat(displayStops.count) * 72 + 20) // Fit all rows
+            .environment(\.editMode, .constant(.active))
+
+            // Helpful hint
+            HStack(spacing: 6) {
+                Image(systemName: "hand.draw.fill").font(.caption2)
+                Text("Drag the handle to reorder · Swipe left to remove")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal)
+            .padding(.bottom, 16)
         }
     }
 
@@ -434,7 +463,36 @@ struct InfoBadge: View {
     }
 }
 
-// MARK: - Editable Stop Row
+// MARK: - Compact Stop Row (edit mode)
+
+struct CompactStopRow: View {
+    let stop: TourStop
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.brandGold)
+                    .frame(width: 32, height: 32)
+                Text("\(stop.sequenceOrder + 1)")
+                    .font(.caption.bold())
+                    .foregroundStyle(.brandNavy)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(stop.name).font(.subheadline.bold()).lineLimit(1)
+                if stop.recommendedStayMinutes > 0 {
+                    Text("\(stop.recommendedStayMinutes) min stay").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(Color(.systemGray6).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Editable Stop Row (legacy, kept for reference)
 
 struct EditableStopRow: View {
     let stop: TourStop

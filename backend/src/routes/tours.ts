@@ -150,6 +150,54 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(204).send();
   });
 
+  // GET /user/tours — list current user's saved + archived tours (server-synced library)
+  app.get('/user/tours', { preHandler: requireAuth }, async (request) => {
+    const db = getDb();
+    const userId = request.user!.userId;
+    const rows = db.prepare(`
+      SELECT id, is_archived FROM tours
+      WHERE user_id = ? AND status = 'ready'
+      ORDER BY created_at DESC
+    `).all(userId) as Array<{ id: string; is_archived: number }>;
+
+    const tours: unknown[] = [];
+    const archived: unknown[] = [];
+    for (const row of rows) {
+      try {
+        const tour = loadTour(row.id);
+        if (row.is_archived) archived.push(tour);
+        else tours.push(tour);
+      } catch { /* skip bad rows */ }
+    }
+    return { tours, archived };
+  });
+
+  // POST /user/tours/:id/archive — archive a tour
+  app.post<{ Params: { id: string } }>('/user/tours/:id/archive', {
+    preHandler: requireAuth,
+  }, async (request, reply) => {
+    const db = getDb();
+    const tour = db.prepare('SELECT user_id FROM tours WHERE id = ?').get(request.params.id) as { user_id: string } | undefined;
+    if (!tour || tour.user_id !== request.user!.userId) {
+      return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Tour not found' } });
+    }
+    db.prepare('UPDATE tours SET is_archived = 1 WHERE id = ?').run(request.params.id);
+    return { status: 'archived' };
+  });
+
+  // POST /user/tours/:id/unarchive — restore from archive
+  app.post<{ Params: { id: string } }>('/user/tours/:id/unarchive', {
+    preHandler: requireAuth,
+  }, async (request, reply) => {
+    const db = getDb();
+    const tour = db.prepare('SELECT user_id FROM tours WHERE id = ?').get(request.params.id) as { user_id: string } | undefined;
+    if (!tour || tour.user_id !== request.user!.userId) {
+      return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Tour not found' } });
+    }
+    db.prepare('UPDATE tours SET is_archived = 0 WHERE id = ?').run(request.params.id);
+    return { status: 'unarchived' };
+  });
+
   // GET /tours/shared/:shareId — PUBLIC — get a tour by share link
   app.get<{ Params: { shareId: string } }>('/tours/shared/:shareId', async (request, reply) => {
     const db = getDb();

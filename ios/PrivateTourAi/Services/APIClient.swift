@@ -177,6 +177,38 @@ final class APIClient: Sendable {
         return try await get(path)
     }
 
+    // MARK: - User Tours (cloud-synced library)
+
+    struct UserToursResponse: Decodable {
+        let tours: [Tour]
+        let archived: [Tour]
+    }
+
+    /// Fetches the current user's saved + archived tours from the cloud.
+    func getUserTours() async throws -> UserToursResponse {
+        return try await authGet("/user/tours")
+    }
+
+    /// Archives a tour server-side.
+    func archiveUserTour(tourId: String) async throws {
+        struct Response: Decodable { let status: String }
+        let _: Response = try await authPost("/user/tours/\(tourId)/archive", body: EmptyBody())
+    }
+
+    /// Unarchives a tour server-side.
+    func unarchiveUserTour(tourId: String) async throws {
+        struct Response: Decodable { let status: String }
+        let _: Response = try await authPost("/user/tours/\(tourId)/unarchive", body: EmptyBody())
+    }
+
+    /// Deletes a tour server-side.
+    func deleteUserTour(tourId: String) async throws {
+        let request = try await authenticatedRequest(path: "/tours/\(tourId)", method: "DELETE", timeout: shortTimeout)
+        let _ = try await URLSession.shared.data(for: request)
+    }
+
+    private struct EmptyBody: Encodable {}
+
     // MARK: - Account
 
     func deleteAccount() async throws {
@@ -290,6 +322,11 @@ final class APIClient: Sendable {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         return request
+    }
+
+    private func authGet<T: Decodable>(_ path: String, timeout: TimeInterval? = nil) async throws -> T {
+        let request = try await authenticatedRequest(path: path, method: "GET", timeout: timeout ?? shortTimeout)
+        return try await execute(request)
     }
 
     private func authPost<T: Decodable, B: Encodable>(_ path: String, body: B, timeout: TimeInterval? = nil) async throws -> T {

@@ -1,5 +1,6 @@
 import SwiftUI
 import AuthenticationServices
+import CoreLocation
 
 struct ContentView: View {
     @EnvironmentObject var tourVM: TourViewModel
@@ -11,7 +12,7 @@ struct ContentView: View {
                 .tag(0)
 
             LibraryView()
-                .tabItem { Label("Library", systemImage: "book.fill") }
+                .tabItem { Label("Tours", systemImage: "book.fill") }
                 .tag(1)
 
             ProfileView()
@@ -26,6 +27,7 @@ struct ContentView: View {
 
 struct LibraryView: View {
     @EnvironmentObject var tourVM: TourViewModel
+    @StateObject private var userLocation = UserLocationService()
     @State private var selectedTour: Tour?
     @State private var selectedSection = 0  // 0=Library, 1=Archive, 2=Community
     @State private var showRating = false
@@ -34,6 +36,52 @@ struct LibraryView: View {
     @State private var ratingTourId = ""
     @State private var ratingTourTitle = ""
     @State private var ratingValue = 0
+    @State private var searchText = ""
+
+    // Filtered + sorted tours by search and distance
+    private var filteredMyTours: [Tour] {
+        filterAndSort(tourVM.savedTours)
+    }
+
+    private var filteredArchivedTours: [Tour] {
+        filterAndSort(tourVM.archivedTours)
+    }
+
+    private func filterAndSort(_ tours: [Tour]) -> [Tour] {
+        let filtered = searchText.isEmpty ? tours : tours.filter {
+            $0.title.localizedCaseInsensitiveContains(searchText) ||
+            $0.locationQuery.localizedCaseInsensitiveContains(searchText)
+        }
+        guard let userLoc = userLocation.current else { return filtered }
+        return filtered.sorted { a, b in
+            distanceMiles(from: userLoc, to: a) < distanceMiles(from: userLoc, to: b)
+        }
+    }
+
+    private func distanceMiles(from user: CLLocationCoordinate2D, to tour: Tour) -> Double {
+        guard let stop = tour.stops.first else { return .greatestFiniteMagnitude }
+        let userCL = CLLocation(latitude: user.latitude, longitude: user.longitude)
+        let stopCL = CLLocation(latitude: stop.latitude, longitude: stop.longitude)
+        return userCL.distance(from: stopCL) * 0.000621371
+    }
+
+    private func filteredCommunityTours() -> [APIClient.CommunityTourItem] {
+        let filtered = searchText.isEmpty ? tourVM.communityTours : tourVM.communityTours.filter {
+            $0.title.localizedCaseInsensitiveContains(searchText) ||
+            $0.location.localizedCaseInsensitiveContains(searchText)
+        }
+        guard let userLoc = userLocation.current else { return filtered }
+        return filtered.sorted { a, b in
+            communityDistance(from: userLoc, item: a) < communityDistance(from: userLoc, item: b)
+        }
+    }
+
+    private func communityDistance(from user: CLLocationCoordinate2D, item: APIClient.CommunityTourItem) -> Double {
+        guard let lat = item.center_lat, let lng = item.center_lng else { return .greatestFiniteMagnitude }
+        let userCL = CLLocation(latitude: user.latitude, longitude: user.longitude)
+        let stopCL = CLLocation(latitude: lat, longitude: lng)
+        return userCL.distance(from: stopCL) * 0.000621371
+    }
 
     var body: some View {
         NavigationStack {
@@ -43,7 +91,7 @@ struct LibraryView: View {
                 VStack(spacing: 0) {
                     // Section picker — tight to nav title
                     Picker("", selection: $selectedSection) {
-                        Text("Library").tag(0)
+                        Text("My Tours").tag(0)
                         Text("Archive").tag(1)
                         Text("Community").tag(2)
                     }
@@ -52,6 +100,24 @@ struct LibraryView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 2)
                     .padding(.bottom, 6)
+
+                    // Search bar
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.white.opacity(0.4))
+                        TextField("Search tours…", text: $searchText)
+                            .textFieldStyle(.plain)
+                            .foregroundStyle(.white)
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(.white.opacity(0.3))
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.brandGold.opacity(0.15)))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
 
                     if selectedSection == 0 {
                         libraryContent
@@ -121,10 +187,20 @@ struct LibraryView: View {
                     Text("Tours you create will appear here").foregroundStyle(.white.opacity(0.4))
                 }
                 .frame(maxHeight: .infinity)
+            } else if filteredMyTours.isEmpty && !searchText.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 40)).foregroundStyle(.white.opacity(0.3))
+                    Text("No tours match \"\(searchText)\"").foregroundStyle(.white.opacity(0.5))
+                }
+                .frame(maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(tourVM.savedTours) { tour in
-                        TourListCard(tour: tour, rating: tourVM.getRating(for: tour.id)) {
+                    ForEach(filteredMyTours) { tour in
+                        TourListCard(
+                            tour: tour,
+                            rating: tourVM.getRating(for: tour.id),
+                            distanceMiles: userLocation.current.map { distanceMiles(from: $0, to: tour) }
+                        ) {
                             tourVM.openSavedTour(tour)
                             selectedTour = tour
                         }
@@ -190,8 +266,12 @@ struct LibraryView: View {
                     }
                     ScrollView {
                         LazyVStack(spacing: 12) {
-                            ForEach(tourVM.archivedTours) { tour in
-                                TourListCard(tour: tour, rating: nil) {
+                            ForEach(filteredArchivedTours) { tour in
+                                TourListCard(
+                                    tour: tour,
+                                    rating: nil,
+                                    distanceMiles: userLocation.current.map { distanceMiles(from: $0, to: tour) }
+                                ) {
                                     tourVM.openSavedTour(tour)
                                     selectedTour = tour
                                 }
@@ -247,8 +327,11 @@ struct LibraryView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(tourVM.communityTours) { item in
-                            CommunityTourCard(item: item, onTap: {
+                        ForEach(filteredCommunityTours()) { item in
+                            CommunityTourCard(
+                                item: item,
+                                distanceMiles: userLocation.current.map { communityDistance(from: $0, item: item) },
+                                onTap: {
                                 if let shareId = item.share_id {
                                     Task {
                                         do {
@@ -289,6 +372,7 @@ struct LibraryView: View {
 struct TourListCard: View {
     let tour: Tour
     let rating: Int?
+    let distanceMiles: Double?
     let onTap: () -> Void
 
     var body: some View {
@@ -299,7 +383,17 @@ struct TourListCard: View {
                     Spacer()
                     Image(systemName: transportIcon(tour.transportMode ?? "car")).foregroundStyle(.brandGold.opacity(0.5))
                 }
-                Text(tour.locationQuery).font(.caption).foregroundStyle(.white.opacity(0.4))
+                HStack(spacing: 6) {
+                    Text(tour.locationQuery).font(.caption).foregroundStyle(.white.opacity(0.4))
+                    if let miles = distanceMiles, miles < .greatestFiniteMagnitude {
+                        Text("·").foregroundStyle(.white.opacity(0.3))
+                        HStack(spacing: 2) {
+                            Image(systemName: "location.fill").font(.caption2)
+                            Text(String(format: "%.1f mi", miles)).font(.caption)
+                        }
+                        .foregroundStyle(.brandGold.opacity(0.7))
+                    }
+                }
                 HStack(spacing: 14) {
                     Label("\(tour.stops.count) Stops", systemImage: "mappin")
                     Label(formatDuration(tour.durationMinutes), systemImage: "clock")
@@ -338,6 +432,7 @@ struct TourListCard: View {
 
 struct CommunityTourCard: View {
     let item: APIClient.CommunityTourItem
+    let distanceMiles: Double?
     let onTap: () -> Void
     let onRate: () -> Void
 
@@ -349,7 +444,17 @@ struct CommunityTourCard: View {
                     Spacer()
                     Image(systemName: transportIcon(item.transport_mode)).foregroundStyle(.brandGold.opacity(0.5))
                 }
-                Text(item.location).font(.caption).foregroundStyle(.white.opacity(0.4))
+                HStack(spacing: 6) {
+                    Text(item.location).font(.caption).foregroundStyle(.white.opacity(0.4))
+                    if let miles = distanceMiles, miles < .greatestFiniteMagnitude {
+                        Text("·").foregroundStyle(.white.opacity(0.3))
+                        HStack(spacing: 2) {
+                            Image(systemName: "location.fill").font(.caption2)
+                            Text(String(format: "%.1f mi", miles)).font(.caption)
+                        }
+                        .foregroundStyle(.brandGold.opacity(0.7))
+                    }
+                }
 
                 // 5-star rating display
                 HStack(spacing: 4) {
@@ -796,3 +901,36 @@ struct ProfileMenuItem: View {
         .padding(.horizontal, 16).padding(.vertical, 14)
     }
 }
+
+
+// MARK: - User Location Service (observable)
+
+class UserLocationService: NSObject, ObservableObject, CLLocationManagerDelegate {
+    @Published var current: CLLocationCoordinate2D?
+    private let manager = CLLocationManager()
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.requestWhenInUseAuthorization()
+        if let loc = manager.location {
+            current = loc.coordinate
+        }
+        manager.startUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let loc = locations.last else { return }
+        DispatchQueue.main.async {
+            self.current = loc.coordinate
+        }
+        // Stop continuous updates after first fix to save battery
+        manager.stopUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("[UserLocation] error: \(error.localizedDescription)")
+    }
+}
+
