@@ -56,25 +56,43 @@ class TourViewModel: ObservableObject {
 
     // MARK: - Cloud Sync
 
-    /// Fetches the user's tours from the cloud and merges with local cache.
+    /// Two-way sync: pull cloud tours down + push local-only tours up.
     /// Runs silently — on failure, local cache is still shown.
     func syncWithCloud() async {
         do {
+            // 1. Fetch from cloud
             let response = try await APIClient.shared.getUserTours()
-            // Save each cloud tour locally (creates/updates JSON files)
+            let cloudIds = Set((response.tours + response.archived).map { $0.id })
+
+            // 2. Save cloud tours locally
             for tour in response.tours + response.archived {
                 storage.save(tour)
             }
-            // Update archived flags
             let archivedIds = Set(response.archived.map { $0.id })
             storage.syncArchivedIds(archivedIds)
-            // Reload from storage to reflect merged state
+
+            // 3. Upload any local tours that aren't on cloud yet
+            let localIds = Set(storage.loadAll().map { $0.id } + storage.loadArchived().map { $0.id })
+            let toUpload = localIds.subtracting(cloudIds)
+            var uploadedCount = 0
+            for tourId in toUpload {
+                let allLocal = storage.loadAll() + storage.loadArchived()
+                if let localTour = allLocal.first(where: { $0.id == tourId }) {
+                    do {
+                        try await APIClient.shared.syncTourToCloud(localTour)
+                        uploadedCount += 1
+                    } catch {
+                        // Non-fatal; tour stays local
+                    }
+                }
+            }
+
+            // 4. Reload local state
             savedTours = storage.loadAll()
             archivedTours = storage.loadArchived()
-            print("[TourVM] Cloud sync: \(response.tours.count) saved, \(response.archived.count) archived")
+            print("[TourVM] Cloud sync: \(response.tours.count) down, \(uploadedCount) up")
         } catch {
             print("[TourVM] Cloud sync failed (offline?): \(error.localizedDescription)")
-            // Silent failure — local cache is still shown
         }
     }
 

@@ -96,10 +96,23 @@ struct LibraryView: View {
                         Text("Community").tag(2)
                     }
                     .pickerStyle(.segmented)
-                    .colorMultiply(.brandGold)
                     .padding(.horizontal, 16)
                     .padding(.top, 2)
                     .padding(.bottom, 6)
+                    .onAppear {
+                        // Brighten unselected tabs so they're legible on dark bg
+                        let appearance = UISegmentedControl.appearance()
+                        appearance.setTitleTextAttributes([
+                            .foregroundColor: UIColor.white.withAlphaComponent(0.85),
+                            .font: UIFont.systemFont(ofSize: 14, weight: .semibold)
+                        ], for: .normal)
+                        appearance.setTitleTextAttributes([
+                            .foregroundColor: UIColor(named: "BrandNavy") ?? .black,
+                            .font: UIFont.systemFont(ofSize: 14, weight: .bold)
+                        ], for: .selected)
+                        appearance.selectedSegmentTintColor = UIColor(named: "BrandGold") ?? .systemYellow
+                        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.1)
+                    }
 
                     // Search bar
                     HStack(spacing: 8) {

@@ -150,6 +150,92 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(204).send();
   });
 
+  // POST /user/tours/sync — upload a local tour if it doesn't exist on server
+  app.post<{ Body: Record<string, unknown> }>('/user/tours/sync', {
+    preHandler: requireAuth,
+  }, async (request, reply) => {
+    const db = getDb();
+    const userId = request.user!.userId;
+    const tour = request.body;
+    const tourId = tour.id as string | undefined;
+
+    if (!tourId) {
+      return reply.code(400).send({ error: { code: 'INVALID_INPUT', message: 'Tour ID required' } });
+    }
+
+    // Check if already exists
+    const existing = db.prepare('SELECT id, user_id FROM tours WHERE id = ?').get(tourId) as { id: string; user_id: string } | undefined;
+    if (existing) {
+      // If owned by someone else, refuse
+      if (existing.user_id && existing.user_id !== userId) {
+        return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Tour owned by another user' } });
+      }
+      // Already owned by this user → nothing to do
+      return { status: 'already_synced' };
+    }
+
+    // Insert the tour with all fields. Using the generator's saveTour-like pattern.
+    const { newId: genId } = await import('../lib/id.js');
+    const stops = Array.isArray(tour.stops) ? tour.stops : [];
+    const firstStop = stops[0] as Record<string, unknown> | undefined;
+    const centerLat = (tour as any).center_lat ?? firstStop?.latitude ?? null;
+    const centerLng = (tour as any).center_lng ?? firstStop?.longitude ?? null;
+
+    db.prepare(`
+      INSERT INTO tours (
+        id, user_id, title, description, location_query, center_lat, center_lng,
+        duration_minutes, themes, language, status, transport_mode,
+        total_distance_km, story_arc_summary, share_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, datetime('now'))
+    `).run(
+      tourId,
+      userId,
+      String(tour.title || 'Untitled Tour'),
+      String(tour.description || ''),
+      String((tour as any).location_query || ''),
+      centerLat,
+      centerLng,
+      Number((tour as any).duration_minutes) || 60,
+      JSON.stringify((tour as any).themes || []),
+      String((tour as any).language || 'en'),
+      String((tour as any).transport_mode || 'car'),
+      (tour as any).total_distance_km ?? null,
+      (tour as any).story_arc_summary ?? null,
+      (tour as any).share_id ?? null,
+    );
+
+    // Insert stops
+    const insertStop = db.prepare(`
+      INSERT INTO tour_stops (
+        id, tour_id, sequence_order, name, description, category,
+        latitude, longitude, recommended_stay_minutes, is_optional,
+        approach_narration, at_stop_narration, departure_narration,
+        google_place_id, photo_url
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const s of stops as Array<Record<string, unknown>>) {
+      insertStop.run(
+        s.id ?? genId(),
+        tourId,
+        s.sequence_order ?? 0,
+        String(s.name || ''),
+        String(s.description || ''),
+        String(s.category || 'landmark'),
+        Number(s.latitude) || 0,
+        Number(s.longitude) || 0,
+        Number(s.recommended_stay_minutes) || 10,
+        s.is_optional ? 1 : 0,
+        String(s.approach_narration || ''),
+        String(s.at_stop_narration || ''),
+        String(s.departure_narration || ''),
+        s.google_place_id ?? null,
+        s.photo_url ?? null,
+      );
+    }
+
+    return { status: 'synced' };
+  });
+
   // GET /user/tours — list current user's saved + archived tours (server-synced library)
   app.get('/user/tours', { preHandler: requireAuth }, async (request) => {
     const db = getDb();

@@ -189,6 +189,20 @@ final class APIClient: Sendable {
         return try await authGet("/user/tours")
     }
 
+    /// Uploads a local tour to the cloud if it doesn't already exist for this user.
+    func syncTourToCloud(_ tour: Tour) async throws {
+        struct Response: Decodable { let status: String }
+        // Encode the tour with snake_case keys matching the server's schema
+        let data = try JSONEncoder().encode(tour)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+        var request = try await authenticatedRequest(path: "/user/tours/sync", method: "POST", timeout: longTimeout)
+        request.httpBody = try JSONSerialization.data(withJSONObject: json)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let _: Response = try await execute(request)
+    }
+
     /// Archives a tour server-side.
     func archiveUserTour(tourId: String) async throws {
         struct Response: Decodable { let status: String }

@@ -159,22 +159,38 @@ struct TourDetailView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    // Stops list header
-                    HStack {
+                    // Stops list header with prominent Edit + Add buttons
+                    HStack(spacing: 10) {
                         Text("YOUR STOPS")
                             .font(.caption.bold())
                             .foregroundStyle(.secondary)
                         Spacer()
+                        // Add button — uses smart insertion
+                        Button {
+                            showAddStopSheet = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add")
+                            }
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.brandGold)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color.brandGold.opacity(0.15), in: Capsule())
+                        }
+
+                        // Edit button
                         Button { withAnimation { isEditing.toggle() } } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: isEditing ? "checkmark.circle.fill" : "pencil.circle.fill")
                                 Text(isEditing ? "Done" : "Edit")
                             }
-                            .font(.caption.bold())
+                            .font(.subheadline.bold())
                             .foregroundStyle(.brandGold)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.brandGold.opacity(0.12), in: Capsule())
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color.brandGold.opacity(0.15), in: Capsule())
                         }
                     }
                     .padding(.horizontal)
@@ -223,38 +239,69 @@ struct TourDetailView: View {
         }
         .sheet(isPresented: $showAddStopSheet) {
             AddStopSearchSheet(
-                nearLatitude: displayStops[safe: max(0, insertAfterIndex - 1)]?.latitude ?? tour.stops.first?.latitude ?? 0,
-                nearLongitude: displayStops[safe: max(0, insertAfterIndex - 1)]?.longitude ?? tour.stops.first?.longitude ?? 0,
+                nearLatitude: tourCentroid().latitude,
+                nearLongitude: tourCentroid().longitude,
                 onAdd: { newStop in
-                    insertStop(newStop, at: insertAfterIndex)
+                    let bestIdx = bestInsertionIndex(for: newStop)
+                    insertStop(newStop, at: bestIdx)
                     showAddStopSheet = false
                 }
             )
         }
     }
 
+    // MARK: - Smart Insertion
+
+    private func tourCentroid() -> CLLocationCoordinate2D {
+        guard !displayStops.isEmpty else {
+            return CLLocationCoordinate2D(latitude: tour.stops.first?.latitude ?? 0, longitude: tour.stops.first?.longitude ?? 0)
+        }
+        let avgLat = displayStops.map { $0.latitude }.reduce(0, +) / Double(displayStops.count)
+        let avgLng = displayStops.map { $0.longitude }.reduce(0, +) / Double(displayStops.count)
+        return CLLocationCoordinate2D(latitude: avgLat, longitude: avgLng)
+    }
+
+    /// Find the insertion index that minimizes total route distance.
+    /// Tries inserting the new stop between each pair of consecutive existing stops,
+    /// plus at the start/end, and picks the position with the lowest added distance.
+    private func bestInsertionIndex(for newStop: TourStop) -> Int {
+        let stops = displayStops
+        guard stops.count >= 2 else { return stops.count } // append if 0 or 1 stops
+        let newLoc = CLLocation(latitude: newStop.latitude, longitude: newStop.longitude)
+
+        var bestIdx = stops.count
+        var bestDelta = Double.infinity
+
+        // Evaluate each insertion position (between stops)
+        for i in 0...stops.count {
+            let delta: Double
+            if i == 0 {
+                // Insert at start: newStop → stops[0]
+                let next = CLLocation(latitude: stops[0].latitude, longitude: stops[0].longitude)
+                delta = newLoc.distance(from: next)
+            } else if i == stops.count {
+                // Insert at end: stops[last] → newStop
+                let prev = CLLocation(latitude: stops[i - 1].latitude, longitude: stops[i - 1].longitude)
+                delta = prev.distance(from: newLoc)
+            } else {
+                // Insert between stops[i-1] and stops[i]:
+                // delta = d(prev→new) + d(new→next) - d(prev→next)
+                let prev = CLLocation(latitude: stops[i - 1].latitude, longitude: stops[i - 1].longitude)
+                let next = CLLocation(latitude: stops[i].latitude, longitude: stops[i].longitude)
+                delta = prev.distance(from: newLoc) + newLoc.distance(from: next) - prev.distance(from: next)
+            }
+            if delta < bestDelta {
+                bestDelta = delta
+                bestIdx = i
+            }
+        }
+        return bestIdx
+    }
+
     // MARK: - Editable Stops List (native iOS List with drag + swipe)
 
     private var editableStopsList: some View {
         VStack(spacing: 0) {
-            // Big, prominent "Add Stop" button
-            Button {
-                insertAfterIndex = displayStops.count
-                showAddStopSheet = true
-            } label: {
-                HStack {
-                    Image(systemName: "plus.circle.fill").font(.title3)
-                    Text("Add Stop").fontWeight(.semibold)
-                    Spacer()
-                }
-                .foregroundStyle(.brandGold)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.brandGold.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-
             // Native List with drag + swipe to delete
             List {
                 ForEach(displayStops) { stop in
