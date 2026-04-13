@@ -42,81 +42,78 @@ private struct MetroCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            ZStack(alignment: .bottomLeading) {
-                // Iconic skyline image
-                RemoteImage(url: item.metro.imageURL)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 110)
-                    .clipped()
+            GeometryReader { geo in
+                ZStack(alignment: .bottomLeading) {
+                    RemoteImage(url: item.metro.imageURL)
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
 
-                // Gradient overlay for text readability
-                LinearGradient(
-                    colors: [.black.opacity(0.0), .black.opacity(0.75)],
-                    startPoint: .center, endPoint: .bottom
-                )
-                .frame(height: 110)
+                    LinearGradient(
+                        colors: [.black.opacity(0), .black.opacity(0.75)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(width: geo.size.width, height: geo.size.height * 0.6)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
 
-                // Text
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.metro.name)
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.white)
-                        Text(item.metro.state)
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.7))
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.metro.name)
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.white)
+                            Text(item.metro.state)
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        Spacer()
+                        Text(String(format: "%.0f mi", item.distanceMiles))
+                            .font(.caption.bold())
+                            .foregroundStyle(.brandGold)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.5), in: Capsule())
                     }
-                    Spacer()
-                    Text(String(format: "%.0f mi", item.distanceMiles))
-                        .font(.caption.bold())
-                        .foregroundStyle(.brandGold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.black.opacity(0.5), in: Capsule())
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.brandGold.opacity(0.25)))
             }
             .frame(height: 110)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.brandGold.opacity(0.25)))
         }
         .buttonStyle(.plain)
     }
 }
 
 /// Image loader that uses URLSession with a proper User-Agent header
-/// so Wikipedia/Wikimedia CDN allows the request.
+/// so Wikipedia/Wikimedia CDN allows the request. Behaves like SwiftUI's Image.
 private struct RemoteImage: View {
     let url: URL?
     @State private var uiImage: UIImage?
     @State private var failed = false
 
     var body: some View {
-        Group {
-            if let img = uiImage {
-                Image(uiImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else if failed {
-                ZStack {
-                    LinearGradient(
-                        colors: [.brandNavy, .brandGold.opacity(0.3)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                    Image(systemName: "building.2.fill")
-                        .font(.largeTitle)
-                        .foregroundStyle(.white.opacity(0.4))
-                }
-            } else {
+        if let img = uiImage {
+            Image(uiImage: img)
+                .resizable()
+        } else if failed {
+            ZStack {
                 LinearGradient(
-                    colors: [.brandNavy, .brandGreen.opacity(0.6)],
+                    colors: [.brandNavy, .brandGold.opacity(0.3)],
                     startPoint: .topLeading, endPoint: .bottomTrailing
                 )
+                Image(systemName: "building.2.fill")
+                    .font(.largeTitle)
+                    .foregroundStyle(.white.opacity(0.4))
             }
-        }
-        .task(id: url) {
-            await load()
+            .task(id: url) { await load() }
+        } else {
+            LinearGradient(
+                colors: [.brandNavy, .brandGreen.opacity(0.6)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            .task(id: url) { await load() }
         }
     }
 
