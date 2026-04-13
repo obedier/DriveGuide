@@ -40,6 +40,7 @@ targets:
       - path: PrivateTourAi/Resources/Assets.xcassets
       - path: PrivateTourAi/Resources/GoogleService-Info.plist
       - path: PrivateTourAi/Resources/Subscriptions.storekit
+      - path: PrivateTourAi/Resources/metro-areas.json
     scheme:
       testTargets:
         - PrivateTourAiTests
@@ -89,8 +90,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        MARKETING_VERSION: "2.4"
-        CURRENT_PROJECT_VERSION: 8
+        MARKETING_VERSION: "2.5"
+        CURRENT_PROJECT_VERSION: 9
         CODE_SIGN_ENTITLEMENTS: PrivateTourAi/PrivateTourAi.entitlements
 
   PrivateTourAiTests:

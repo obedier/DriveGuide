@@ -44,6 +44,14 @@ struct HomeView: View {
                     .disabled(tourVM.isGenerating)
                     .opacity(tourVM.isGenerating ? 0.4 : 1)
 
+                // Nearby major metros (top 3) — only show when user isn't mid-flow
+                if tourVM.currentPreview == nil && tourVM.currentTour == nil && !tourVM.isGenerating && tourVM.verifiedLocation == nil {
+                    NearbyMetrosRow()
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .environmentObject(tourVM)
+                }
+
                 Spacer()
 
                 if let preview = tourVM.currentPreview, !tourVM.isGenerating {
