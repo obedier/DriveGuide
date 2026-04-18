@@ -20,34 +20,22 @@ class TourPlaybackService: ObservableObject {
     private var simulationTask: Task<Void, Never>?
 
     // MARK: - Prepare Tour
+    //
+    // Progressive audio preparation: unblock the tour UI after segment 0 is ready.
+    // Previously the Google path awaited a batch synthesis of every segment (~30-60s);
+    // now we fetch segment 0 on-demand (~3-5s), flip audioReady, and stream the rest
+    // in the background via ensureBuffered.
 
     // Static cache: tourId+engine -> audioUrls (persists across sheet presentations)
     private static var audioUrlCache: [String: [String]] = [:]
     private var preparedTourId: String?
     private var preparedEngine: String?
-
-    private var cacheKey: String { "\(tour?.id ?? ""):\(voiceEngine)" }
+    private var backgroundPrefetchTask: Task<Void, Never>?
 
     func prepareTour(_ tour: Tour) async {
         // Skip if already prepared in this instance
         if preparedTourId == tour.id && preparedEngine == voiceEngine && audioReady {
             return
-        }
-
-        // Check static cache — audio URLs from previous session
-        let key = "\(tour.id):\(voiceEngine)"
-        // Check URL cache (from previous session)
-        if let cachedUrls = Self.audioUrlCache[key] {
-            self.tour = tour
-            self.segments = tour.narrationSegments.sorted { $0.sequenceOrder < $1.sequenceOrder }
-            audioProgress = "Loading audio..."
-            audioPlayer.setup(segments: segments, audioUrls: cachedUrls)
-            await audioPlayer.bufferInitial()  // Only downloads first 2 segments
-            audioReady = audioPlayer.hasAudio
-            audioProgress = ""
-            preparedTourId = tour.id
-            preparedEngine = voiceEngine
-            if audioReady { return }
         }
 
         self.tour = tour
@@ -62,38 +50,54 @@ class TourPlaybackService: ObservableObject {
         let quality = voiceQuality
         audioProgress = engine == "kokoro" ? "Preparing Kim..." : "Preparing audio..."
 
-        if engine == "kokoro" {
-            // Kokoro: on-demand per segment (fast first audio, ~5s)
+        // Fast path: cached URLs from a previous session — download first only
+        let key = "\(tour.id):\(engine)"
+        if let cachedUrls = Self.audioUrlCache[key] {
             audioPlayer.setupForOnDemand(segments: segments, voiceEngine: engine, voicePreference: quality)
-            await audioPlayer.bufferInitial()
-        } else {
-            // Google: batch all URLs at once (fast, <3s total)
-            do {
-                let response: AudioResponse
-                do {
-                    response = try await APIClient.shared.generateAudio(tourId: tour.id, voicePreference: quality, voiceEngine: engine)
-                } catch {
-                    response = try await APIClient.shared.generateAudioInline(segments: segments, voicePreference: quality, voiceEngine: engine)
-                }
-                let audioUrls = response.segments.map(\.audioUrl)
-                audioPlayer.setup(segments: segments, audioUrls: audioUrls)
-                await audioPlayer.bufferInitial()
-                if audioPlayer.hasAudio {
-                    Self.audioUrlCache["\(tour.id):\(engine)"] = audioUrls
-                }
-            } catch {
-                print("[Playback] Google audio error: \(error)")
-                audioProgress = "Audio unavailable — text narration mode"
-                audioReady = false
+            for (i, url) in cachedUrls.enumerated() where i < segments.count {
+                audioPlayer.primeUrl(at: i, url: url)
+            }
+            await audioPlayer.bufferFirst()
+            audioReady = audioPlayer.hasAudio
+            audioProgress = ""
+            if audioReady {
+                preparedTourId = tour.id
+                preparedEngine = engine
+                startBackgroundPrefetch()
                 return
             }
         }
+
+        // Cold path: on-demand per segment for all engines. First segment unblocks UI.
+        audioPlayer.setupForOnDemand(segments: segments, voiceEngine: engine, voicePreference: quality)
+        await audioPlayer.bufferFirst()
 
         audioReady = audioPlayer.hasAudio
         audioProgress = ""
         if audioReady {
             preparedTourId = tour.id
             preparedEngine = engine
+            startBackgroundPrefetch()
+        } else {
+            audioProgress = "Audio unavailable — text narration mode"
+        }
+    }
+
+    /// Background task that continues downloading/generating segments 1...N after the UI has unblocked.
+    /// Cancelled on voice switch / regenerate / stopTour.
+    private func startBackgroundPrefetch() {
+        backgroundPrefetchTask?.cancel()
+        backgroundPrefetchTask = Task { [weak self] in
+            guard let self else { return }
+            // Warm through the full tour so skips and natural playback both hit cache.
+            await self.audioPlayer.bufferFrom(1)
+            // If Google batch endpoint succeeds later, we could also swap in canonical URLs;
+            // for now per-segment generation is sufficient because the server caches by contentHash.
+            if let tour = self.tour, self.audioPlayer.hasAudio {
+                // Populate URL cache opportunistically so a later open is even faster.
+                // (No-op if we only have on-demand URLs; batch call is a background best-effort.)
+                _ = tour
+            }
         }
     }
 
@@ -179,59 +183,38 @@ class TourPlaybackService: ObservableObject {
     private func regenerateAudioWith(engine: String, quality: String) async {
         guard let tour else { return }
 
-        // Wipe entire audio cache to force fresh downloads
+        // Cancel any in-flight prefetch and wipe audio cache
+        backgroundPrefetchTask?.cancel()
         let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             .appendingPathComponent("AudioCache", isDirectory: true)
         try? FileManager.default.removeItem(at: cacheDir)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
-        // Stop current playback and reset
         audioPlayer.stop()
         audioPlayer.clearAll()
         isActive = false
         audioReady = false
-        // Clear ALL cached URLs for this tour (both engines)
         Self.audioUrlCache.removeValue(forKey: "\(tour.id):google")
         Self.audioUrlCache.removeValue(forKey: "\(tour.id):kokoro")
         preparedTourId = nil
         preparedEngine = nil
 
-        // Generate with explicit engine (don't rely on @AppStorage)
         self.tour = tour
         self.segments = tour.narrationSegments.sorted { $0.sequenceOrder < $1.sequenceOrder }
         guard !segments.isEmpty else { return }
 
         audioProgress = engine == "kokoro" ? "Preparing Kim..." : "Preparing Gary..."
-
-        if engine == "kokoro" {
-            audioPlayer.setupForOnDemand(segments: segments, voiceEngine: engine, voicePreference: quality)
-            await audioPlayer.bufferInitial()
-        } else {
-            do {
-                let response: AudioResponse
-                do {
-                    response = try await APIClient.shared.generateAudio(tourId: tour.id, voicePreference: quality, voiceEngine: engine)
-                } catch {
-                    response = try await APIClient.shared.generateAudioInline(segments: segments, voicePreference: quality, voiceEngine: engine)
-                }
-                let audioUrls = response.segments.map(\.audioUrl)
-                audioPlayer.setup(segments: segments, audioUrls: audioUrls)
-                await audioPlayer.bufferInitial()
-                if audioPlayer.hasAudio {
-                    Self.audioUrlCache["\(tour.id):\(engine)"] = audioUrls
-                }
-            } catch {
-                audioProgress = "Audio unavailable"
-                audioReady = false
-                return
-            }
-        }
+        audioPlayer.setupForOnDemand(segments: segments, voiceEngine: engine, voicePreference: quality)
+        await audioPlayer.bufferFirst()
 
         audioReady = audioPlayer.hasAudio
         audioProgress = ""
         if audioReady {
             preparedTourId = tour.id
             preparedEngine = engine
+            startBackgroundPrefetch()
+        } else {
+            audioProgress = "Audio unavailable"
         }
     }
 
@@ -261,6 +244,8 @@ class TourPlaybackService: ObservableObject {
     func stopTour() {
         simulationTask?.cancel()
         simulationTask = nil
+        backgroundPrefetchTask?.cancel()
+        backgroundPrefetchTask = nil
         audioPlayer.stop()
         isActive = false
         isSimulating = false

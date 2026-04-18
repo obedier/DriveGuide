@@ -44,14 +44,6 @@ struct HomeView: View {
                     .disabled(tourVM.isGenerating)
                     .opacity(tourVM.isGenerating ? 0.4 : 1)
 
-                // Nearby major metros (top 3) — only show when user isn't mid-flow
-                if tourVM.currentPreview == nil && tourVM.currentTour == nil && !tourVM.isGenerating && tourVM.verifiedLocation == nil {
-                    NearbyMetrosRow()
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                        .environmentObject(tourVM)
-                }
-
                 Spacer()
 
                 if let preview = tourVM.currentPreview, !tourVM.isGenerating {
@@ -203,7 +195,14 @@ struct SearchCard: View {
     @EnvironmentObject var tourVM: TourViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var showOptions = false
+    @State private var showNearbyMetros = false
     @State private var debounceTask: Task<Void, Never>?
+
+    private var showNearbyChip: Bool {
+        tourVM.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && tourVM.verifiedLocation == nil
+            && !tourVM.isGenerating
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -249,6 +248,34 @@ struct SearchCard: View {
             }
             .padding(12)
             .background(Color.brandDarkNavy.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
+
+            // Nearby Cities discovery chip — only visible when search is empty and no location verified
+            if showNearbyChip {
+                HStack {
+                    Button {
+                        isSearchFocused = false
+                        showNearbyMetros = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "location.north.fill")
+                                .font(.caption)
+                            Text("Nearby Cities")
+                                .font(.caption.bold())
+                        }
+                        .foregroundStyle(.brandGold)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(minHeight: 44)
+                        .background(Color.brandGold.opacity(0.12), in: Capsule())
+                        .overlay(Capsule().stroke(Color.brandGold.opacity(0.35), lineWidth: 1))
+                    }
+                    .accessibilityLabel("Nearby cities")
+                    .accessibilityHint("Opens a list of nearby cities for tour generation")
+                    Spacer()
+                }
+                .padding(.horizontal, 2)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
 
             // Verified address
             if let loc = tourVM.verifiedLocation, !tourVM.isLocationConfirmed {
@@ -384,10 +411,12 @@ struct SearchCard: View {
         .padding(14)
         .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.3), radius: 15, y: 8)
+        .nearbyMetrosPresentation(isPresented: $showNearbyMetros)
         .onChange(of: isSearchFocused) { _, focused in
             withAnimation(.spring(response: 0.3)) { showOptions = focused }
         }
         .animation(.spring(response: 0.3), value: tourVM.verifiedLocation != nil)
+        .animation(.spring(response: 0.3), value: showNearbyChip)
     }
 }
 

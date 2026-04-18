@@ -77,6 +77,27 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
         isBuffering = false
     }
 
+    /// Minimum required to unblock the UI: download/generate segment 0 only.
+    /// Remaining segments should be fetched via `ensureBuffered(around:)` afterward.
+    func bufferFirst() async {
+        isBuffering = true
+        defer { isBuffering = false }
+        guard !audioData.isEmpty, audioData[0] == nil else { return }
+        if audioUrls[0].isEmpty {
+            await generateAndDownload(at: 0)
+        } else {
+            await downloadSegment(at: 0)
+        }
+    }
+
+    /// Seed a pre-fetched audio URL for a given segment without replacing the whole setup.
+    /// Used when we want to prime segment 0 with an inline-generated URL while leaving
+    /// the rest on-demand.
+    func primeUrl(at index: Int, url: String) {
+        guard index < audioUrls.count else { return }
+        audioUrls[index] = url
+    }
+
     /// Continue buffering ahead in background as playback progresses
     func ensureBuffered(around index: Int) {
         bufferTask?.cancel()
