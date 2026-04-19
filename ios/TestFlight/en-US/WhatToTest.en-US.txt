@@ -1,11 +1,12 @@
-What's new in 2.11:
+What's new in 2.12:
 
-• Route-aware narration — when you use Ferrostar turn-by-turn navigation, arriving at each stop now automatically plays the matching narration segment. No manual tap needed.
-• Duplicate arrivals are ignored (re-entering the arrival radius won't re-start the segment).
-• Works alongside Passenger Mode and Offline downloads — if the tour is downloaded, arrivals still trigger instantly with zero network.
+• Smoother generation spinner — the "Generating your tour" screen now uses a TimelineView-driven compass + animated progress ring that always renders, plus a live "seconds elapsed" counter.
+• Keep going in background — after 10 seconds of generating, a "Keep going in background — I'll notify you" button appears. Tap it to dismiss the overlay and keep exploring the rest of the app. A local notification fires when the tour is ready.
+• Top-of-screen status banner reminds you that a build is still running in the background so you don't forget.
 
 Please test:
-• Switch to Ferrostar navigation in Settings → Navigation engine
-• Generate a short car tour, open it → Start Guided Tour → begin driving / simulating the route
-• As you arrive at each stop, the at-stop narration should start automatically (within a few seconds of crossing the 80-meter arrival radius)
-• Previous/Next/Pause controls still work — they just no longer require you to manually pick up after each stop
+• Generate any tour and observe the spinner — the compass should rotate smoothly and the progress ring should fill over ~20 seconds
+• Watch the "seconds elapsed" counter tick up after 5 seconds
+• Wait past 10 seconds → the "Keep going in background" button should slide in — tap it
+• The overlay should dismiss and a small status banner should appear at the top of Home
+• When the tour finishes, you should get a notification (grant permission the first time); tapping it should bring you back

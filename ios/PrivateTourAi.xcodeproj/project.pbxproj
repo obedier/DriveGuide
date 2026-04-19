@@ -17,6 +17,7 @@
 		29A8C35BE3C5E20205EAA1F6 /* MapLibreNavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F138E4D7AD7B9D0FFD07E0 /* MapLibreNavigationView.swift */; };
 		2A0B721F263C90253FCE7B64 /* GuidedTourAudioTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 259483E42CA47A8038B2F257 /* GuidedTourAudioTest.swift */; };
 		2B362AA4BDCCEE6AA640CFC4 /* AudioPlayerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2D3352D5F0746B386173E3 /* AudioPlayerServiceTests.swift */; };
+		2CA725BEE73BBC4751DEB9FC /* GenerationNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315872CB39A2CDE4F01612A2 /* GenerationNotifier.swift */; };
 		2CADABEEA9A22012968CA3E0 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFE91E17A5C6502C3AF0450 /* SplashView.swift */; };
 		2F6E7CC4A2FF0CFC7CD5D572 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2BC91D15FECC9455D70707D4 /* GoogleSignInSwift */; };
 		3336E90260C931B30E121F82 /* OSRMRouteProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC8FD3274927FD88E5D6F45 /* OSRMRouteProvider.swift */; };
@@ -101,6 +102,7 @@
 		2C8CE7291C29D77129F8163A /* SubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionService.swift; sourceTree = "<group>"; };
 		2E2D3352D5F0746B386173E3 /* AudioPlayerServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerServiceTests.swift; sourceTree = "<group>"; };
 		309973899B92345227D9D751 /* TourStopEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourStopEditingTests.swift; sourceTree = "<group>"; };
+		315872CB39A2CDE4F01612A2 /* GenerationNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationNotifier.swift; sourceTree = "<group>"; };
 		3586308FBB0AB1559D407C0F /* PrivateTourAiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PrivateTourAiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		35E939946D3F8A4C2D84979C /* NauticalChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NauticalChartView.swift; sourceTree = "<group>"; };
 		36EEE073A09174FF352C0F10 /* TourPlaybackServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourPlaybackServiceTests.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 				70643C46BDF7965D9E22F5F8 /* AudioPlayerService.swift */,
 				9F17E491EEA10D2EB5E20C0D /* AuthService.swift */,
 				DC5ECE4E60A63009FA4D8230 /* FerrostarNavigationService.swift */,
+				315872CB39A2CDE4F01612A2 /* GenerationNotifier.swift */,
 				892869070A2007D560437D44 /* MetroAreaService.swift */,
 				624A45EDCD87F51189FA2A22 /* NavigationService.swift */,
 				25D9F78D94521FA26546ABE6 /* OfflineTourStore.swift */,
@@ -525,6 +528,7 @@
 				F5309B4E5C6DE2AAB37CB99C /* FeatureFlags.swift in Sources */,
 				F2BF18AA6582121B491274B8 /* FerrostarNavigationService.swift in Sources */,
 				A0985E286B5C1C03E819F148 /* FerrostarTurnByTurnView.swift in Sources */,
+				2CA725BEE73BBC4751DEB9FC /* GenerationNotifier.swift in Sources */,
 				B02EF170436B52D58384EC15 /* GuidedTourView.swift in Sources */,
 				365120514144FD8A2B04896D /* HomeView.swift in Sources */,
 				29A8C35BE3C5E20205EAA1F6 /* MapLibreNavigationView.swift in Sources */,

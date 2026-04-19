@@ -27,6 +27,42 @@ class TourViewModel: ObservableObject {
     @Published var isGenerating = false
     @Published var generationProgress: String = ""
     @Published var error: String?
+    /// Set to true when the user dismisses the generation overlay via the
+    /// "Keep going in background" button. When the in-flight task completes
+    /// we post a local notification instead of silently flipping the UI.
+    @Published var isGeneratingInBackground = false
+
+    /// Caller sets this to a user-friendly title (e.g., verified location
+    /// name) so the completion notification can reference what was built.
+    var currentGenerationLabel: String = ""
+
+    func continueGenerationInBackground() {
+        guard isGenerating, !isGeneratingInBackground else { return }
+        isGeneratingInBackground = true
+        Task { _ = await GenerationNotifier.requestPermissionIfNeeded() }
+    }
+
+    /// Hook invoked from the generation paths when the task completes
+    /// (success OR failure). Posts a local notification if the user had
+    /// opted into background mode.
+    private func finalizeGeneration(successfulTourTitle: String?, tourId: String?) {
+        if isGeneratingInBackground {
+            if let title = successfulTourTitle {
+                GenerationNotifier.notifyTourReady(
+                    title: "\(title) is ready",
+                    body: "Your tour finished generating. Tap to open it.",
+                    tourId: tourId
+                )
+            } else {
+                GenerationNotifier.notifyTourReady(
+                    title: "Tour generation finished",
+                    body: error ?? "Come back when you have a moment."
+                )
+            }
+        }
+        isGeneratingInBackground = false
+        currentGenerationLabel = ""
+    }
 
     // Input state
     @Published var searchText = ""
@@ -236,9 +272,11 @@ class TourViewModel: ObservableObject {
                 }
             }
             try? await Task.sleep(for: .seconds(0.5))
+            finalizeGeneration(successfulTourTitle: result.preview.title, tourId: result.tourId)
         } catch {
             progressTask.cancel()
             self.error = friendlyError(error)
+            finalizeGeneration(successfulTourTitle: nil, tourId: nil)
         }
 
         isGenerating = false
@@ -273,10 +311,17 @@ class TourViewModel: ObservableObject {
 
             currentTour = tour
             currentPreview = nil
-            showTourDetail = true
+            // Don't force-present the sheet when the user already left the
+            // generation screen to keep exploring — fire the notification so
+            // they can re-enter on their own terms.
+            if !isGeneratingInBackground {
+                showTourDetail = true
+            }
             generationProgress = ""
+            finalizeGeneration(successfulTourTitle: tour.title, tourId: tour.id)
         } catch {
             self.error = friendlyError(error)
+            finalizeGeneration(successfulTourTitle: nil, tourId: nil)
         }
 
         isGenerating = false

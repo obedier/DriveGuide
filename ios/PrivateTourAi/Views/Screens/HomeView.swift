@@ -87,12 +87,27 @@ struct HomeView: View {
                 }
             }
         }
-        // Full-screen generation overlay
+        // Full-screen generation overlay — dismissible via "Keep going in
+        // background" once the build takes more than 10s. A local
+        // notification fires when the task finishes.
         .overlay {
-            if tourVM.isGenerating {
-                GenerationView(progress: tourVM.generationProgress)
-                    .transition(.opacity)
-                    .ignoresSafeArea()
+            if tourVM.isGenerating && !tourVM.isGeneratingInBackground {
+                GenerationView(
+                    progress: tourVM.generationProgress,
+                    onRunInBackground: { tourVM.continueGenerationInBackground() }
+                )
+                .transition(.opacity)
+                .ignoresSafeArea()
+            }
+        }
+        // Subtle banner reminding the user the build is still running in the
+        // background so they don't forget.
+        .safeAreaInset(edge: .top) {
+            if tourVM.isGeneratingInBackground {
+                BackgroundGenerationBanner(progress: tourVM.generationProgress)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $tourVM.showTourDetail) {
@@ -134,69 +149,168 @@ struct HomeView: View {
 
 struct GenerationView: View {
     let progress: String
-    @State private var rotation: Double = 0
+    /// Optional closure — when non-nil, the user can press "Keep going in
+    /// background" after 10 seconds to dismiss the overlay and get a local
+    /// notification when generation finishes.
+    var onRunInBackground: (() -> Void)? = nil
+
+    // TimelineView drives the rotation off a real clock (guaranteed to animate
+    // even when the overlay first appears mid-transition). The previous
+    // withAnimation-in-onAppear path silently dropped the rotation when the
+    // animation budget was cancelled by the parent's spring transition.
+    @State private var startDate = Date()
+    @State private var elapsed: TimeInterval = 0
+    @State private var backgroundOffered = false
     @State private var pulse: Bool = false
     @State private var ringScale: CGFloat = 0.9
 
+    private let backgroundThreshold: TimeInterval = 10
+
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             Spacer()
 
-            // Animated compass
-            ZStack {
-                // Outer pulsing ring
-                Circle()
-                    .stroke(.brandGold.opacity(0.15), lineWidth: 3)
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(pulse ? 1.15 : 0.95)
-                    .opacity(pulse ? 0 : 0.6)
+            spinner
 
-                // Radial glow
-                Circle()
-                    .fill(RadialGradient(colors: [.brandGold.opacity(0.2), .clear], center: .center, startRadius: 30, endRadius: 100))
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(ringScale)
-
-                // Inner ring
-                Circle()
-                    .stroke(.brandGold.opacity(0.4), lineWidth: 2)
-                    .frame(width: 160, height: 160)
-                    .rotationEffect(.degrees(-rotation * 0.3))
-
-                // Compass needle
-                Image(systemName: "safari.fill")
-                    .font(.system(size: 70))
-                    .foregroundStyle(.brandGold)
-                    .rotationEffect(.degrees(rotation))
-                    .scaleEffect(pulse ? 1.05 : 0.95)
-
-                // W logo
-                Text("W")
-                    .font(.title2.bold())
-                    .foregroundStyle(.brandNavy)
-            }
-
-            // Progress messages (no separate spinner — compass IS the animation)
-            Text(progress)
+            // Progress messages
+            Text(progress.isEmpty ? "Working..." : progress)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
                 .contentTransition(.numericText())
 
+            if let elapsedLabel = elapsedLabel {
+                Text(elapsedLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.35))
+                    .monospacedDigit()
+            }
+
             Spacer()
+
+            if onRunInBackground != nil && elapsed >= backgroundThreshold {
+                backgroundOfferButton
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .padding(.bottom, 40)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.brandDarkNavy.opacity(0.85))
+        .background(Color.brandDarkNavy.opacity(0.9))
         .onAppear {
-            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
-                rotation = 360
-            }
+            startDate = Date()
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 pulse = true
                 ringScale = 1.1
             }
         }
+    }
+
+    // MARK: - Spinner
+
+    private var spinner: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { context in
+            let seconds = context.date.timeIntervalSince(startDate)
+            // 3.5 seconds per rotation — fast enough to feel alive, slow
+            // enough to read "compass".
+            let rotation = (seconds / 3.5) * 360
+            // Bound progress ring: fills over first 20s, holds at 95% after.
+            let ringProgress = min(seconds / 20.0, 0.95)
+
+            ZStack {
+                // Outer pulse halo
+                Circle()
+                    .stroke(Color.brandGold.opacity(0.12), lineWidth: 2)
+                    .frame(width: 210, height: 210)
+                    .scaleEffect(pulse ? 1.15 : 0.95)
+                    .opacity(pulse ? 0 : 0.5)
+
+                // Track ring
+                Circle()
+                    .stroke(Color.white.opacity(0.08), lineWidth: 6)
+                    .frame(width: 170, height: 170)
+
+                // Animated progress ring
+                Circle()
+                    .trim(from: 0, to: ringProgress)
+                    .stroke(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                .brandGold.opacity(0.1),
+                                .brandGold,
+                                .brandGold.opacity(0.1)
+                            ]),
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                    )
+                    .frame(width: 170, height: 170)
+                    .rotationEffect(.degrees(-90 + rotation))
+
+                // Soft radial glow
+                Circle()
+                    .fill(RadialGradient(
+                        colors: [.brandGold.opacity(0.25), .clear],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 85
+                    ))
+                    .frame(width: 170, height: 170)
+
+                // Compass needle
+                Image(systemName: "safari.fill")
+                    .font(.system(size: 62))
+                    .foregroundStyle(.brandGold)
+                    .rotationEffect(.degrees(rotation))
+
+                // W center chip
+                Circle()
+                    .fill(Color.brandNavy)
+                    .frame(width: 34, height: 34)
+                Text("W")
+                    .font(.headline.bold())
+                    .foregroundStyle(.brandGold)
+            }
+            .onChange(of: context.date) { _, newDate in
+                elapsed = newDate.timeIntervalSince(startDate)
+            }
+        }
+    }
+
+    private var elapsedLabel: String? {
+        guard elapsed > 5 else { return nil }
+        let whole = Int(elapsed)
+        return "\(whole)s elapsed"
+    }
+
+    // MARK: - Background offer
+
+    private var backgroundOfferButton: some View {
+        VStack(spacing: 8) {
+            Text("Taking a while?")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.6))
+            Button {
+                onRunInBackground?()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "bell.badge.fill")
+                    Text("Keep going in background — I'll notify you")
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule().fill(Color.brandGold)
+                )
+                .foregroundStyle(.brandNavy)
+            }
+            .accessibilityIdentifier("generationBackgroundButton")
+            .accessibilityHint("Continue the tour build in the background and notify when done")
+        }
+        .padding(.horizontal, 24)
     }
 }
 
@@ -659,6 +773,42 @@ func formatDuration(_ minutes: Int) -> String {
     if minutes < 60 { return "\(minutes) min" }
     let h = minutes / 60; let m = minutes % 60
     return m > 0 ? "\(h)h \(m)m" : "\(h) hr"
+}
+
+/// Compact status bar shown at the top of Home when a tour build is running
+/// in the background. Reminds the user something is cooking without blocking
+/// the rest of the UI.
+struct BackgroundGenerationBanner: View {
+    let progress: String
+    @State private var startDate = Date()
+
+    var body: some View {
+        HStack(spacing: 10) {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { context in
+                let seconds = context.date.timeIntervalSince(startDate)
+                let rotation = (seconds / 2.0) * 360
+                Image(systemName: "safari.fill")
+                    .font(.caption)
+                    .foregroundStyle(.brandGold)
+                    .rotationEffect(.degrees(rotation))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Building your tour")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                Text(progress.isEmpty ? "We'll notify you when it's ready." : progress)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brandGold.opacity(0.35), lineWidth: 1))
+        .onAppear { startDate = Date() }
+    }
 }
 
 /// "Continue your last tour" chip shown on Home when a tour was generated
