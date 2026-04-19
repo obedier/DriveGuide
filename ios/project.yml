@@ -72,6 +72,8 @@ targets:
       properties:
         com.apple.developer.applesignin:
           - Default
+        com.apple.developer.associated-domains:
+          - applinks:waipoint.o11r.com
     info:
       path: PrivateTourAi/Info.plist
       properties:
@@ -94,8 +96,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        MARKETING_VERSION: "2.8"
-        CURRENT_PROJECT_VERSION: 15
+        MARKETING_VERSION: "2.9"
+        CURRENT_PROJECT_VERSION: 16
         CODE_SIGN_ENTITLEMENTS: PrivateTourAi/PrivateTourAi.entitlements
 
   PrivateTourAiTests:

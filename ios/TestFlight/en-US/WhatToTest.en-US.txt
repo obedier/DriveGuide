@@ -1,11 +1,10 @@
-What's new in 2.8:
+What's new in 2.9:
 
-• Download tours for offline — new "Download for offline" button on every tour detail screen. Once downloaded, the tour plays end-to-end with no network (airplane mode, spotty roaming, international travel).
-• Offline tours load instantly — no "Preparing audio..." delay.
-• Auto-cleanup: older downloads are evicted after you pass ~500MB of offline content.
+• Share any tour with friends — new Share button on every tour detail screen uses a waipoint.o11r.com/tour/... link that opens directly in the app (or falls back to Safari if they don't have it installed).
+• Passenger Mode — new simplified playback view with larger text, manual next/previous, and no map or GPS. Perfect for someone in the passenger seat or reading along at home. Reachable via the new "Passenger Mode" button or from shared /passenger/<id> links.
+• Offline-aware sharing — if you've downloaded the tour locally, shared links still work instantly.
 
 Please test:
-• Generate any tour → open it → tap "Download for offline" → wait for progress to hit 100%
-• Turn on airplane mode → reopen the tour → tap Start Guided Tour → narration should play without any network
-• Open Tour Detail again and confirm the "Available offline" check mark + size appear
-• Tap the ••• menu → "Remove download" — the check mark should revert to the Download button
+• Open any tour → tap Share → send the link to yourself. Tapping the link should open the tour in the app (requires the apple-app-site-association file to be deployed on waipoint.o11r.com; until then, the share link opens in Safari).
+• Open any tour → tap Passenger Mode → big play/pause/next/previous controls work, text is readable at arm's length.
+• Paste a link of the form https://waipoint.o11r.com/passenger/<shareId> into Messages and tap — should jump straight into Passenger Mode.

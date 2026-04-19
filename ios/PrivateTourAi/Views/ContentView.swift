@@ -20,6 +20,10 @@ struct ContentView: View {
                 .tag(2)
         }
         .tint(.brandGold)
+        // Shared link with /passenger/<id> path lands here; dismiss when done.
+        .fullScreenCover(item: $tourVM.pendingPassengerTour) { tour in
+            PassengerView(tour: tour)
+        }
     }
 }
 

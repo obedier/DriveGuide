@@ -28,16 +28,25 @@ struct PrivateTourAiApp: App {
                     .environmentObject(tourViewModel)
                     .environmentObject(authViewModel)
                     .onOpenURL { url in
-                        // Handle deep links: waipoint://tour/<shareId> or https://...cloud.run.app/tour/<shareId>
-                        if url.scheme == "waipoint" || url.host?.contains("run.app") == true {
-                            let path = url.pathComponents
-                            if let tourIdx = path.firstIndex(of: "tour"),
-                               tourIdx + 1 < path.count {
-                                let shareId = path[tourIdx + 1]
-                                tourViewModel.openSharedTour(shareId: shareId)
-                            }
-                        } else {
+                        // Deep links we recognize:
+                        //   waipoint://tour/<shareId>                → open in full tour view
+                        //   https://waipoint.o11r.com/tour/<shareId>  → same (Universal Link)
+                        //   https://waipoint.o11r.com/passenger/<id>  → open directly in Passenger Mode
+                        //   https://*.run.app/tour/<shareId>          → legacy fallback
+                        let isOurLink = url.scheme == "waipoint"
+                            || url.host == "waipoint.o11r.com"
+                            || url.host?.contains("run.app") == true
+                        guard isOurLink else {
                             GIDSignIn.sharedInstance.handle(url)
+                            return
+                        }
+                        let path = url.pathComponents
+                        if let passengerIdx = path.firstIndex(of: "passenger"),
+                           passengerIdx + 1 < path.count {
+                            tourViewModel.openSharedTour(shareId: path[passengerIdx + 1], passengerMode: true)
+                        } else if let tourIdx = path.firstIndex(of: "tour"),
+                                  tourIdx + 1 < path.count {
+                            tourViewModel.openSharedTour(shareId: path[tourIdx + 1])
                         }
                     }
 

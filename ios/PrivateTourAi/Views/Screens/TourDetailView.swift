@@ -121,6 +121,34 @@ struct TourDetailView: View {
                                 voiceEngine: voiceEngine,
                                 voicePreference: voiceQuality
                             )
+
+                            // Passenger Mode + Share — share opens the system sheet with
+                            // a /tour/<shareId> link, Passenger opens the simplified UI.
+                            HStack(spacing: 10) {
+                                Button {
+                                    tourVM.pendingPassengerTour = tour
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "person.2.fill")
+                                        Text("Passenger Mode")
+                                    }
+                                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.brandGold)
+
+                                if let url = tourVM.shareTourById(tour) {
+                                    ShareLink(item: url, subject: Text(tour.title)) {
+                                        HStack {
+                                            Image(systemName: "square.and.arrow.up")
+                                            Text("Share")
+                                        }
+                                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(.brandGold)
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal)

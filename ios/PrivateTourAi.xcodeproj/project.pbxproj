@@ -26,6 +26,7 @@
 		4BC36E1C74BF910968D6E325 /* MapLibreWindowRenderTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */; };
 		4FE77E7B13A7E83CDD725D59 /* MetroAreaServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7E559C326694EED5B7C78F /* MetroAreaServiceTests.swift */; };
 		5B19A2E7DE5EB59039B9732A /* StoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B75EF9223C9B9635E18037 /* StoreKitService.swift */; };
+		63485856912AA06E9A8B2F62 /* PassengerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1583909855C855F91F731E6 /* PassengerView.swift */; };
 		6427A03EBCA43DDEAEE31F78 /* TourDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF92431644817B1F6F91434 /* TourDetailView.swift */; };
 		69DA4C0510FDA26623196DAD /* Subscriptions.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */; };
 		6CA908ACC442728BE7B4F9BE /* FerrostarMapLibreUI in Frameworks */ = {isa = PBXBuildFile; productRef = FBB5AB6EAB15DFD1F9D48F2A /* FerrostarMapLibreUI */; };
@@ -136,6 +137,7 @@
 		DC5ECE4E60A63009FA4D8230 /* FerrostarNavigationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FerrostarNavigationService.swift; sourceTree = "<group>"; };
 		DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */ = {isa = PBXFileReference; path = Subscriptions.storekit; sourceTree = "<group>"; };
 		E01B0B6868CA41506E020529 /* FerrostarTurnByTurnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FerrostarTurnByTurnView.swift; sourceTree = "<group>"; };
+		E1583909855C855F91F731E6 /* PassengerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassengerView.swift; sourceTree = "<group>"; };
 		E1CEB0F53140D452C3D85619 /* PrivateTourAi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PrivateTourAi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1F28C24AC9A315045CC366A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		E461DFBB78448EA3DDC32A1F /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
@@ -224,6 +226,7 @@
 				FB55EDC3CA9261C3996E3303 /* GuidedTourView.swift */,
 				E1F28C24AC9A315045CC366A /* HomeView.swift */,
 				EFCE2DF22A8DACA8B4367F34 /* NotificationSettingsView.swift */,
+				E1583909855C855F91F731E6 /* PassengerView.swift */,
 				A6D8BF7528FF45EC33423FBB /* PaywallView.swift */,
 				D7215695A4C329363BD37F36 /* RatingView.swift */,
 				AAFE91E17A5C6502C3AF0450 /* SplashView.swift */,
@@ -525,6 +528,7 @@
 				6CB2CE99B24302E0EA224C0F /* NotificationSettingsView.swift in Sources */,
 				3336E90260C931B30E121F82 /* OSRMRouteProvider.swift in Sources */,
 				F236248892E9C5448D36E1A9 /* OfflineTourStore.swift in Sources */,
+				63485856912AA06E9A8B2F62 /* PassengerView.swift in Sources */,
 				92B77BDA13D866983A1A71EC /* PaywallView.swift in Sources */,
 				836E0EED642536A651E8480F /* PrivateTourAiApp.swift in Sources */,
 				FB18339CC609E1939DAF4D4C /* RatingView.swift in Sources */,

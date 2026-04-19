@@ -293,7 +293,12 @@ class TourViewModel: ObservableObject {
 
     // MARK: - Shared Tour (deep link)
 
-    func openSharedTour(shareId: String) {
+    /// Set to a non-nil tour when an incoming shared link should land users
+    /// directly in Passenger Mode (bigger type, manual controls, no map).
+    /// Observed by ContentView to drive the presentation.
+    @Published var pendingPassengerTour: Tour?
+
+    func openSharedTour(shareId: String, passengerMode: Bool = false) {
         Task {
             isGenerating = true
             generationProgress = "Loading shared tour..."
@@ -302,7 +307,12 @@ class TourViewModel: ObservableObject {
                 storage.save(tour)
                 savedTours = storage.loadAll()
                 currentTour = tour
-                showTourDetail = true
+                if passengerMode {
+                    pendingPassengerTour = tour
+                    showTourDetail = false
+                } else {
+                    showTourDetail = true
+                }
                 generationProgress = ""
             } catch {
                 self.error = "Could not load shared tour"
