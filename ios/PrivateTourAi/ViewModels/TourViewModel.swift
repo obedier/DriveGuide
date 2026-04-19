@@ -96,6 +96,27 @@ class TourViewModel: ObservableObject {
         }
     }
 
+    /// The most recent saved tour within the last 48 hours, used to power the
+    /// "Continue your last tour" chip on Home. Returns nil when the user is
+    /// already in an active flow (preview or tour loaded) so the chip doesn't
+    /// compete with the active card, or when no tour is recent enough.
+    var recentTour: Tour? {
+        guard currentTour == nil, currentPreview == nil else { return nil }
+        guard let latest = savedTours.first else { return nil }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = formatter.date(from: latest.createdAt)
+            ?? ISO8601DateFormatter().date(from: latest.createdAt)
+
+        guard let createdAt = date else {
+            // Unparseable timestamp — still surface it so users aren't stranded
+            return latest
+        }
+        let cutoff = Date().addingTimeInterval(-48 * 3600)
+        return createdAt > cutoff ? latest : nil
+    }
+
     private func loadSampleToursIfNeeded() {
         let marker = storage.directory.appendingPathComponent(".samples-loaded")
         guard !FileManager.default.fileExists(atPath: marker.path) else { return }

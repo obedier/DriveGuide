@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import AVFoundation
 
 struct HomeView: View {
     @EnvironmentObject var tourVM: TourViewModel
@@ -43,6 +44,16 @@ struct HomeView: View {
                     .padding(.top, 8)
                     .disabled(tourVM.isGenerating)
                     .opacity(tourVM.isGenerating ? 0.4 : 1)
+
+                if let recent = tourVM.recentTour {
+                    ContinueTourChip(tour: recent) {
+                        tourVM.currentTour = recent
+                        tourVM.showTourDetail = true
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
 
                 Spacer()
 
@@ -279,13 +290,37 @@ struct SearchCard: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            // Verified address
+            // Verified address — tappable to clear location and re-focus search
             if let loc = tourVM.verifiedLocation, !tourVM.isLocationConfirmed {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
-                    Text(loc.formattedAddress).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        tourVM.verifiedLocation = nil
+                        tourVM.clearTour()
+                    }
+                    isSearchFocused = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
+                        Text(loc.formattedAddress)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        HStack(spacing: 2) {
+                            Image(systemName: "pencil").font(.caption2)
+                            Text("Change").font(.caption2)
+                        }
+                        .foregroundStyle(.brandGold.opacity(0.8))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 12)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("verifiedAddressChangeButton")
+                .accessibilityHint("Clear the current location and enter a different search")
             }
 
             // Options (always show when location is verified or search focused)
@@ -483,36 +518,56 @@ struct ThemeChip: View {
 // MARK: - Bottom Cards
 
 struct PreviewCard: View {
-    let preview: TourPreview; let onTap: () -> Void; var onDismiss: (() -> Void)? = nil
+    let preview: TourPreview
+    let onTap: () -> Void
+    var onDismiss: (() -> Void)? = nil
+
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(preview.title).font(.headline).foregroundStyle(.brandGold)
-                    Spacer()
-                    if let dismiss = onDismiss {
-                        Button { dismiss() } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title3).foregroundStyle(.white.opacity(0.4))
-                        }
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                PreviewPlayButton(
+                    text: "Welcome to \(preview.title). \(shortBlurb(preview.description))",
+                    contentKey: "preview-sample-\(preview.title)"
+                )
+                Text(preview.title).font(.headline).foregroundStyle(.brandGold).lineLimit(2)
+                Spacer()
+                if let dismiss = onDismiss {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3).foregroundStyle(.white.opacity(0.4))
                     }
+                    .buttonStyle(.plain)
                 }
-                Text(preview.description).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(2)
-                HStack {
-                    Label("\(preview.stopCount) stops", systemImage: "mappin.and.ellipse")
-                    Spacer()
-                    Label(formatDuration(preview.durationMinutes), systemImage: "clock")
-                    if let km = preview.totalDistanceKm {
-                        Spacer()
-                        Label(String(format: "%.1f mi", km * 0.621371), systemImage: "car")
-                    }
-                }
-                .font(.caption).foregroundStyle(.white.opacity(0.5))
             }
-            .padding(16)
-            .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 16))
+            Text(preview.description).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(2)
+            HStack {
+                Label("\(preview.stopCount) stops", systemImage: "mappin.and.ellipse")
+                Spacer()
+                Label(formatDuration(preview.durationMinutes), systemImage: "clock")
+                if let km = preview.totalDistanceKm {
+                    Spacer()
+                    Label(String(format: "%.1f mi", km * 0.621371), systemImage: "car")
+                }
+            }
+            .font(.caption).foregroundStyle(.white.opacity(0.5))
         }
-        .buttonStyle(.plain)
+        .padding(16)
+        .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
+    }
+
+    /// Keep the spoken sample under ~15 seconds — first sentence or two of the
+    /// description, trimmed so we don't ship the whole blurb to TTS.
+    private func shortBlurb(_ description: String) -> String {
+        let clean = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.count <= 160 { return clean }
+        let endIdx = clean.index(clean.startIndex, offsetBy: 160)
+        let slice = String(clean[..<endIdx])
+        if let lastPeriod = slice.lastIndex(of: ".") {
+            return String(slice[...lastPeriod])
+        }
+        return slice + "..."
     }
 }
 
@@ -604,6 +659,157 @@ func formatDuration(_ minutes: Int) -> String {
     if minutes < 60 { return "\(minutes) min" }
     let h = minutes / 60; let m = minutes % 60
     return m > 0 ? "\(h)h \(m)m" : "\(h) hr"
+}
+
+/// "Continue your last tour" chip shown on Home when a tour was generated
+/// within the last 48 hours and the user isn't already in an active flow.
+struct ContinueTourChip: View {
+    let tour: Tour
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle().fill(Color.brandGold.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "play.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.brandGold)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Continue your tour")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
+                    Text(tour.title)
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Text("\(tour.stops.count) stops · \(formatDuration(tour.durationMinutes))")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.brandNavy.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.brandGold.opacity(0.25), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("continueLastTourChip")
+        .accessibilityLabel("Continue your last tour, \(tour.title)")
+    }
+}
+
+/// Small circular play button that synthesizes a preview audio snippet the
+/// first time it is tapped, then plays/pauses on subsequent taps. Used on
+/// `PreviewCard` so users can hear the narrator before committing.
+struct PreviewPlayButton: View {
+    let text: String
+    let contentKey: String
+
+    @State private var state: PlayState = .idle
+    @State private var player: AVAudioPlayer?
+    @State private var delegate: PreviewPlayerDelegate?
+    @State private var task: Task<Void, Never>?
+
+    private enum PlayState { case idle, loading, playing, paused }
+
+    var body: some View {
+        Button(action: toggle) {
+            ZStack {
+                Circle().fill(Color.brandGold).frame(width: 36, height: 36)
+                switch state {
+                case .loading:
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.brandNavy)
+                        .scaleEffect(0.7)
+                case .playing:
+                    Image(systemName: "pause.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.brandNavy)
+                default:
+                    Image(systemName: "play.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.brandNavy)
+                        .offset(x: 1)  // optical centering for triangle
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Preview narrator voice")
+        .accessibilityValue(state == .playing ? "playing" : "paused")
+        .onDisappear {
+            task?.cancel()
+            player?.stop()
+        }
+    }
+
+    private func toggle() {
+        switch state {
+        case .idle:
+            loadAndPlay()
+        case .loading:
+            break
+        case .playing:
+            player?.pause()
+            state = .paused
+        case .paused:
+            player?.play()
+            state = .playing
+        }
+    }
+
+    private func loadAndPlay() {
+        state = .loading
+        task = Task { @MainActor in
+            do {
+                let urlStr = try await APIClient.shared.generateSegmentAudio(
+                    text: text,
+                    contentHash: "\(contentKey)-\(abs(text.hashValue))",
+                    voiceEngine: "google",
+                    voicePreference: "premium"
+                )
+                guard !Task.isCancelled, let url = URL(string: urlStr) else { return }
+                let (data, response) = try await URLSession.shared.data(from: url)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                guard status == 200, data.count > 100 else {
+                    state = .idle
+                    return
+                }
+                let session = AVAudioSession.sharedInstance()
+                try? session.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers, .duckOthers])
+                try? session.setActive(true)
+
+                let avPlayer = try AVAudioPlayer(data: data)
+                let playerDelegate = PreviewPlayerDelegate { state = .idle }
+                avPlayer.delegate = playerDelegate
+                avPlayer.prepareToPlay()
+                avPlayer.play()
+                player = avPlayer
+                delegate = playerDelegate
+                state = .playing
+            } catch {
+                state = .idle
+            }
+        }
+    }
+}
+
+private final class PreviewPlayerDelegate: NSObject, AVAudioPlayerDelegate {
+    let onFinish: () -> Void
+    init(onFinish: @escaping () -> Void) { self.onFinish = onFinish }
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in onFinish() }
+    }
 }
 
 /// Compact one-word location toggle with an info button that reveals a popover

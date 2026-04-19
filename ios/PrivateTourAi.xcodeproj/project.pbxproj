@@ -58,6 +58,7 @@
 		B5C391DAF72C7F3C3EDC2DD8 /* MapLibreSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 02A64EA4851D118B5BFD79F1 /* MapLibreSwiftUI */; };
 		CB2104F73A964DEC887B3CA9 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 51935A7BAF6A066FB2326933 /* RevenueCat */; };
 		D344417340349F2B1D1D26A0 /* NearbyCitiesJourneyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42DA03112CBC46834615122 /* NearbyCitiesJourneyTests.swift */; };
+		E07758C03DC1E807AC9A96AE /* RecentTourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F44D35C3380E39A31E7DDD4 /* RecentTourTests.swift */; };
 		E33F0FA40D31BAFF22D12414 /* NearbyMetrosSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF6BBBE97FA4E569864BA5C /* NearbyMetrosSheet.swift */; };
 		ECBDC0CDC504BB1BD7259EA8 /* FerrostarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = C20DA691FC943D2018CF9DC0 /* FerrostarSwiftUI */; };
 		EE4A8C16661BC7D190CDE3CA /* ViewInspector in Frameworks */ = {isa = PBXBuildFile; productRef = BB2BDE54202887F564717D1D /* ViewInspector */; };
@@ -108,6 +109,7 @@
 		801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyMetrosSheetViewTests.swift; sourceTree = "<group>"; };
 		892869070A2007D560437D44 /* MetroAreaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroAreaService.swift; sourceTree = "<group>"; };
 		8DC6E52CF86276B0EA33B90C /* PrivateTourAiTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PrivateTourAiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8F44D35C3380E39A31E7DDD4 /* RecentTourTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentTourTests.swift; sourceTree = "<group>"; };
 		8FF6BBBE97FA4E569864BA5C /* NearbyMetrosSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyMetrosSheet.swift; sourceTree = "<group>"; };
 		9F17E491EEA10D2EB5E20C0D /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		9FD05ED21238818CE3398F38 /* TourViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourViewModel.swift; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 				252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */,
 				AD7E559C326694EED5B7C78F /* MetroAreaServiceTests.swift */,
 				801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */,
+				8F44D35C3380E39A31E7DDD4 /* RecentTourTests.swift */,
 				36EEE073A09174FF352C0F10 /* TourPlaybackServiceTests.swift */,
 				309973899B92345227D9D751 /* TourStopEditingTests.swift */,
 			);
@@ -482,6 +485,7 @@
 				4BC36E1C74BF910968D6E325 /* MapLibreWindowRenderTest.swift in Sources */,
 				4FE77E7B13A7E83CDD725D59 /* MetroAreaServiceTests.swift in Sources */,
 				479BC5320AED7F1A0ABC0CDE /* NearbyMetrosSheetViewTests.swift in Sources */,
+				E07758C03DC1E807AC9A96AE /* RecentTourTests.swift in Sources */,
 				8B97C085BD3783F68DAFF927 /* TourPlaybackServiceTests.swift in Sources */,
 				94114FC569FCD073E2D9683F /* TourStopEditingTests.swift in Sources */,
 				1CEDF95863FB9B26C6A7D403 /* iPadMapRenderTest.swift in Sources */,
@@ -611,13 +615,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.6;
+				MARKETING_VERSION = 2.7;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -677,13 +681,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.6;
+				MARKETING_VERSION = 2.7;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
