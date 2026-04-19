@@ -122,8 +122,27 @@ struct TourDetailView: View {
                                 voicePreference: voiceQuality
                             )
 
-                            // Community visibility — opt-in. Manual moderation for v1.
-                            PublicVisibilityToggle(tour: tour)
+                            // "Make it your own" — only for tours the user doesn't own
+                            // (e.g., featured public tours opened from Community).
+                            // Clones the tour into their library for editing.
+                            if !tourVM.isOwnedByCurrentUser(tour) {
+                                Button {
+                                    tourVM.cloneTourForEditing(tour)
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "square.and.pencil")
+                                        Text("Make it your own")
+                                    }
+                                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.brandGold.opacity(0.85))
+                                .accessibilityIdentifier("makeItYourOwnButton")
+                                .accessibilityHint("Create an editable copy of this tour in your library")
+                            } else {
+                                // Community visibility — opt-in. Manual moderation for v1.
+                                PublicVisibilityToggle(tour: tour)
+                            }
 
                             // Passenger Mode + Share — share opens the system sheet with
                             // a /tour/<shareId> link, Passenger opens the simplified UI.
@@ -592,11 +611,21 @@ func transportIconFor(_ mode: String?) -> String {
 /// Opt-in public-visibility toggle. When the user flips it on, the tour joins
 /// the community library (manual moderation per v1). Can be flipped off any
 /// time; the server deletes the public listing but keeps the personal copy.
+///
+/// Binding pattern: the toggle is bound directly to `$isPublic` (optimistic
+/// update) and `.onChange` fires the API call. On failure we revert `isPublic`
+/// and surface an inline error. Previously the toggle used a computed Binding
+/// whose setter only kicked off a Task — SwiftUI re-read `get` before the
+/// Task updated state, snapping the switch back off.
 struct PublicVisibilityToggle: View {
     let tour: Tour
     @EnvironmentObject var tourVM: TourViewModel
     @State private var isPublic: Bool
     @State private var isSyncing = false
+    @State private var inlineError: String?
+    /// Guards the `.onChange` handler so programmatic reverts don't re-fire
+    /// the API call and loop.
+    @State private var suppressOnChange = false
 
     init(tour: Tour) {
         self.tour = tour
@@ -604,45 +633,91 @@ struct PublicVisibilityToggle: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: isPublic ? "globe" : "lock.fill")
-                .foregroundStyle(isPublic ? .brandGold : .secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(isPublic ? "Visible in Community" : "Private to you")
-                    .font(.subheadline).fontWeight(.semibold)
-                Text(isPublic
-                     ? "Other travelers can browse and play this tour."
-                     : "Flip on to share with the wAIpoint community.")
-                    .font(.caption2).foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Image(systemName: isPublic ? "globe" : "lock.fill")
+                    .foregroundStyle(isPublic ? .brandGold : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isPublic ? "Visible in Community" : "Private to you")
+                        .font(.subheadline).fontWeight(.semibold)
+                    Text(isPublic
+                         ? "Other travelers can browse and play this tour."
+                         : "Flip on to share with the wAIpoint community.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                if isSyncing {
+                    ProgressView().tint(.brandGold)
+                }
+                Toggle("", isOn: $isPublic)
+                    .toggleStyle(.switch).tint(.brandGold).labelsHidden()
+                    .disabled(isSyncing)
+                    .accessibilityIdentifier("publicVisibilityToggle")
             }
-            Spacer()
-            if isSyncing {
-                ProgressView().tint(.brandGold)
-            } else {
-                Toggle("", isOn: Binding(
-                    get: { isPublic },
-                    set: { newValue in
-                        Task { await setVisibility(newValue) }
-                    }
-                ))
-                .toggleStyle(.switch).tint(.brandGold).labelsHidden()
+            if let err = inlineError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(err).font(.caption2).foregroundStyle(.orange)
+                }
             }
         }
         .padding(12)
         .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+        .onChange(of: isPublic) { oldValue, newValue in
+            guard !suppressOnChange, oldValue != newValue else { return }
+            Task { await sync(newValue: newValue, previousValue: oldValue) }
+        }
     }
 
-    private func setVisibility(_ newValue: Bool) async {
+    /// Apply visibility change against the backend. Falls back to the
+    /// already-deployed publish/unpublish endpoints if the newer /visibility
+    /// endpoint isn't live yet. Reverts the UI on failure.
+    @MainActor
+    private func sync(newValue: Bool, previousValue: Bool) async {
         isSyncing = true
+        inlineError = nil
         defer { isSyncing = false }
+
         do {
-            try await APIClient.shared.setTourVisibility(tourId: tour.id, isPublic: newValue)
-            isPublic = newValue
+            try await applyVisibility(isPublic: newValue)
         } catch {
-            tourVM.communityMessage = "Could not update visibility"
+            // Revert the toggle without re-triggering .onChange.
+            suppressOnChange = true
+            isPublic = previousValue
+            suppressOnChange = false
+            inlineError = friendlyError(error)
+            print("[VisibilityToggle] sync failed: \(error)")
         }
+    }
+
+    private func applyVisibility(isPublic: Bool) async throws {
+        do {
+            try await APIClient.shared.setTourVisibility(tourId: tour.id, isPublic: isPublic)
+            return
+        } catch {
+            // Newer endpoint may not be deployed yet — fall through to the
+            // older publishTour / unpublishTour endpoints which are live.
+            print("[VisibilityToggle] /visibility unavailable, falling back: \(error)")
+        }
+        if isPublic {
+            try await APIClient.shared.publishTour(tour: tour)
+        } else {
+            try await APIClient.shared.unpublishTour(tourId: tour.id)
+        }
+    }
+
+    private func friendlyError(_ error: Error) -> String {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .unauthorized: return "Sign in to change visibility."
+            case .networkError: return "No network — try again."
+            default: return "Could not update visibility. Try again."
+            }
+        }
+        return "Could not update visibility. Try again."
     }
 }
 

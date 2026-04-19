@@ -366,6 +366,41 @@ class TourViewModel: ObservableObject {
         }
     }
 
+    /// True when the given tour is NOT already in the user's local library.
+    /// Used by TourDetailView to decide whether to show "Make it your own".
+    /// Featured public tours always start as not-owned so every user can clone.
+    func isOwnedByCurrentUser(_ tour: Tour) -> Bool {
+        savedTours.contains { $0.id == tour.id }
+    }
+
+    /// Create an editable copy of a public / shared tour under a new id so
+    /// the user can tweak stops and narration without affecting the source.
+    /// The clone is saved locally, synced to the cloud, and marked as the
+    /// current tour so TourDetailView can transition straight into Edit.
+    func cloneTourForEditing(_ tour: Tour) {
+        let json = (try? JSONEncoder().encode(tour)) ?? Data()
+        guard var dict = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else { return }
+        let newId = "user-\(UUID().uuidString.prefix(12))"
+        dict["id"] = newId
+        dict["share_id"] = NSNull()
+        dict["is_public"] = false
+        // Prefix title to signal this is the user's copy.
+        if let existingTitle = dict["title"] as? String,
+           !existingTitle.hasPrefix("My ") {
+            dict["title"] = "My \(existingTitle)"
+        }
+        guard let cloneData = try? JSONSerialization.data(withJSONObject: dict),
+              let clone = try? JSONDecoder().decode(Tour.self, from: cloneData) else { return }
+
+        storage.save(clone)
+        savedTours = storage.loadAll()
+        currentTour = clone
+        showTourDetail = true
+        // Push to the cloud on a best-effort basis — local save is the
+        // source of truth until sync completes.
+        Task { try? await APIClient.shared.syncTourToCloud(clone) }
+    }
+
     func deleteSavedTour(_ tour: Tour) {
         storage.delete(tour.id)
         savedTours = storage.loadAll()

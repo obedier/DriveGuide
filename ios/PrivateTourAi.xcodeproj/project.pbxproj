@@ -65,6 +65,7 @@
 		D344417340349F2B1D1D26A0 /* NearbyCitiesJourneyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42DA03112CBC46834615122 /* NearbyCitiesJourneyTests.swift */; };
 		E07758C03DC1E807AC9A96AE /* RecentTourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F44D35C3380E39A31E7DDD4 /* RecentTourTests.swift */; };
 		E33F0FA40D31BAFF22D12414 /* NearbyMetrosSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF6BBBE97FA4E569864BA5C /* NearbyMetrosSheet.swift */; };
+		E868219BCBEB64B1DE73BFE2 /* CloneTourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83113A852614C4D7045BA350 /* CloneTourTests.swift */; };
 		ECBDC0CDC504BB1BD7259EA8 /* FerrostarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = C20DA691FC943D2018CF9DC0 /* FerrostarSwiftUI */; };
 		EE4A8C16661BC7D190CDE3CA /* ViewInspector in Frameworks */ = {isa = PBXBuildFile; productRef = BB2BDE54202887F564717D1D /* ViewInspector */; };
 		F0D0EE5A1D6ADC82BCF0F9E5 /* coverage.geojson in Resources */ = {isa = PBXBuildFile; fileRef = BD6C55157002CCB5F8F32DC0 /* coverage.geojson */; };
@@ -119,6 +120,7 @@
 		72C970B2C3EA4C0022E13ACA /* FerrostarNavigationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FerrostarNavigationServiceTests.swift; sourceTree = "<group>"; };
 		7DF92431644817B1F6F91434 /* TourDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourDetailView.swift; sourceTree = "<group>"; };
 		801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyMetrosSheetViewTests.swift; sourceTree = "<group>"; };
+		83113A852614C4D7045BA350 /* CloneTourTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneTourTests.swift; sourceTree = "<group>"; };
 		892869070A2007D560437D44 /* MetroAreaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroAreaService.swift; sourceTree = "<group>"; };
 		8DC6E52CF86276B0EA33B90C /* PrivateTourAiTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PrivateTourAiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F44D35C3380E39A31E7DDD4 /* RecentTourTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentTourTests.swift; sourceTree = "<group>"; };
@@ -282,6 +284,7 @@
 			isa = PBXGroup;
 			children = (
 				2E2D3352D5F0746B386173E3 /* AudioPlayerServiceTests.swift */,
+				83113A852614C4D7045BA350 /* CloneTourTests.swift */,
 				72C970B2C3EA4C0022E13ACA /* FerrostarNavigationServiceTests.swift */,
 				259483E42CA47A8038B2F257 /* GuidedTourAudioTest.swift */,
 				CB99F14FBBC3AF119AA59E38 /* iPadMapRenderTest.swift */,
@@ -499,6 +502,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2B362AA4BDCCEE6AA640CFC4 /* AudioPlayerServiceTests.swift in Sources */,
+				E868219BCBEB64B1DE73BFE2 /* CloneTourTests.swift in Sources */,
 				04CE6876F127338924587852 /* FerrostarNavigationServiceTests.swift in Sources */,
 				2A0B721F263C90253FCE7B64 /* GuidedTourAudioTest.swift in Sources */,
 				285E65A19A0CC33EEA349FDC /* MapLibreRenderingTests.swift in Sources */,

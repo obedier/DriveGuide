@@ -1,12 +1,10 @@
-What's new in 2.12:
+What's new in 2.13:
 
-• Smoother generation spinner — the "Generating your tour" screen now uses a TimelineView-driven compass + animated progress ring that always renders, plus a live "seconds elapsed" counter.
-• Keep going in background — after 10 seconds of generating, a "Keep going in background — I'll notify you" button appears. Tap it to dismiss the overlay and keep exploring the rest of the app. A local notification fires when the tour is ready.
-• Top-of-screen status banner reminds you that a build is still running in the background so you don't forget.
+• Fixed: the "Visible in Community" toggle on tour detail now actually stays on when you flip it. Previously the UI snapped back because the async API call completed after SwiftUI re-read the binding.
+• Make it your own — featured/community tours you don't own now show a gold "Make it your own" button that clones the tour into your library with a new title prefix ("My ...") so you can edit stops and narration without affecting the original.
+• Fallback for the visibility toggle: if the newer /visibility endpoint isn't deployed yet, the app transparently falls back to the existing publish/unpublish endpoints, so the toggle just works.
 
 Please test:
-• Generate any tour and observe the spinner — the compass should rotate smoothly and the progress ring should fill over ~20 seconds
-• Watch the "seconds elapsed" counter tick up after 5 seconds
-• Wait past 10 seconds → the "Keep going in background" button should slide in — tap it
-• The overlay should dismiss and a small status banner should appear at the top of Home
-• When the tour finishes, you should get a notification (grant permission the first time); tapping it should bring you back
+• Open any tour in your library → tap "Visible in Community" → toggle should switch on, show "Visible in Community" label, and not snap back
+• Toggle it off and back on a few times — no snap-backs
+• Open a tour you didn't create (from Community tab) → tap "Make it your own" → confirm a new editable copy appears in your library with "My " prefix
