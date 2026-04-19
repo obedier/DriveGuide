@@ -6,6 +6,7 @@ struct GuidedTourView: View {
     @StateObject private var playback = TourPlaybackService()
     @StateObject private var nav = NavigationService()
     @StateObject private var ferrostarNav = FerrostarNavigationService()
+    @StateObject private var routeAware: RouteAwarePlaybackCoordinator
     @AppStorage("navigationEngine") private var navigationEngine = "apple"
     @Environment(\.dismiss) private var dismiss
     @State private var cameraPosition: MapCameraPosition = .automatic
@@ -16,6 +17,16 @@ struct GuidedTourView: View {
     @State private var mapReady = false
     @State private var showTurnByTurn = false
     @State private var hasPrepared = false
+
+    init(tour: Tour) {
+        self.tour = tour
+        // Coordinator needs the tour at construction — the playback service is
+        // shared so route-aware narration can drive it. The @StateObject holds
+        // the coordinator for the lifetime of this view.
+        let playback = TourPlaybackService()
+        self._playback = StateObject(wrappedValue: playback)
+        self._routeAware = StateObject(wrappedValue: RouteAwarePlaybackCoordinator(playback: playback, tour: tour))
+    }
 
     private var isBoatTour: Bool { tour.transportMode == "boat" }
     private var useFerrostar: Bool { navigationEngine == "ferrostar" && !isBoatTour }
@@ -156,6 +167,8 @@ struct GuidedTourView: View {
                                     ferrostarNav.startNavigation(targetStopIndex: 0)
                                     showTurnByTurn = true
                                     playback.startTour()
+                                    // 2.11: Arrivals auto-trigger the matching narration segment.
+                                    routeAware.attach(ferrostarNav)
                                 } else {
                                     nav.startNavigation(targetStopIndex: 0)
                                     withAnimation { followUser = true; use3DMap = true }

@@ -22,6 +22,7 @@
 		3336E90260C931B30E121F82 /* OSRMRouteProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC8FD3274927FD88E5D6F45 /* OSRMRouteProvider.swift */; };
 		365120514144FD8A2B04896D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F28C24AC9A315045CC366A /* HomeView.swift */; };
 		38BAD8384A2FF4EFD864553B /* FerrostarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = E6C28A05BDA69CB32F676B8C /* FerrostarSwiftUI */; };
+		436C54722DB622074D485BC3 /* RouteAwarePlaybackCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC009206F8A56102D301B2E /* RouteAwarePlaybackCoordinatorTests.swift */; };
 		479BC5320AED7F1A0ABC0CDE /* NearbyMetrosSheetViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */; };
 		4BC36E1C74BF910968D6E325 /* MapLibreWindowRenderTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */; };
 		4FE77E7B13A7E83CDD725D59 /* MetroAreaServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7E559C326694EED5B7C78F /* MetroAreaServiceTests.swift */; };
@@ -31,6 +32,7 @@
 		69DA4C0510FDA26623196DAD /* Subscriptions.storekit in Resources */ = {isa = PBXBuildFile; fileRef = DCAE4A394E7F986D1063CD6E /* Subscriptions.storekit */; };
 		6CA908ACC442728BE7B4F9BE /* FerrostarMapLibreUI in Frameworks */ = {isa = PBXBuildFile; productRef = FBB5AB6EAB15DFD1F9D48F2A /* FerrostarMapLibreUI */; };
 		6CB2CE99B24302E0EA224C0F /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFCE2DF22A8DACA8B4367F34 /* NotificationSettingsView.swift */; };
+		6FA3E2261942C281A53DB3B4 /* RouteAwarePlaybackCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFB4C564CBA1846C0EAC37D /* RouteAwarePlaybackCoordinator.swift */; };
 		75891FA2AE6413463F27F172 /* NauticalChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35E939946D3F8A4C2D84979C /* NauticalChartView.swift */; };
 		7597B76C16F0AB0647AC54ED /* FerrostarMapLibreUI in Frameworks */ = {isa = PBXBuildFile; productRef = 66E8710C85FD5D1BFCE21CE9 /* FerrostarMapLibreUI */; };
 		80FA832D383EC96D4067C4DE /* FerrostarCore in Frameworks */ = {isa = PBXBuildFile; productRef = 25A6F9A59762962C38FB5BD4 /* FerrostarCore */; };
@@ -110,6 +112,7 @@
 		637F1B7F20ED7BDBEE1886EF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		645A060CC4C02064D6C0DCDE /* OfflineTourStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineTourStoreTests.swift; sourceTree = "<group>"; };
 		6EED82C384193B28F971E773 /* MapLibreSwiftUIRenderTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLibreSwiftUIRenderTest.swift; sourceTree = "<group>"; };
+		6FC009206F8A56102D301B2E /* RouteAwarePlaybackCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteAwarePlaybackCoordinatorTests.swift; sourceTree = "<group>"; };
 		70643C46BDF7965D9E22F5F8 /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
 		72C970B2C3EA4C0022E13ACA /* FerrostarNavigationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FerrostarNavigationServiceTests.swift; sourceTree = "<group>"; };
 		7DF92431644817B1F6F91434 /* TourDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourDetailView.swift; sourceTree = "<group>"; };
@@ -142,6 +145,7 @@
 		E1F28C24AC9A315045CC366A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		E461DFBB78448EA3DDC32A1F /* FeatureFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlags.swift; sourceTree = "<group>"; };
 		E6B75EF9223C9B9635E18037 /* StoreKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitService.swift; sourceTree = "<group>"; };
+		EDFB4C564CBA1846C0EAC37D /* RouteAwarePlaybackCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteAwarePlaybackCoordinator.swift; sourceTree = "<group>"; };
 		EFCE2DF22A8DACA8B4367F34 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		FACCCB4168F3D367CC03ADAE /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		FB55EDC3CA9261C3996E3303 /* GuidedTourView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedTourView.swift; sourceTree = "<group>"; };
@@ -286,6 +290,7 @@
 				801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */,
 				645A060CC4C02064D6C0DCDE /* OfflineTourStoreTests.swift */,
 				8F44D35C3380E39A31E7DDD4 /* RecentTourTests.swift */,
+				6FC009206F8A56102D301B2E /* RouteAwarePlaybackCoordinatorTests.swift */,
 				36EEE073A09174FF352C0F10 /* TourPlaybackServiceTests.swift */,
 				309973899B92345227D9D751 /* TourStopEditingTests.swift */,
 			);
@@ -328,6 +333,7 @@
 				624A45EDCD87F51189FA2A22 /* NavigationService.swift */,
 				25D9F78D94521FA26546ABE6 /* OfflineTourStore.swift */,
 				FBC8FD3274927FD88E5D6F45 /* OSRMRouteProvider.swift */,
+				EDFB4C564CBA1846C0EAC37D /* RouteAwarePlaybackCoordinator.swift */,
 				E6B75EF9223C9B9635E18037 /* StoreKitService.swift */,
 				2C8CE7291C29D77129F8163A /* SubscriptionService.swift */,
 				011B9BB1AAFC3A3B9EB07527 /* TourDownloader.swift */,
@@ -499,6 +505,7 @@
 				479BC5320AED7F1A0ABC0CDE /* NearbyMetrosSheetViewTests.swift in Sources */,
 				F9F282172F632AEF4C84A8C7 /* OfflineTourStoreTests.swift in Sources */,
 				E07758C03DC1E807AC9A96AE /* RecentTourTests.swift in Sources */,
+				436C54722DB622074D485BC3 /* RouteAwarePlaybackCoordinatorTests.swift in Sources */,
 				8B97C085BD3783F68DAFF927 /* TourPlaybackServiceTests.swift in Sources */,
 				94114FC569FCD073E2D9683F /* TourStopEditingTests.swift in Sources */,
 				1CEDF95863FB9B26C6A7D403 /* iPadMapRenderTest.swift in Sources */,
@@ -532,6 +539,7 @@
 				92B77BDA13D866983A1A71EC /* PaywallView.swift in Sources */,
 				836E0EED642536A651E8480F /* PrivateTourAiApp.swift in Sources */,
 				FB18339CC609E1939DAF4D4C /* RatingView.swift in Sources */,
+				6FA3E2261942C281A53DB3B4 /* RouteAwarePlaybackCoordinator.swift in Sources */,
 				2CADABEEA9A22012968CA3E0 /* SplashView.swift in Sources */,
 				5B19A2E7DE5EB59039B9732A /* StoreKitService.swift in Sources */,
 				13956C58C9655988615F57B9 /* SubscriptionService.swift in Sources */,
@@ -631,13 +639,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.10;
+				MARKETING_VERSION = 2.11;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -697,13 +705,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PrivateTourAi/PrivateTourAi.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				INFOPLIST_FILE = PrivateTourAi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.10;
+				MARKETING_VERSION = 2.11;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

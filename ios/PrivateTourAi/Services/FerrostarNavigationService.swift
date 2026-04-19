@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import Combine
 import os
 
 private let logger = Logger(subsystem: "com.privatetourai.app", category: "FerrostarNav")
@@ -70,6 +71,12 @@ class FerrostarNavigationService: NSObject, ObservableObject {
     @Published var heading: CLLocationDirection = 0
     @Published var isNavigating = false
     @Published var arrivedAtStop = false
+
+    /// Emits the stop index the user just arrived at. Used by
+    /// RouteAwarePlaybackCoordinator (2.11) to auto-play the matching
+    /// narration segment. `ArrivalProvider` conformance lives at the
+    /// bottom of this file.
+    private let arrivalSubject = PassthroughSubject<Int, Never>()
 
     private let locationManager = CLLocationManager()
     private var stops: [TourStop] = []
@@ -258,6 +265,7 @@ class FerrostarNavigationService: NSObject, ObservableObject {
         if distance < arrivalRadius && !arrivedAtStop && !isProcessingArrival {
             arrivedAtStop = true
             currentStepInstruction = "You've arrived at \(target.name)"
+            arrivalSubject.send(currentTargetIndex)
         }
 
         if !arrivedAtStop {
@@ -391,5 +399,13 @@ enum OSRMRouteParser {
 private extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
+    }
+}
+
+// MARK: - ArrivalProvider (2.11 route-aware narration)
+
+extension FerrostarNavigationService: ArrivalProvider {
+    var arrivedAtStopPublisher: AnyPublisher<Int, Never> {
+        arrivalSubject.eraseToAnyPublisher()
     }
 }

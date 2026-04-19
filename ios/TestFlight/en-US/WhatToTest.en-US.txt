@@ -1,11 +1,11 @@
-What's new in 2.10:
+What's new in 2.11:
 
-• Community tour library — new Top / Recent / Trending chips at the top of the Tours → Community tab. Top shows the highest-rated public tours, Trending surfaces tours with recent rating activity.
-• Opt-in public visibility — a new "Visible in Community" toggle on every tour detail screen. Tours are private by default; flip the switch when you want others to see them.
-• Backend: new /v1/tours/public endpoint with sort + metro filter, and a visibility endpoint for the toggle.
+• Route-aware narration — when you use Ferrostar turn-by-turn navigation, arriving at each stop now automatically plays the matching narration segment. No manual tap needed.
+• Duplicate arrivals are ignored (re-entering the arrival radius won't re-start the segment).
+• Works alongside Passenger Mode and Offline downloads — if the tour is downloaded, arrivals still trigger instantly with zero network.
 
 Please test:
-• Create a tour → open its detail → flip the "Visible in Community" toggle on → go to Tours → Community → confirm it appears under "Recent"
-• Flip the toggle off → confirm it disappears from Community within a few seconds
-• Tap Top / Recent / Trending chips and confirm different orderings come back
-• Tap any tour card in Community — should open the full tour detail
+• Switch to Ferrostar navigation in Settings → Navigation engine
+• Generate a short car tour, open it → Start Guided Tour → begin driving / simulating the route
+• As you arrive at each stop, the at-stop narration should start automatically (within a few seconds of crossing the 80-meter arrival radius)
+• Previous/Next/Pause controls still work — they just no longer require you to manually pick up after each stop
