@@ -1,0 +1,13 @@
+What's new in 2.6:
+
+• Cleaner home screen with a quick-access list of nearby metro areas
+• Faster tour start — audio now prepares progressively so you hear the first narration in seconds
+• Sharper, more iconic city imagery on the nearby cities cards
+• Fixed layout overflow on nearby metro cards
+• Reliability and performance improvements
+
+Please test:
+• Open the app and confirm the home screen loads cleanly
+• Tap a nearby metro area and generate a tour — confirm audio starts quickly
+• Play, pause, skip next/previous, and switch voices during a tour
+• Stop a tour mid-playback and re-enter — playback state should be clean
