@@ -212,6 +212,7 @@ struct SearchCard: View {
                     .foregroundStyle(.brandGold)
                 TextField("Search a place...", text: $tourVM.searchText)
                     .focused($isSearchFocused)
+                    .accessibilityIdentifier("searchField")
                     .minimumScaleFactor(0.7)
                     .foregroundStyle(.white)
                     .submitLabel(.search)
@@ -269,6 +270,7 @@ struct SearchCard: View {
                         .background(Color.brandGold.opacity(0.12), in: Capsule())
                         .overlay(Capsule().stroke(Color.brandGold.opacity(0.35), lineWidth: 1))
                     }
+                    .accessibilityIdentifier("nearbyCitiesChip")
                     .accessibilityLabel("Nearby cities")
                     .accessibilityHint("Opens a list of nearby cities for tour generation")
                     Spacer()

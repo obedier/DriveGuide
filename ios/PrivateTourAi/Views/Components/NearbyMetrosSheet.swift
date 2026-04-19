@@ -3,10 +3,19 @@ import UIKit
 
 /// Compact metro-area picker. Presented as a bottom sheet on iPhone and a popover on iPad
 /// via `NearbyMetrosPresentation`. Text-only rows, brand-aligned, no network fetches.
+@MainActor
 struct NearbyMetrosSheet: View {
-    @StateObject private var service = MetroAreaService()
+    @StateObject var service: MetroAreaService
     @EnvironmentObject var tourVM: TourViewModel
     @Environment(\.dismiss) private var dismiss
+
+    init() {
+        _service = StateObject(wrappedValue: MetroAreaService())
+    }
+
+    init(service: MetroAreaService) {
+        _service = StateObject(wrappedValue: service)
+    }
 
     var body: some View {
         ZStack {
@@ -228,6 +237,7 @@ private struct MetroRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("metroRow-\(item.metro.name)")
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(.isButton)
     }

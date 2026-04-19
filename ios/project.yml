@@ -21,6 +21,9 @@ packages:
   MapLibreSwiftUI:
     url: https://github.com/maplibre/swiftui-dsl
     from: 0.25.0
+  ViewInspector:
+    url: https://github.com/nalexn/ViewInspector
+    from: 0.10.0
 
 settings:
   base:
@@ -44,6 +47,7 @@ targets:
     scheme:
       testTargets:
         - PrivateTourAiTests
+        - PrivateTourAiUITests
     dependencies:
       - package: FirebaseAuth
         product: FirebaseAuth
@@ -109,6 +113,22 @@ targets:
         product: FerrostarMapLibreUI
       - package: Ferrostar
         product: FerrostarSwiftUI
+      - package: ViewInspector
+        product: ViewInspector
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+
+  PrivateTourAiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: PrivateTourAiUITests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: PrivateTourAi
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: PrivateTourAi

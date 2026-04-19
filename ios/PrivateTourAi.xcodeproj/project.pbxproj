@@ -20,6 +20,7 @@
 		3336E90260C931B30E121F82 /* OSRMRouteProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC8FD3274927FD88E5D6F45 /* OSRMRouteProvider.swift */; };
 		365120514144FD8A2B04896D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F28C24AC9A315045CC366A /* HomeView.swift */; };
 		38BAD8384A2FF4EFD864553B /* FerrostarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = E6C28A05BDA69CB32F676B8C /* FerrostarSwiftUI */; };
+		479BC5320AED7F1A0ABC0CDE /* NearbyMetrosSheetViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */; };
 		4BC36E1C74BF910968D6E325 /* MapLibreWindowRenderTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */; };
 		4FE77E7B13A7E83CDD725D59 /* MetroAreaServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7E559C326694EED5B7C78F /* MetroAreaServiceTests.swift */; };
 		5B19A2E7DE5EB59039B9732A /* StoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B75EF9223C9B9635E18037 /* StoreKitService.swift */; };
@@ -36,6 +37,7 @@
 		84BB5E2D18D63FCB24B3A601 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5EE53B4E22DD36907191343D /* Assets.xcassets */; };
 		876963824966574542FEE900 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F17E491EEA10D2EB5E20C0D /* AuthService.swift */; };
 		893DDF8A39D43260294DB34F /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 01F78EA0F04E5E32256DA201 /* MapLibreSwiftDSL */; };
+		8B97C085BD3783F68DAFF927 /* TourPlaybackServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EEE073A09174FF352C0F10 /* TourPlaybackServiceTests.swift */; };
 		92B77BDA13D866983A1A71EC /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D8BF7528FF45EC33423FBB /* PaywallView.swift */; };
 		94114FC569FCD073E2D9683F /* TourStopEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309973899B92345227D9D751 /* TourStopEditingTests.swift */; };
 		98F5B8991D06E26DB5604756 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 0D09726F03F0769986E69145 /* FirebaseAuth */; };
@@ -54,8 +56,10 @@
 		B50477E1B9793550726225C3 /* TourPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6128A58318C0CE71094662 /* TourPlaybackService.swift */; };
 		B5C391DAF72C7F3C3EDC2DD8 /* MapLibreSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 02A64EA4851D118B5BFD79F1 /* MapLibreSwiftUI */; };
 		CB2104F73A964DEC887B3CA9 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 51935A7BAF6A066FB2326933 /* RevenueCat */; };
+		D344417340349F2B1D1D26A0 /* NearbyCitiesJourneyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42DA03112CBC46834615122 /* NearbyCitiesJourneyTests.swift */; };
 		E33F0FA40D31BAFF22D12414 /* NearbyMetrosSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF6BBBE97FA4E569864BA5C /* NearbyMetrosSheet.swift */; };
 		ECBDC0CDC504BB1BD7259EA8 /* FerrostarSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = C20DA691FC943D2018CF9DC0 /* FerrostarSwiftUI */; };
+		EE4A8C16661BC7D190CDE3CA /* ViewInspector in Frameworks */ = {isa = PBXBuildFile; productRef = BB2BDE54202887F564717D1D /* ViewInspector */; };
 		F0D0EE5A1D6ADC82BCF0F9E5 /* coverage.geojson in Resources */ = {isa = PBXBuildFile; fileRef = BD6C55157002CCB5F8F32DC0 /* coverage.geojson */; };
 		F2BF18AA6582121B491274B8 /* FerrostarNavigationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5ECE4E60A63009FA4D8230 /* FerrostarNavigationService.swift */; };
 		F5309B4E5C6DE2AAB37CB99C /* FeatureFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E461DFBB78448EA3DDC32A1F /* FeatureFlags.swift */; };
@@ -64,6 +68,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		0BEA58A55E86B9EE18DAA1A5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F1569BE7F9655C82CE848D9F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 17DA9DC1EAC59C4ADB98AB1F;
+			remoteInfo = PrivateTourAi;
+		};
 		F6AD0CB178F721F92C8BD1C4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F1569BE7F9655C82CE848D9F /* Project object */;
@@ -79,7 +90,9 @@
 		259483E42CA47A8038B2F257 /* GuidedTourAudioTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedTourAudioTest.swift; sourceTree = "<group>"; };
 		2C8CE7291C29D77129F8163A /* SubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionService.swift; sourceTree = "<group>"; };
 		309973899B92345227D9D751 /* TourStopEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourStopEditingTests.swift; sourceTree = "<group>"; };
+		3586308FBB0AB1559D407C0F /* PrivateTourAiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PrivateTourAiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		35E939946D3F8A4C2D84979C /* NauticalChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NauticalChartView.swift; sourceTree = "<group>"; };
+		36EEE073A09174FF352C0F10 /* TourPlaybackServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourPlaybackServiceTests.swift; sourceTree = "<group>"; };
 		414312265E15A0CD338495C4 /* PrivateTourAiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateTourAiApp.swift; sourceTree = "<group>"; };
 		561F7E4397844F57AADE7647 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		5BF289618C066BA9FD991E66 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
@@ -90,6 +103,7 @@
 		70643C46BDF7965D9E22F5F8 /* AudioPlayerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerService.swift; sourceTree = "<group>"; };
 		72C970B2C3EA4C0022E13ACA /* FerrostarNavigationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FerrostarNavigationServiceTests.swift; sourceTree = "<group>"; };
 		7DF92431644817B1F6F91434 /* TourDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourDetailView.swift; sourceTree = "<group>"; };
+		801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyMetrosSheetViewTests.swift; sourceTree = "<group>"; };
 		892869070A2007D560437D44 /* MetroAreaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroAreaService.swift; sourceTree = "<group>"; };
 		8DC6E52CF86276B0EA33B90C /* PrivateTourAiTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PrivateTourAiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8FF6BBBE97FA4E569864BA5C /* NearbyMetrosSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyMetrosSheet.swift; sourceTree = "<group>"; };
@@ -99,6 +113,7 @@
 		A6D8BF7528FF45EC33423FBB /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		AAFE91E17A5C6502C3AF0450 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		AD7E559C326694EED5B7C78F /* MetroAreaServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetroAreaServiceTests.swift; sourceTree = "<group>"; };
+		B42DA03112CBC46834615122 /* NearbyCitiesJourneyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyCitiesJourneyTests.swift; sourceTree = "<group>"; };
 		BD6128A58318C0CE71094662 /* TourPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TourPlaybackService.swift; sourceTree = "<group>"; };
 		BD6C55157002CCB5F8F32DC0 /* coverage.geojson */ = {isa = PBXFileReference; path = coverage.geojson; sourceTree = "<group>"; };
 		C7F138E4D7AD7B9D0FFD07E0 /* MapLibreNavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLibreNavigationView.swift; sourceTree = "<group>"; };
@@ -146,6 +161,7 @@
 				B10B230E0C7758D792034F17 /* FerrostarCore in Frameworks */,
 				6CA908ACC442728BE7B4F9BE /* FerrostarMapLibreUI in Frameworks */,
 				38BAD8384A2FF4EFD864553B /* FerrostarSwiftUI in Frameworks */,
+				EE4A8C16661BC7D190CDE3CA /* ViewInspector in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -215,6 +231,14 @@
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
+		69BAE14E22B43942FE2D5C19 /* PrivateTourAiUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B42DA03112CBC46834615122 /* NearbyCitiesJourneyTests.swift */,
+			);
+			path = PrivateTourAiUITests;
+			sourceTree = "<group>";
+		};
 		72943EFF0140D39F706FEE51 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -230,6 +254,7 @@
 			children = (
 				E1CEB0F53140D452C3D85619 /* PrivateTourAi.app */,
 				8DC6E52CF86276B0EA33B90C /* PrivateTourAiTests.xctest */,
+				3586308FBB0AB1559D407C0F /* PrivateTourAiUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -244,6 +269,8 @@
 				6EED82C384193B28F971E773 /* MapLibreSwiftUIRenderTest.swift */,
 				252D64F892BA325259CA6275 /* MapLibreWindowRenderTest.swift */,
 				AD7E559C326694EED5B7C78F /* MetroAreaServiceTests.swift */,
+				801ADEF78C37D5E72C76F59C /* NearbyMetrosSheetViewTests.swift */,
+				36EEE073A09174FF352C0F10 /* TourPlaybackServiceTests.swift */,
 				309973899B92345227D9D751 /* TourStopEditingTests.swift */,
 			);
 			path = PrivateTourAiTests;
@@ -296,6 +323,7 @@
 			children = (
 				B22D99AAEBC25D331C0D5E73 /* PrivateTourAi */,
 				AFD2C576DBB390029D283CA4 /* PrivateTourAiTests */,
+				69BAE14E22B43942FE2D5C19 /* PrivateTourAiUITests */,
 				98E8A5295813F32ADF1D07ED /* Products */,
 			);
 			sourceTree = "<group>";
@@ -348,10 +376,29 @@
 				4D95879326F37F2BD0D81755 /* FerrostarCore */,
 				FBB5AB6EAB15DFD1F9D48F2A /* FerrostarMapLibreUI */,
 				E6C28A05BDA69CB32F676B8C /* FerrostarSwiftUI */,
+				BB2BDE54202887F564717D1D /* ViewInspector */,
 			);
 			productName = PrivateTourAiTests;
 			productReference = 8DC6E52CF86276B0EA33B90C /* PrivateTourAiTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		849AD55812ADB4978B89AD4E /* PrivateTourAiUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A9378FA783194613F25F5137 /* Build configuration list for PBXNativeTarget "PrivateTourAiUITests" */;
+			buildPhases = (
+				EB89320F5AB9FCC2BB8994A2 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				39063E53E8F58B34E5EA94E1 /* PBXTargetDependency */,
+			);
+			name = PrivateTourAiUITests;
+			packageProductDependencies = (
+			);
+			productName = PrivateTourAiUITests;
+			productReference = 3586308FBB0AB1559D407C0F /* PrivateTourAiUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -367,6 +414,10 @@
 					};
 					5519CBB347F78013C94FBB01 = {
 						DevelopmentTeam = U3972W2GDJ;
+					};
+					849AD55812ADB4978B89AD4E = {
+						DevelopmentTeam = U3972W2GDJ;
+						TestTargetID = 17DA9DC1EAC59C4ADB98AB1F;
 					};
 				};
 			};
@@ -385,6 +436,7 @@
 				0660ACB9C4ABF3280495A614 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				73808558B333E4769211DD0D /* XCRemoteSwiftPackageReference "swiftui-dsl" */,
 				AE8B27198BB2EC18E977CC8A /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				3924CFF54D4256512172A822 /* XCRemoteSwiftPackageReference "ViewInspector" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 98E8A5295813F32ADF1D07ED /* Products */;
@@ -393,6 +445,7 @@
 			targets = (
 				17DA9DC1EAC59C4ADB98AB1F /* PrivateTourAi */,
 				5519CBB347F78013C94FBB01 /* PrivateTourAiTests */,
+				849AD55812ADB4978B89AD4E /* PrivateTourAiUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -424,6 +477,8 @@
 				8211A610E154E7438DAAACED /* MapLibreSwiftUIRenderTest.swift in Sources */,
 				4BC36E1C74BF910968D6E325 /* MapLibreWindowRenderTest.swift in Sources */,
 				4FE77E7B13A7E83CDD725D59 /* MetroAreaServiceTests.swift in Sources */,
+				479BC5320AED7F1A0ABC0CDE /* NearbyMetrosSheetViewTests.swift in Sources */,
+				8B97C085BD3783F68DAFF927 /* TourPlaybackServiceTests.swift in Sources */,
 				94114FC569FCD073E2D9683F /* TourStopEditingTests.swift in Sources */,
 				1CEDF95863FB9B26C6A7D403 /* iPadMapRenderTest.swift in Sources */,
 			);
@@ -464,9 +519,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EB89320F5AB9FCC2BB8994A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D344417340349F2B1D1D26A0 /* NearbyCitiesJourneyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		39063E53E8F58B34E5EA94E1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 17DA9DC1EAC59C4ADB98AB1F /* PrivateTourAi */;
+			targetProxy = 0BEA58A55E86B9EE18DAA1A5 /* PBXContainerItemProxy */;
+		};
 		B1AEBC74F0F30EB3E5A7C324 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 17DA9DC1EAC59C4ADB98AB1F /* PrivateTourAi */;
@@ -551,6 +619,22 @@
 			};
 			name = Release;
 		};
+		39EE20944A86FEFDBBD0E454 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PrivateTourAi;
+			};
+			name = Release;
+		};
 		5DD6484295C031DFFBB342D9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -564,6 +648,22 @@
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PrivateTourAi.app/PrivateTourAi";
+			};
+			name = Debug;
+		};
+		6193DCBE06DC9B5CE8B72B50 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PrivateTourAi;
 			};
 			name = Debug;
 		};
@@ -696,6 +796,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		A9378FA783194613F25F5137 /* Build configuration list for PBXNativeTarget "PrivateTourAiUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6193DCBE06DC9B5CE8B72B50 /* Debug */,
+				39EE20944A86FEFDBBD0E454 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -705,6 +814,14 @@
 			requirement = {
 				kind = exactVersion;
 				version = 8.0.0;
+			};
+		};
+		3924CFF54D4256512172A822 /* XCRemoteSwiftPackageReference "ViewInspector" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nalexn/ViewInspector";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.10.0;
 			};
 		};
 		40FF9C8FAC94EBBE13B5340A /* XCRemoteSwiftPackageReference "ferrostar" */ = {
@@ -786,6 +903,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 40FF9C8FAC94EBBE13B5340A /* XCRemoteSwiftPackageReference "ferrostar" */;
 			productName = FerrostarMapLibreUI;
+		};
+		BB2BDE54202887F564717D1D /* ViewInspector */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3924CFF54D4256512172A822 /* XCRemoteSwiftPackageReference "ViewInspector" */;
+			productName = ViewInspector;
 		};
 		C20DA691FC943D2018CF9DC0 /* FerrostarSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;

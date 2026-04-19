@@ -13,11 +13,28 @@ class TourPlaybackService: ObservableObject {
     @Published var audioReady = false
     @Published var audioProgress: String = ""
 
-    let audioPlayer = AudioPlayerService()
+    let audioPlayer: AudioPlayerService
 
     private var tour: Tour?
     private var segments: [NarrationSegment] = []
     private var simulationTask: Task<Void, Never>?
+
+    /// Production init — creates a real AudioPlayerService.
+    convenience init() {
+        self.init(audioPlayer: AudioPlayerService())
+    }
+
+    /// Dependency-injected init so tests can substitute a fake subclass
+    /// that records orchestration calls without touching the network or AVAudioSession.
+    init(audioPlayer: AudioPlayerService) {
+        self.audioPlayer = audioPlayer
+    }
+
+    /// Static-cache seam for tests. Exposed as internal so unit tests can wipe it
+    /// between test runs.
+    static func resetAudioUrlCacheForTesting() {
+        audioUrlCache.removeAll()
+    }
 
     // MARK: - Prepare Tour
     //

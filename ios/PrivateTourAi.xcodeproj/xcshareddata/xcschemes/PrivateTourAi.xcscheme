@@ -50,6 +50,17 @@
                ReferencedContainer = "container:PrivateTourAi.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "849AD55812ADB4978B89AD4E"
+               BuildableName = "PrivateTourAiUITests.xctest"
+               BlueprintName = "PrivateTourAiUITests"
+               ReferencedContainer = "container:PrivateTourAi.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

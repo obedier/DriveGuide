@@ -106,6 +106,12 @@ final class MetroAreaService: ObservableObject {
         state = sorted.isEmpty ? .empty : .loaded(metros: sorted, fallback: usingFallback)
     }
 
+    /// Test hook: force a specific state without having to drive the full
+    /// permission + location + geocode pipeline.
+    func overrideStateForTesting(_ state: MetroLookupState) {
+        self.state = state
+    }
+
     /// Returns top N nearest metros from a given coordinate — for testing or manual use.
     func nearestMetros(to coord: CLLocationCoordinate2D, inCountry country: String = "US", count: Int = 3) -> [MetroWithDistance] {
         let userLoc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
