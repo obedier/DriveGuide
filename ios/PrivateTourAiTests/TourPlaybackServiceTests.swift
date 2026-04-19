@@ -187,3 +187,116 @@ struct TourPlaybackServiceTests {
         #expect(service.currentStopIndex == -1)
     }
 }
+
+// MARK: - End-to-end orchestration (item 3): tour object → audio prepare → navigation start
+// Covers the journey from a prepared Tour through playback control without requiring
+// the authenticated backend. Network calls are short-circuited by FakeAudioPlayer.
+
+@Suite("Tour Playback Service — full journey orchestration")
+@MainActor
+struct TourPlaybackOrchestrationTests {
+
+    @Test("prepare → startTour → nextSegment → stopTour walks the full state machine")
+    func fullJourneyNonSimulated() async {
+        TourPlaybackService.resetAudioUrlCacheForTesting()
+        let fake = FakeAudioPlayer()
+        fake.hasAudioFake = true
+        let service = TourPlaybackService(audioPlayer: fake)
+        let tour = makeTour(stopCount: 3, segmentCount: 4)
+
+        await service.prepareTour(tour)
+        #expect(service.audioReady == true)
+
+        service.startTour()
+        #expect(service.isActive == true)
+        #expect(service.currentSegmentType == "intro")
+        #expect(service.currentStopIndex == -1)
+
+        service.nextSegment()
+        service.previousSegment()
+        service.togglePlayPause()  // active + not playing → resume (no-op on fake)
+
+        service.stopTour()
+        #expect(service.isActive == false)
+        #expect(service.isSimulating == false)
+        #expect(service.currentStopIndex == -1)
+    }
+
+    @Test("togglePlayPause when inactive triggers simulation")
+    func togglePlayPauseStartsSimulation() async {
+        TourPlaybackService.resetAudioUrlCacheForTesting()
+        let fake = FakeAudioPlayer()
+        fake.hasAudioFake = true
+        let service = TourPlaybackService(audioPlayer: fake)
+        await service.prepareTour(makeTour(segmentCount: 2))
+
+        service.togglePlayPause()
+
+        #expect(service.isActive == true)
+        #expect(service.isSimulating == true)
+
+        // Cancel the simulation task so it doesn't leak across tests.
+        service.stopTour()
+        #expect(service.isActive == false)
+    }
+
+    @Test("switchVoice wipes prior prep and re-runs setupForOnDemand with new engine")
+    func switchVoiceRegenerates() async {
+        TourPlaybackService.resetAudioUrlCacheForTesting()
+        // @AppStorage persists across test runs — pin a known starting engine.
+        UserDefaults.standard.set("google", forKey: "voiceEngine")
+        UserDefaults.standard.set("premium", forKey: "voiceQuality")
+
+        let fake = FakeAudioPlayer()
+        fake.hasAudioFake = true
+        let service = TourPlaybackService(audioPlayer: fake)
+        await service.prepareTour(makeTour())
+        #expect(fake.setupForOnDemandCalls.count == 1)
+        let firstEngine = fake.setupForOnDemandCalls.first?.engine
+
+        service.switchVoice(engine: "kokoro", quality: "premium")
+
+        // switchVoice spawns a Task; wait for regenerate to land a second setup call.
+        for _ in 0..<20 where fake.setupForOnDemandCalls.count < 2 {
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(fake.setupForOnDemandCalls.count >= 2)
+        #expect(fake.setupForOnDemandCalls.last?.engine == "kokoro")
+        #expect(firstEngine != fake.setupForOnDemandCalls.last?.engine)
+        #expect(fake.clearAllCalled >= 1)
+    }
+
+    @Test("currentNarrationText returns segment text and segmentLabel reflects type")
+    func narrationAccessors() async {
+        TourPlaybackService.resetAudioUrlCacheForTesting()
+        let fake = FakeAudioPlayer()
+        fake.hasAudioFake = true
+        let service = TourPlaybackService(audioPlayer: fake)
+        await service.prepareTour(makeTour(stopCount: 2, segmentCount: 2))
+
+        service.startTour()
+
+        #expect(service.currentNarrationText == "Narration 0")
+        #expect(service.segmentLabel == "Welcome")
+
+        service.stopTour()
+    }
+
+    @Test("prepareTour sets audioReady=false then true as bufferFirst completes")
+    func preparationStateTransition() async {
+        TourPlaybackService.resetAudioUrlCacheForTesting()
+        let fake = FakeAudioPlayer()
+        fake.hasAudioFake = true
+        let service = TourPlaybackService(audioPlayer: fake)
+        #expect(service.audioReady == false)
+
+        await service.prepareTour(makeTour())
+
+        #expect(service.audioReady == true)
+        #expect(fake.setupForOnDemandCalls.count == 1)
+        #expect(fake.bufferFirstCount == 1)
+        #expect(service.audioProgress == "")
+    }
+}
+
