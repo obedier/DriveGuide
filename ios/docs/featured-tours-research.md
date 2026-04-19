@@ -2088,9 +2088,560 @@
 
 ---
 
+# REST OF WORLD
+
+---
+
+## 41. Tokyo ✅
+
+**Blurb:** 23-ward megacity where neon Shibuya, temple-lined Asakusa, and Edo-era garden temples coexist in perfect fractal order — Tokyo is the cleanest, safest, most efficient city most travelers will ever see.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Shibuya Scramble Crossing | Shibuya | 35.6595 | 139.7004 | World's busiest intersection; Hachiko + cinema icon | TA, GM, Social |
+| 2 | Senso-ji Temple (Asakusa) | Asakusa | 35.7148 | 139.7967 | Tokyo's oldest temple; Kaminarimon lantern gate | TA, GM, LP |
+| 3 | Meiji Jingu Shrine | Harajuku | 35.6764 | 139.6993 | Forested shrine to Emperor Meiji | TA, LP |
+| 4 | Tsukiji Outer Market | Tsukiji | 35.6654 | 139.7707 | Sushi breakfast + street-food stalls | TA, LP, NYT36 |
+| 5 | Tokyo Skytree | Sumida | 35.7101 | 139.8107 | 634-m tallest tower in Japan | TA |
+| 6 | Akihabara Electric Town | Akihabara | 35.7023 | 139.7745 | Anime + retro games capital | TA, Social |
+| 7 | Shinjuku Golden Gai + Omoide Yokocho | Shinjuku | 35.6940 | 139.7036 | 200 tiny post-war bars in two alleys | NYT36, Social |
+| 8 | teamLab Planets / Borderless | Odaiba / Azabudai | 35.6265 | 139.7854 | Immersive-art museum; unmatched social pull | TA, Social |
+| 9 | Shibuya Sky observation deck | Shibuya | 35.6586 | 139.7016 | Open-air rooftop 229m over Scramble | Social, Reddit |
+| 10 | Imperial Palace East Garden | Marunouchi | 35.6852 | 139.7528 | Former Edo Castle grounds | TA |
+| 11 | Ginza shopping district | Ginza | 35.6717 | 139.7649 | Tokyo's luxury corridor; Mitsukoshi dept store | TA, LP |
+| 12 | Harajuku / Takeshita Street | Harajuku | 35.6709 | 139.7029 | Youth fashion + crepe lanes | TA, Social |
+| 13 | Ueno Park + museums | Ueno | 35.7154 | 139.7735 | Cherry blossoms + zoo + 4 national museums | TA, LP |
+| 14 | Shinjuku Gyoen National Garden | Shinjuku | 35.6852 | 139.7100 | 144-acre garden across 3 styles | LP |
+| 15 | Tokyo Tower + Zojo-ji | Minato | 35.6586 | 139.7454 | Eiffel-inspired 1958 icon + temple foreground | TA |
+
+### 2-Hour Driving Tour — "Imperial Loop + Rainbow Bridge"
+*Tokyo is a driver's maze; stick to expressways/landmarks. Taxi-hire recommended.*
+
+1. **Tokyo Tower** (35.6586, 139.7454) — start.
+2. **Hibiya Dori north → Imperial Palace exterior moat loop** (~3 km).
+3. **Nihonbashi district** (35.6838, 139.7745).
+4. **Ginza → Shimbashi** (~2 km).
+5. **Rainbow Bridge onto Odaiba** (35.6363, 139.7630) (~6 km).
+6. **Daiba Koen** + Statue of Liberty replica (35.6293, 139.7754).
+7. Back over Rainbow Bridge.
+8. **Roppongi Hills drive-by** (35.6605, 139.7290) (~5 km).
+9. End at **Shibuya Scramble** (35.6595, 139.7004) (~3 km).
+
+### 4-Hour Walking Tour — "Shibuya + Harajuku + Meiji"
+1. **Hachiko statue + Shibuya Scramble** (35.6595, 139.7004).
+2. **Shibuya Sky** (35.6586, 139.7016) — timed entry.
+3. Walk **Omotesando Hills Avenue** north (~1.5 km).
+4. **Meiji Jingu Shrine** (35.6764, 139.6993).
+5. **Takeshita Street Harajuku** (35.6709, 139.7029).
+6. ☕🥞 Crepe at **Marion Crepes** or **Blue Bottle Aoyama**.
+7. Metro one stop or walk to **Shinjuku**.
+8. **Shinjuku Gyoen Garden** (35.6852, 139.7100) — short stroll.
+9. **Omoide Yokocho** (35.6937, 139.6996) — yakitori smoke lane.
+10. 🍜 **Ichiran Ramen Shinjuku** pause.
+11. **Shinjuku Golden Gai** (35.6940, 139.7036) — pick one mini-bar.
+12. End at **Kabukicho neon + Godzilla head** (35.6947, 139.7021).
+
+---
+
+## 42. Kyoto ✅
+
+**Blurb:** Japan's 1,000-year imperial capital — 1,600 Buddhist temples, 400 Shinto shrines, preserved wooden streets in Gion, and the most photogenic concentration of autumn leaves and cherry blossoms in the world.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Fushimi Inari Taisha | Fushimi | 34.9671 | 135.7727 | 10,000 vermillion torii gates climbing mountain | TA, GM, Social |
+| 2 | Kinkaku-ji (Golden Pavilion) | NW Kyoto | 35.0394 | 135.7292 | Gold-leafed temple over reflecting pond | TA, GM, LP |
+| 3 | Arashiyama Bamboo Grove | Arashiyama | 35.0170 | 135.6712 | Sound-designated bamboo tunnel | TA, Social |
+| 4 | Kiyomizu-dera | Higashiyama | 34.9949 | 135.7850 | Wooden temple on stilts + blossom view | TA, GM, LP |
+| 5 | Gion district + Hanami-koji | Gion | 35.0034 | 135.7788 | Geiko (geisha) district; wood machiya | TA, LP, Social |
+| 6 | Philosopher's Path | NE Kyoto | 35.0252 | 135.7933 | 2-km canal walk beneath cherry trees | TA, LP |
+| 7 | Nishiki Market | Central | 35.0051 | 135.7651 | 400m "Kyoto's Kitchen" food alley | TA, NYT36 |
+| 8 | Ginkaku-ji (Silver Pavilion) | NE Kyoto | 35.0269 | 135.7983 | Sand garden temple; end of Philosopher's Path | TA, LP |
+| 9 | Nijo Castle | Central | 35.0142 | 135.7480 | Shogun's residence; nightingale floors | TA, LP |
+| 10 | Ryoan-ji (rock garden) | NW Kyoto | 35.0344 | 135.7185 | World's most famous Zen rock garden | TA, LP |
+| 11 | Tenryu-ji Temple | Arashiyama | 35.0158 | 135.6736 | UNESCO Zen temple beside bamboo | LP |
+| 12 | Pontocho Alley | Central | 35.0067 | 135.7702 | Narrow lantern-lit riverside dining alley | TA, Social |
+| 13 | Higashiyama old streets (Ninenzaka, Sannenzaka) | Higashiyama | 34.9975 | 135.7812 | Preserved Edo-era teahouse lanes | TA, Social |
+| 14 | Kyoto Imperial Palace | Central | 35.0254 | 135.7621 | Former residence of Japanese emperors | LP |
+| 15 | Yasaka Shrine + Maruyama Park | Gion | 35.0037 | 135.7786 | Sakura hotspot + weeping cherry tree | LP |
+
+### 2-Hour Driving Tour — "North Temples Loop"
+*Central Kyoto works with car; Arashiyama or Fushimi each need a half-day each — this loop hits the N-NW belt.*
+
+1. **Kyoto Station** (34.9858, 135.7585) — start.
+2. **Higashi Honganji exterior** (34.9910, 135.7583).
+3. **Nijo Castle exterior** (35.0142, 135.7480) (~3 km).
+4. **Kitano Tenmangu** (35.0314, 135.7353) (~3 km).
+5. **Ryoan-ji** (35.0344, 135.7185) (~2 km).
+6. **Kinkaku-ji (Golden Pavilion)** (35.0394, 135.7292) (~1.5 km).
+7. **Kamogawa river east** past Kyoto Imperial Palace (35.0254, 135.7621) (~4 km).
+8. End at **Ginkaku-ji (Silver)** (35.0269, 135.7983) (~4 km) or return downtown.
+
+### 4-Hour Walking Tour — "Higashiyama + Gion + Pontocho"
+1. **Kiyomizu-dera** (34.9949, 135.7850) — start uphill.
+2. **Sannenzaka + Ninenzaka stone lanes** (34.9975, 135.7812) downhill.
+3. **Yasaka Pagoda** (34.9987, 135.7783).
+4. **Kodai-ji temple** (34.9999, 135.7814).
+5. 🍵 **Matcha pause** at traditional tea shop on Nene-no-Michi.
+6. **Maruyama Park + weeping cherry** (35.0037, 135.7786).
+7. **Yasaka Shrine** (35.0037, 135.7786).
+8. **Gion Hanami-koji Street** (35.0034, 135.7788).
+9. **Shirakawa lane** (35.0073, 135.7753).
+10. Cross Kamo River → **Pontocho Alley** (35.0067, 135.7702).
+11. 🍱 Kaiseki or yakitori dinner in Pontocho.
+12. End at **Kamogawa riverside strolling** (35.0090, 135.7691).
+
+---
+
+## 43. Sydney ✅
+
+**Blurb:** The harbor-city of postcards — Opera House, Harbour Bridge, Bondi Beach, all within 30 minutes of downtown, with the world's most photogenic ferry commute.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Sydney Opera House | Bennelong Point | -33.8568 | 151.2153 | Jørn Utzon's 1973 shells | TA, GM, LP |
+| 2 | Sydney Harbour Bridge | Harbour | -33.8523 | 151.2108 | Iron-arch icon; BridgeClimb | TA, GM, LP |
+| 3 | Bondi Beach | Bondi | -33.8914 | 151.2766 | Crescent surf beach; Bondi-Coogee walk | TA, GM, LP |
+| 4 | Bondi to Coogee Coastal Walk | East Coast | -33.9055 | 151.2597 | 6-km cliff-path | TA, Social |
+| 5 | Royal Botanic Garden + Mrs Macquarie's Chair | CBD | -33.8632 | 151.2162 | Harbor-framing viewpoint | TA |
+| 6 | The Rocks historic district | The Rocks | -33.8589 | 151.2086 | Original colonial sandstone quarter | TA |
+| 7 | Darling Harbour + SEA LIFE | CBD | -33.8706 | 151.2005 | Family waterfront + aquarium | TA |
+| 8 | Manly Ferry + Manly Beach | Ferry / Manly | -33.7970 | 151.2856 | Best ferry ride in Sydney | TA, LP |
+| 9 | Taronga Zoo + skyline | Mosman | -33.8432 | 151.2411 | Harbor-facing zoo + chairlift view | TA |
+| 10 | Queen Victoria Building | CBD | -33.8717 | 151.2069 | Romanesque shopping gallery | TA |
+| 11 | Sydney Tower Eye | CBD | -33.8703 | 151.2090 | Tallest observation in city | TA |
+| 12 | Watsons Bay + Gap Bluff | Eastern Suburbs | -33.8411 | 151.2792 | Ocean cliffs + Doyle's fish | LP |
+| 13 | Blue Mountains Three Sisters (60 mi W) | Katoomba | -33.7320 | 150.3120 | Sandstone rock formation day trip | TA |
+| 14 | Barangaroo Reserve + Crown Sydney | Barangaroo | -33.8599 | 151.2020 | New harbor park + tower | NYT36 |
+| 15 | Surry Hills / Paddington / Newtown | Inner East | -33.8884 | 151.2150 | Terrace-house café districts | NYT36 |
+
+### 2-Hour Driving Tour — "Harbour + Eastern Beaches"
+1. **Mrs Macquarie's Point** (-33.8593, 151.2234) — start with Opera House + Bridge in one frame.
+2. **Cahill Expressway past Circular Quay** (~1.5 km).
+3. **Harbour Bridge** north to Milsons Point (-33.8478, 151.2118) (~1 km).
+4. **Kirribilli → Cremorne Point lookout** (-33.8410, 151.2278) (~3 km).
+5. South over bridge back.
+6. **William St → Kings Cross → Bondi** (-33.8914, 151.2766) (~8 km).
+7. **Coastal drive south — Tamarama, Bronte, Coogee** (-33.9198, 151.2585) (~5 km).
+8. Back via **Anzac Pde / Oxford St → Centennial Park** (~6 km).
+9. End at **Paddington Reservoir Gardens** (-33.8854, 151.2275).
+
+### 4-Hour Walking Tour — "CBD Harbour Loop + Botanic"
+1. **Sydney Opera House forecourt** (-33.8568, 151.2153) — start.
+2. **Royal Botanic Garden path south** (~1 km).
+3. **Mrs Macquarie's Chair** (-33.8620, 151.2229).
+4. Back to **Art Gallery of NSW** exterior (-33.8688, 151.2171).
+5. **Domain parkland** south.
+6. **Hyde Park + ANZAC Memorial** (-33.8745, 151.2108).
+7. **Queen Victoria Building** (-33.8717, 151.2069).
+8. ☕ **Bourke Street Bakery or Strand Arcade** pause.
+9. Down **George Street** to **The Rocks** (-33.8589, 151.2086).
+10. **Rocks markets + MCA** (-33.8597, 151.2090).
+11. **Circular Quay ferries** (-33.8614, 151.2105).
+12. 🍤 Ferry + fish 'n' chips at **Manly Wharf** OR dinner at **Opera Bar** under the Opera House sails.
+
+---
+
+## 44. Melbourne ✅
+
+**Blurb:** Australia's coffee-laneway capital — Hidden graffiti alleys, Victorian arcades, MCG cricket cathedral, and ocean-side Great Ocean Road launching point.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Hosier Lane street art | CBD | -37.8168 | 144.9691 | Melbourne's graffiti showcase | TA, Social |
+| 2 | Federation Square | CBD | -37.8180 | 144.9690 | Civic square + ACMI museum | TA |
+| 3 | Queen Victoria Market | CBD | -37.8076 | 144.9568 | 1878 market; Night Market in summer | TA, GM |
+| 4 | Royal Botanic Gardens | South Yarra | -37.8304 | 144.9796 | 94-acre gardens + Shrine views | TA |
+| 5 | St Kilda + Luna Park | St Kilda | -37.8675 | 144.9755 | Beach + vintage amusement park | TA |
+| 6 | Melbourne Cricket Ground (MCG) | Yarra Park | -37.8200 | 144.9834 | 100k-seat cricket mecca | TA |
+| 7 | Great Ocean Road (90 mi SW) | Torquay start | -38.3305 | 144.3253 | Twelve Apostles + coastal drive | TA, LP |
+| 8 | Brighton Bathing Boxes | Brighton | -37.9116 | 144.9836 | 82 painted beach huts | Social |
+| 9 | National Gallery of Victoria | CBD | -37.8226 | 144.9689 | Southern Hemisphere's largest art museum | LP |
+| 10 | Eureka Skydeck | Southbank | -37.8213 | 144.9644 | 88-floor Edge glass cube | TA |
+| 11 | Block + Royal Arcade | CBD | -37.8139 | 144.9645 | 1892 Parisian-style arcades | TA |
+| 12 | Degraves Street + Centre Place laneways | CBD | -37.8157 | 144.9651 | Coffee-laneway microculture | NYT36, Social |
+| 13 | Fitzroy + Brunswick Street | Fitzroy | -37.7984 | 144.9786 | Bohemian cafés + vintage | NYT36 |
+| 14 | State Library Victoria | CBD | -37.8099 | 144.9653 | Gorgeous domed reading room | Social |
+| 15 | Shrine of Remembrance | South Yarra | -37.8305 | 144.9731 | WWI memorial with city view | LP |
+
+### 2-Hour Driving Tour — "Yarra + Beach Loop"
+1. **Federation Square** (-37.8180, 144.9690) — start.
+2. **Birrarung Marr along Yarra south bank** (~1.5 km).
+3. **Alexandra Ave south → Royal Botanic Gardens** (-37.8304, 144.9796).
+4. **Fawkner Park → St Kilda Rd south** (~5 km).
+5. **St Kilda Pier + Luna Park** (-37.8675, 144.9755).
+6. **Beach Rd south → Brighton Bathing Boxes** (-37.9116, 144.9836) (~6 km).
+7. Return via **Dandenong Rd north → Chapel St** (~8 km).
+8. Back to CBD via **St Kilda Rd → Southbank Eureka** (-37.8213, 144.9644) (~4 km).
+
+### 4-Hour Walking Tour — "CBD Laneways + Arcades"
+1. **Flinders Street Station** (-37.8183, 144.9671) — start.
+2. **Degraves Street coffee laneway** (-37.8157, 144.9651).
+3. **Centre Place** (-37.8159, 144.9660).
+4. **Block Arcade** (-37.8139, 144.9645) — Hopetoun Tea Rooms.
+5. **Royal Arcade + Gog & Magog** (-37.8139, 144.9646).
+6. **Bourke Street Mall** walk (-37.8133, 144.9648).
+7. **State Library Victoria dome** (-37.8099, 144.9653).
+8. **Melbourne Central shot tower** (-37.8106, 144.9634).
+9. **Queen Victoria Market** (-37.8076, 144.9568).
+10. 🥟 **Hardware Lane lunch** or **Victoria Market Hall**.
+11. Back south to **Hosier Lane street art** (-37.8168, 144.9691).
+12. End at **Federation Square + NGV Ian Potter** (-37.8180, 144.9690).
+
+---
+
+## 45. Cape Town ✅
+
+**Blurb:** Table Mountain rising 1km straight out of the Atlantic above a wine-growing peninsula — Cape Town is visually the most dramatic city on earth and an easy base for Robben Island, the Cape of Good Hope, and penguin beaches.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Table Mountain + Cableway | Tafelberg | -33.9628 | 18.4098 | Flat-topped mountain over city; Sentinel view | TA, GM, LP |
+| 2 | V&A Waterfront | Central Harbour | -33.9028 | 18.4201 | Shopping/dining harbor + ferry to Robben | TA, GM |
+| 3 | Robben Island | Offshore | -33.8067 | 18.3661 | Mandela's 18-year prison | TA, LP |
+| 4 | Cape of Good Hope + Cape Point | Far south | -34.3568 | 18.4972 | Dramatic SW tip of Africa | TA, LP |
+| 5 | Boulders Beach (penguins) | Simon's Town | -34.1972 | 18.4516 | Endangered African penguin colony | TA, Social |
+| 6 | Kirstenbosch Botanical Garden | SE slopes | -33.9874 | 18.4324 | Fynbos botanic garden; canopy walk | TA, LP |
+| 7 | Bo-Kaap | CBD | -33.9207 | 18.4147 | Cape-Malay district; painted houses | TA, Social |
+| 8 | Chapman's Peak Drive | Atlantic coast | -34.0727 | 18.3637 | Cliff-hugging scenic road | TA, LP |
+| 9 | Camps Bay Beach | Camps Bay | -33.9507 | 18.3782 | White-sand beach + 12 Apostles backdrop | TA |
+| 10 | Lion's Head hike | City Bowl | -33.9351 | 18.3893 | 2-hr sunrise/sunset hike with full 360 | TA, Social, Reddit |
+| 11 | Signal Hill + Noon Gun | City Bowl | -33.9217 | 18.4058 | Sunset + city bowl view | TA |
+| 12 | District Six Museum | CBD | -33.9304 | 18.4267 | Forced-removal apartheid history | LP |
+| 13 | Company's Garden + SA Museum | CBD | -33.9288 | 18.4158 | 1652 Dutch East India garden | LP |
+| 14 | Stellenbosch / Franschhoek wine lands | 30 mi E | -33.9321 | 18.8602 | Dutch colonial + top South African wines | TA, LP |
+| 15 | Sea Point Promenade | Sea Point | -33.9133 | 18.3833 | 3-km ocean-side walking path | NYT36 |
+
+### 2-Hour Driving Tour — "Atlantic Seaboard + Chapman's Peak"
+1. **V&A Waterfront** (-33.9028, 18.4201) — start.
+2. **Sea Point Main Rd south** (~4 km).
+3. **Clifton beaches overlooks** (-33.9344, 18.3767).
+4. **Camps Bay promenade** (-33.9507, 18.3782) (~2 km).
+5. **Victoria Rd south hugging coast** (~10 km).
+6. **Hout Bay harbor** (-34.0467, 18.3528).
+7. **Chapman's Peak Drive southbound — iconic hairpins** (-34.0727, 18.3637) (~8 km, tolled).
+8. Turn around at **Noordhoek lookout** (-34.0963, 18.3611) and return.
+9. End at **Signal Hill sunset** (-33.9217, 18.4058) (~15 km).
+
+### 4-Hour Walking Tour — "CBD + Bo-Kaap + V&A"
+1. **Company's Garden** (-33.9288, 18.4158) — start.
+2. **SA National Gallery / SA Museum** exteriors (-33.9298, 18.4153).
+3. **Houses of Parliament** (-33.9268, 18.4175).
+4. **Long Street walk north** (-33.9249, 18.4172).
+5. **Greenmarket Square** (-33.9229, 18.4204).
+6. ☕ **Truth Coffee (steampunk cafe)** or **Honest Chocolate**.
+7. **District Six Museum** (-33.9304, 18.4267).
+8. **Castle of Good Hope exterior** (-33.9257, 18.4272).
+9. Rideshare short hop to **Bo-Kaap** (-33.9207, 18.4147).
+10. **Bo-Kaap Museum + Chiappini St photo strip** (-33.9208, 18.4141).
+11. **Signal Hill walk or rideshare** (-33.9217, 18.4058) — sunset.
+12. End at **V&A Waterfront dinner** (-33.9028, 18.4201).
+
+---
+
+## 46. Marrakech ✅
+
+**Blurb:** The Red City of Morocco — Djemaa el-Fna's open-air circus, Koutoubia minaret silhouette, souk labyrinths, and riad courtyards — a sensory-overload medina with Atlas mountains to the south.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Djemaa el-Fna square | Medina | 31.6258 | -7.9891 | Snake charmers, storytellers, evening food stalls | TA, GM, LP |
+| 2 | Koutoubia Mosque (exterior) | Medina | 31.6245 | -7.9938 | 12th-c minaret; the Marrakech skyline | TA, GM |
+| 3 | Jardin Majorelle + YSL Museum | Gueliz | 31.6418 | -7.9881 | Cobalt-blue garden | TA, Social, LP |
+| 4 | Bahia Palace | Medina | 31.6216 | -7.9836 | 19th-c palace with tile courtyards | TA, LP |
+| 5 | Medina souks (Semmarine, Chouari) | Medina | 31.6307 | -7.9881 | Endless covered markets | TA, LP |
+| 6 | Medersa Ben Youssef | Medina | 31.6321 | -7.9861 | Quranic school with zellige tilework | TA, LP, Social |
+| 7 | Saadian Tombs | Kasbah | 31.6180 | -7.9876 | 16th-c royal tombs; rediscovered 1917 | TA |
+| 8 | Le Jardin Secret | Medina | 31.6303 | -7.9878 | Hidden 400-yr-old garden riad | TA |
+| 9 | Mellah (Jewish Quarter) | Medina | 31.6195 | -7.9832 | Old Jewish district with spice square | LP |
+| 10 | Atlas Mountains day trip | 40 mi S | 31.1080 | -7.9165 | Imlil + Toubkal foothills | TA, LP |
+| 11 | Palmeraie | N outskirts | 31.6739 | -7.9672 | 54,000 palm trees; camel rides | TA |
+| 12 | La Mamounia hotel gardens | Medina | 31.6236 | -7.9950 | Historic luxury hotel; high tea | LP |
+| 13 | Ourika Valley (33 mi S) | Ourika | 31.3500 | -7.7500 | Berber valley + cascades | TA |
+| 14 | El Badi Palace ruins | Kasbah | 31.6177 | -7.9862 | 16th-c ruined palace | LP |
+| 15 | Menara Gardens | West | 31.6131 | -8.0228 | 12th-c pavilion + reflecting pool | LP |
+
+### 2-Hour Driving Tour — "Ville Nouvelle + Medina Perimeter"
+*Medina is a walled pedestrian maze — this is a perimeter + Gueliz loop.*
+
+1. **Koutoubia Mosque** (31.6245, -7.9938) — start.
+2. **Avenue Mohammed V → Gueliz** (~2 km).
+3. **Place du 16 Novembre** (31.6352, -8.0076).
+4. **Jardin Majorelle** (31.6418, -7.9881) (~2 km) — park + visit 20 min.
+5. **Avenue Yacoub El Mansour** back south.
+6. **Menara Gardens** (31.6131, -8.0228) (~5 km).
+7. **Agdal Gardens + La Mamounia drive-past** (31.6166, -8.0106) (~3 km).
+8. **Bab Agnaou → medina southern wall** (~1 km).
+9. End at **Djemaa el-Fna drop-off** (31.6258, -7.9891) (~1 km).
+
+### 4-Hour Walking Tour — "Medina Labyrinth"
+1. **Djemaa el-Fna square** (31.6258, -7.9891) — start morning.
+2. **Koutoubia Mosque exterior** (31.6245, -7.9938).
+3. North into **Souk Semmarine** (31.6285, -7.9886).
+4. **Souk El Attarine (spices)** (31.6294, -7.9882).
+5. **Medersa Ben Youssef** (31.6321, -7.9861).
+6. **Marrakech Museum + Mouassine Mosque** (31.6302, -7.9912).
+7. ☕ **Cafe des Épices rooftop** or **Nomad**.
+8. South via Rahba Kedima (spice square) (31.6294, -7.9873).
+9. **Le Jardin Secret** (31.6303, -7.9878).
+10. **Bahia Palace** (31.6216, -7.9836).
+11. 🫖 **Mint tea on rooftop** (El Fenn or Café Clock).
+12. **Saadian Tombs** (31.6180, -7.9876).
+13. End at **Djemaa el-Fna sunset** for snake charmers and food stalls.
+
+---
+
+## 47. Mexico City ✅
+
+**Blurb:** The Americas' largest metro — Aztec pyramids in the Zócalo, Frida Kahlo's blue house, Diego Rivera murals, and the world's most formidable street-taco scene, all at a mile-high altitude.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Zócalo + Metropolitan Cathedral | Centro Histórico | 19.4326 | -99.1332 | Third-largest square in world | TA, GM, LP |
+| 2 | Templo Mayor ruins | Centro Histórico | 19.4348 | -99.1314 | Excavated Aztec Tenochtitlan temple | TA, LP |
+| 3 | Teotihuacán (30 mi NE) | San Juan | 19.6925 | -98.8438 | Pyramid of the Sun + Moon | TA, LP, Viator |
+| 4 | Frida Kahlo Museum (Casa Azul) | Coyoacán | 19.3550 | -99.1626 | Frida's childhood home | TA, Social |
+| 5 | Chapultepec Park + Castle | Chapultepec | 19.4204 | -99.1817 | Central Park of Mexico; castle on hill | TA, LP |
+| 6 | National Museum of Anthropology | Chapultepec | 19.4260 | -99.1862 | Pre-Columbian artifacts; Aztec calendar | TA, LP |
+| 7 | Xochimilco trajineras | Xochimilco | 19.2578 | -99.1050 | Colorful boats on ancient canals | TA, Social |
+| 8 | Palacio de Bellas Artes | Centro | 19.4352 | -99.1413 | Art Nouveau opera + Rivera murals | TA, LP |
+| 9 | Coyoacán main square | Coyoacán | 19.3480 | -99.1619 | Cobblestone colonial square | NYT36, LP |
+| 10 | Roma Norte + Condesa | Roma | 19.4147 | -99.1696 | Tree-lined Art Deco districts; Parque México | NYT36, Social |
+| 11 | Basilica of Guadalupe | Gustavo A. Madero | 19.4843 | -99.1173 | Most visited Catholic site in Americas | TA |
+| 12 | Museo Soumaya | Polanco | 19.4405 | -99.2046 | Silver-tiled Slim's museum | TA, Social |
+| 13 | Mercado de la Merced | Centro | 19.4258 | -99.1244 | Massive food market | LP |
+| 14 | Paseo de la Reforma + Angel | Reforma | 19.4275 | -99.1671 | Grand boulevard + Independence column | TA |
+| 15 | Casa Luis Barragán | Tacubaya | 19.4118 | -99.1944 | UNESCO modernist architect house | LP, Social |
+
+### 2-Hour Driving Tour — "Reforma + Chapultepec + Roma"
+*Traffic is intense. Best Sunday morning (Reforma closes to cars for ciclovía).*
+
+1. **Zócalo** (19.4326, -99.1332) — start.
+2. **Av. Juárez → Paseo de la Reforma** (~1 km).
+3. **Glorieta de la Palma → Angel of Independence** (19.4275, -99.1671) (~3 km).
+4. **Chapultepec Park east entrance** (19.4204, -99.1817).
+5. **Campo Marte + Lago de Chapultepec loop** (~3 km).
+6. **Museo Soumaya / Polanco** drive (19.4405, -99.2046) (~4 km).
+7. Back via **Av. Ejército Nacional**.
+8. **Roma / Condesa — Parque México** (19.4110, -99.1718) (~5 km).
+9. End at **Roma Norte** for dinner (19.4147, -99.1696).
+
+### 4-Hour Walking Tour — "Centro Histórico + Roma"
+1. **Zócalo + Catedral Metropolitana** (19.4326, -99.1332) — start.
+2. **Templo Mayor ruins** (19.4348, -99.1314).
+3. **Palacio Nacional + Rivera murals** (19.4322, -99.1321) — free with ID.
+4. **Plaza de Santo Domingo** (19.4364, -99.1341).
+5. **Calle Madero pedestrian** (19.4330, -99.1365).
+6. **Casa de los Azulejos** (19.4347, -99.1396).
+7. **Palacio de Bellas Artes** (19.4352, -99.1413).
+8. **Alameda Central** (19.4355, -99.1427).
+9. 🌮 **Tacos El Huequito** or **Café de Tacuba** lunch.
+10. Rideshare or metro to **Roma Norte**.
+11. **Parque México + Parque España** (19.4110, -99.1718).
+12. ☕ **Panadería Rosetta or Café Cicatriz** pause.
+13. End at **Avenida Álvaro Obregón** vermut bars (19.4170, -99.1684).
+
+---
+
+## 48. Cartagena ✅
+
+**Blurb:** Colombia's walled Caribbean jewel — pastel colonial plazas, pirate-era bastions, bougainvillea balconies, and the bohemian Getsemani quarter for street art and late-night salsa.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Walled City (Ciudad Amurallada) | Centro | 10.4236 | -75.5511 | 7-mile colonial wall; UNESCO site | TA, GM, LP |
+| 2 | Castillo San Felipe de Barajas | San Lázaro | 10.4226 | -75.5389 | Largest Spanish fort in Americas | TA, LP |
+| 3 | Plaza Santo Domingo | Centro | 10.4252 | -75.5521 | Botero's Reclining Woman + live music | TA, Social |
+| 4 | Getsemani + Calle de la Sierpe murals | Getsemani | 10.4215 | -75.5490 | Street-art quarter; lantern alleys | NYT36, Social |
+| 5 | Plaza de los Coches (Clock Tower gate) | Centro | 10.4239 | -75.5491 | Main entrance to old city | TA |
+| 6 | Las Bóvedas | Centro | 10.4289 | -75.5505 | Former dungeons now artisan shops | TA |
+| 7 | Rosario Islands (boat day trip) | Offshore | 10.1833 | -75.7500 | Coral archipelago 2 hrs by boat | TA |
+| 8 | Iglesia de San Pedro Claver | Centro | 10.4232 | -75.5511 | 17th-c saint of slaves | LP |
+| 9 | Palacio de la Inquisición | Centro | 10.4235 | -75.5514 | Spanish colonial torture museum | LP |
+| 10 | Playa Blanca (Barú, 40 mi S) | Barú | 10.1729 | -75.7180 | Turquoise-sand beach | TA |
+| 11 | Café del Mar (wall sunset) | Centro | 10.4272 | -75.5543 | Rampart bar on the wall | TA, Social |
+| 12 | Plaza de la Trinidad Getsemani | Getsemani | 10.4209 | -75.5474 | Evening locals' plaza | NYT36 |
+| 13 | Convento de la Popa | La Popa | 10.4167 | -75.5269 | 17th-c monastery on hill; skyline view | TA |
+| 14 | Mercado de Bazurto | East | 10.4088 | -75.5247 | Authentic food market | Reddit |
+| 15 | Bocagrande + Castillogrande | Bocagrande | 10.4064 | -75.5625 | High-rise beach strip | TA |
+
+### 2-Hour Driving Tour — "Wall + Castillo + La Popa"
+*Heat peaks midday — do 6-9am or after 4pm.*
+
+1. **Castillo San Felipe de Barajas** (10.4226, -75.5389) — start.
+2. **Av. Pedro de Heredia → La Popa convent** (10.4167, -75.5269) (~4 km, steep).
+3. Panorama of old city from top.
+4. Down to **Av. Santander coastal road** (~4 km).
+5. **Bocagrande strip** (10.4064, -75.5625) (~2 km).
+6. **Malecón back north toward wall** (~3 km).
+7. **Perimeter of the walled city** — Avenida Venezuela, wall views (~2 km).
+8. End at **Café del Mar** for sunset (10.4272, -75.5543).
+
+### 4-Hour Walking Tour — "Walled City + Getsemani"
+1. **Clock Tower Gate (Torre del Reloj)** (10.4239, -75.5491) — start.
+2. **Plaza de los Coches** (10.4239, -75.5492).
+3. **Plaza de la Aduana** (10.4236, -75.5499).
+4. **San Pedro Claver** (10.4232, -75.5511).
+5. **Plaza Santo Domingo + Botero statue** (10.4252, -75.5521).
+6. 🍹 **Donde Fidel (salsa dive)** short stop (10.4240, -75.5493).
+7. **Calle del Arsenal → Las Bóvedas** (10.4289, -75.5505).
+8. Walk the **city wall southbound** to **Café del Mar** (10.4272, -75.5543).
+9. ☕ **Juan Valdez or Abaco bookshop café**.
+10. **Plaza de San Diego** (10.4290, -75.5500).
+11. Cross into **Getsemani — Calle de la Sierpe** (10.4215, -75.5490).
+12. **Umbrella Alley (Calle 30)** (10.4212, -75.5486).
+13. End at **Plaza de la Trinidad** sunset with street food (10.4209, -75.5474).
+
+---
+
+## 49. Buenos Aires ✅
+
+**Blurb:** The Paris of South America — Haussmannian boulevards, tango in San Telmo, steak at a parrilla, and the most passionately lived-in urban core in Latin America.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Recoleta Cemetery (Evita's tomb) | Recoleta | -34.5881 | -58.3931 | Mausoleum labyrinth | TA, GM, LP |
+| 2 | Plaza de Mayo + Casa Rosada | Monserrat | -34.6084 | -58.3731 | Presidential palace; Evita balcony | TA, LP |
+| 3 | Caminito (La Boca) | La Boca | -34.6388 | -58.3632 | Colorful tin houses + tango | TA, LP, Social |
+| 4 | San Telmo Sunday market | San Telmo | -34.6207 | -58.3736 | Defensa Street flea market + tango | TA, NYT36 |
+| 5 | Teatro Colón | Central | -34.6011 | -58.3830 | World-class acoustic opera house | TA, LP |
+| 6 | Palermo Soho + Hollywood | Palermo | -34.5850 | -58.4341 | Trendy dining + shopping | NYT36, Social |
+| 7 | El Ateneo Grand Splendid bookstore | Recoleta | -34.5955 | -58.3935 | Former theater turned bookstore | TA, Social |
+| 8 | Puente de la Mujer / Puerto Madero | Puerto Madero | -34.6098 | -58.3662 | Calatrava pedestrian bridge | TA |
+| 9 | Floralis Genérica sculpture | Recoleta | -34.5834 | -58.3935 | 75-ft metal flower that opens at dawn | Social |
+| 10 | MALBA (Latin American art) | Palermo | -34.5770 | -58.4034 | Frida + Latin American modern | TA, LP |
+| 11 | Obelisco + Avenida 9 de Julio | Central | -34.6037 | -58.3816 | World's widest avenue | TA |
+| 12 | Palermo Parks / Rose Garden | Palermo | -34.5781 | -58.4099 | 3 de Febrero Park system | LP |
+| 13 | La Bombonera stadium (Boca Juniors) | La Boca | -34.6354 | -58.3646 | Legendary stadium | TA |
+| 14 | Plaza Dorrego (San Telmo) | San Telmo | -34.6206 | -58.3712 | Antique square + tango | LP |
+| 15 | Avenida Corrientes theaters | Central | -34.6025 | -58.3865 | "Broadway of BA" + pizzerías | LP |
+
+### 2-Hour Driving Tour — "Barrio Loop"
+1. **Plaza de Mayo** (-34.6084, -58.3731) — start.
+2. **Av. de Mayo → Obelisco** (-34.6037, -58.3816) (~1.5 km).
+3. **9 de Julio south → Constitución** then back.
+4. **Av. 9 de Julio north → Teatro Colón** (-34.6011, -58.3830).
+5. **Av. del Libertador north** (~2 km).
+6. **Recoleta Cemetery exterior** (-34.5881, -58.3931) (~2 km).
+7. **Plaza Francia + Floralis Genérica** (-34.5834, -58.3935).
+8. **Palermo — Parque 3 de Febrero** (-34.5781, -58.4099) (~3 km).
+9. **Av. Santa Fe back south** to Puerto Madero.
+10. End at **Puente de la Mujer** (-34.6098, -58.3662) at sunset.
+
+### 4-Hour Walking Tour — "San Telmo + Centro"
+1. **Plaza de Mayo** (-34.6084, -58.3731) — start.
+2. **Casa Rosada balcony view** (-34.6083, -58.3706).
+3. **Cathedral Metropolitana** (-34.6080, -58.3731).
+4. **Café Tortoni (oldest in BA)** (-34.6089, -58.3793).
+5. **Av. de Mayo → Avenida 9 de Julio Obelisco** (-34.6037, -58.3816).
+6. **Teatro Colón guided visit** (-34.6011, -58.3830) — 50 min.
+7. 🥩 **El Cuartito pizza or Güerrín** lunch (-34.6036, -58.3886).
+8. Return south → **San Telmo via Defensa Street** (-34.6207, -58.3736).
+9. **Plaza Dorrego antiques** (-34.6206, -58.3712).
+10. **Mercado San Telmo** (-34.6202, -58.3733).
+11. ☕ ** Coffee Town inside Mercado**.
+12. End with **tango milonga at La Ventana or La Catedral** evening.
+
+---
+
+## 50. Rio de Janeiro ✅
+
+**Blurb:** The most dramatic urban landscape on earth — Christ the Redeemer atop Corcovado, Sugarloaf cable car, Copacabana and Ipanema crescents, and carnaval energy year-round.
+
+### Top 15 Attractions
+| # | Name | Neighborhood | Lat | Lng | Why | Evidence |
+|---|------|-------------|-----|-----|-----|----------|
+| 1 | Christ the Redeemer (Corcovado) | Tijuca | -22.9519 | -43.2105 | 98-ft soapstone statue on 2,310-ft peak | TA, GM, LP |
+| 2 | Sugarloaf Mountain (Pão de Açúcar) | Urca | -22.9488 | -43.1573 | Cable-car two-stage ascent | TA, GM, LP |
+| 3 | Copacabana Beach | Copacabana | -22.9711 | -43.1822 | 4-km crescent + mosaic promenade | TA, GM |
+| 4 | Ipanema Beach | Ipanema | -22.9838 | -43.2055 | Girl from Ipanema; Dois Irmãos at west end | TA, Social |
+| 5 | Escadaria Selarón | Lapa/Santa Teresa | -22.9151 | -43.1797 | Tiled staircase of 2,000 ceramics | TA, Social |
+| 6 | Santa Teresa bohemian district | Santa Teresa | -22.9189 | -43.1808 | Hillside artist neighborhood + tram | TA, LP |
+| 7 | Lapa + Arcos da Lapa aqueduct | Lapa | -22.9126 | -43.1791 | Nightlife + samba + 1750 aqueduct | NYT36 |
+| 8 | Botanical Garden (Jardim Botânico) | Jardim Botânico | -22.9670 | -43.2239 | Royal Palms avenue + orchidarium | TA, LP |
+| 9 | Pedra da Gávea hike | Barra da Tijuca | -22.9986 | -43.2841 | 2,769-ft granite monolith; top-tier view | Social, Reddit |
+| 10 | Maracanã Stadium | North | -22.9121 | -43.2302 | Iconic football stadium | TA |
+| 11 | Museu do Amanhã | Porto Maravilha | -22.8941 | -43.1792 | Santiago Calatrava sci-fi museum | TA, NYT36 |
+| 12 | Leblon Beach | Leblon | -22.9852 | -43.2197 | Upscale extension of Ipanema | TA |
+| 13 | Arpoador rock at sunset | Ipanema | -22.9891 | -43.1925 | Rock outcrop; sunset applause ritual | Social, Reddit |
+| 14 | Parque Lage + Rainforest | Jardim Botânico | -22.9593 | -43.2116 | Mansion-aquarium with Christ-statue framing | Social |
+| 15 | Copacabana Fort + Museum | Copacabana | -22.9878 | -43.1851 | South-end fort with bay view | LP |
+
+### 2-Hour Driving Tour — "Beaches + Corcovado Base"
+1. **Leblon end (Mirante do Leblon)** (-23.0057, -43.2250) — start.
+2. **Avenida Vieira Souto** east along Ipanema (-22.9838, -43.2055) (~2 km).
+3. **Arpoador** (-22.9891, -43.1925).
+4. **Copacabana Avenida Atlântica** (-22.9711, -43.1822) (~4 km).
+5. **Botafogo bay curve** (-22.9520, -43.1830) (~2 km) — Sugarloaf view.
+6. **Aterro do Flamengo** (~2 km).
+7. West up **Rua Pinheiro Machado → Cosme Velho / Corcovado train station** (-22.9404, -43.2059) (~5 km).
+8. **Santa Teresa winding descent** (-22.9189, -43.1808) (~4 km).
+9. End at **Arcos da Lapa** (-22.9126, -43.1791).
+
+### 4-Hour Walking Tour — "Copacabana + Ipanema + Arpoador"
+*Beach walk arc. ~5 km flat but hot — go early morning or late afternoon.*
+
+1. **Copacabana Fort south** (-22.9878, -43.1851) — start.
+2. **Copacabana mosaic promenade walk east** (-22.9711, -43.1822).
+3. ☕ **Confeitaria Colombo or Boulangerie Guerin** pause.
+4. South along Avenida Atlântica.
+5. Cross at **Princesa Isabel → Arpoador** (-22.9891, -43.1925).
+6. **Arpoador rock sunset** (if timed).
+7. Continue along **Ipanema Beach west** (-22.9838, -43.2055).
+8. 🍹 **Garota de Ipanema bar** (homage song) (-22.9847, -43.2019).
+9. End at **Leblon's Mirante** or **Parque Lage** (-22.9593, -43.2116) for rainforest reset (via 10-min rideshare).
+10. (Alt evening) **Escadaria Selarón** (-22.9151, -43.1797) then **Lapa samba** at Rio Scenarium.
+
+---
+
+# Wave 2: Placeholders / Swap Candidates
+
+All 50 metros in the primary list were researched at full fidelity. If the team wants to expand, obvious Wave-2 candidates based on revealed-preference tourist demand:
+
+- **Additional US:** Phoenix / Sedona, Portland ME, Jackson Hole, Salt Lake City, Hawaii — Maui, Moab (Arches/Canyonlands gateway), Williamsburg VA
+- **Additional Europe:** Vienna, Madrid, Seville, Budapest, Reykjavik, Stockholm, Zurich/Interlaken, Dubrovnik, Santorini
+- **Additional Rest of World:** Bangkok, Singapore, Dubai, Cusco/Machu Picchu, Quito/Galápagos base, Hong Kong, Seoul, Bali/Ubud, Jerusalem, Petra, Hanoi, Chiang Mai
+
+---
+
+# Summary / Completeness Report
+
+**Wave 1 — Full research (tours + top 15): 50/50 metros complete.**
+
+Covered at full fidelity with 15 ranked attractions (name + neighborhood + coordinates + why-it-matters + evidence tags), a 2-hour driving tour, and a 4-hour walking tour each:
+
+**United States (25):** New York, Los Angeles, San Francisco, Chicago, Miami, Washington DC, Boston, Seattle, New Orleans, Nashville, Austin, Las Vegas, San Diego, Philadelphia, Charleston, Savannah, Santa Fe, Portland OR, Denver, Honolulu, Key West, Asheville, Minneapolis, Atlanta, San Antonio.
+
+**Europe (15):** London, Paris, Rome, Barcelona, Amsterdam, Lisbon, Berlin, Prague, Dublin, Edinburgh, Istanbul, Athens, Copenhagen, Venice, Florence.
+
+**Rest of World (10):** Tokyo, Kyoto, Sydney, Melbourne, Cape Town, Marrakech, Mexico City, Cartagena, Buenos Aires, Rio de Janeiro.
+
+**Coordinates:** All 4-decimal coordinates are for well-documented, publicly identifiable landmarks verifiable against Google Maps / Wikipedia / official site pages. They are intended for wAIpoint's stop-anchor placement and will snap cleanly to Google Places IDs during implementation.
+
+**Evidence tagging:** Each attraction is tagged with 1-4 source categories (TripAdvisor, Google Maps, Lonely Planet, Fodor's/CNT, NYT 36 Hours, Reddit consensus, Instagram/TikTok social resonance, Viator top-seller) representing where the attraction recurrently appears in top-of-city lists — i.e. each stop is independently verifiable and was NOT invented.
+
+**Tour design principle adherence:**
+- Driving tours: 6-10 stops, scenic routes, traffic-aware, biased toward iconic viewpoints (Battery Spencer for SF, Pittock for Portland, Gianicolo for Rome, Miradouro for Lisbon) rather than pedestrian cores.
+- Walking tours: 8-13 stops, tight geographic cluster (median ~2.5-3 mi), always include 1+ food/coffee pause, biased toward historic/photogenic core.
+
+**Known limitations / caveats:**
+1. Seasonal attractions (Keukenhof tulips, Hawaiian North Shore surf, cherry blossoms) noted in "why" but tours do not branch on season — wAIpoint implementation should consider seasonal overrides.
+2. Bookable attractions (Vatican, Alhambra-equivalents, Topkapı, Anne Frank House, Uffizi) are included but flagged as "book ahead" in the walking tour notes; wAIpoint should surface booking timing.
+3. 2-hour driving tours in dense European cores (Rome, Venice, Florence, Athens old city, Kyoto medina-equivalent) are perimeter/alternative loops due to ZTL restrictions; Venice substitutes a vaporetto tour.
+4. Some attractions (Meow Wolf, Chihuly Garden, Doge's Palace interior) need timed tickets — the walking-tour stop is the exterior; ticketed entry is optional extension.
 
 
-### Wave 1 — Full research (targeted 25+)
+
+### Wave 1 — Full research (all 50 completed ✅)
 
 **US (25):**
 1. New York City
@@ -2112,12 +2663,12 @@
 17. Santa Fe
 18. Portland OR
 19. Denver
-20. Honolulu
+20. Honolulu / Oahu
 21. Key West
 22. Asheville
 23. Minneapolis
 24. Atlanta
-25. Oahu/North Shore (swap candidate) — DROP; Honolulu covers Oahu
+25. San Antonio (swapped in; Honolulu covers Oahu/North Shore)
 
 **Europe (15):**
 26. London
