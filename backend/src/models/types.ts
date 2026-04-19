@@ -40,10 +40,28 @@ export interface Tour {
   speed_mph: number | null;
   custom_prompt: string | null;
   share_id: string | null;
+  is_public?: boolean;
+  metro_area?: string | null;
   stops: TourStop[];
   narration_segments: NarrationSegment[];
   created_at: string;
   updated_at: string;
+}
+
+// Public community library browse item — a lightweight summary used by the
+// `GET /v1/tours/public` endpoint. Full tour detail is loaded separately via
+// `GET /v1/tours/:id`.
+export interface CommunityTourItem {
+  id: string;
+  title: string;
+  description: string;
+  durationMinutes: number;
+  stopCount: number;
+  transportMode: string;
+  metroArea: string | null;
+  avgRating: number;
+  ratingCount: number;
+  createdAt: string;
 }
 
 export interface TourStop {

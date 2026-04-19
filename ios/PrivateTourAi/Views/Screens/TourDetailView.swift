@@ -122,6 +122,9 @@ struct TourDetailView: View {
                                 voicePreference: voiceQuality
                             )
 
+                            // Community visibility — opt-in. Manual moderation for v1.
+                            PublicVisibilityToggle(tour: tour)
+
                             // Passenger Mode + Share — share opens the system sheet with
                             // a /tour/<shareId> link, Passenger opens the simplified UI.
                             HStack(spacing: 10) {
@@ -583,6 +586,63 @@ func transportIconFor(_ mode: String?) -> String {
     case "boat": return "ferry.fill"
     case "plane": return "airplane"
     default: return "car.fill"
+    }
+}
+
+/// Opt-in public-visibility toggle. When the user flips it on, the tour joins
+/// the community library (manual moderation per v1). Can be flipped off any
+/// time; the server deletes the public listing but keeps the personal copy.
+struct PublicVisibilityToggle: View {
+    let tour: Tour
+    @EnvironmentObject var tourVM: TourViewModel
+    @State private var isPublic: Bool
+    @State private var isSyncing = false
+
+    init(tour: Tour) {
+        self.tour = tour
+        self._isPublic = State(initialValue: tour.isPublic)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: isPublic ? "globe" : "lock.fill")
+                .foregroundStyle(isPublic ? .brandGold : .secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isPublic ? "Visible in Community" : "Private to you")
+                    .font(.subheadline).fontWeight(.semibold)
+                Text(isPublic
+                     ? "Other travelers can browse and play this tour."
+                     : "Flip on to share with the wAIpoint community.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if isSyncing {
+                ProgressView().tint(.brandGold)
+            } else {
+                Toggle("", isOn: Binding(
+                    get: { isPublic },
+                    set: { newValue in
+                        Task { await setVisibility(newValue) }
+                    }
+                ))
+                .toggleStyle(.switch).tint(.brandGold).labelsHidden()
+            }
+        }
+        .padding(12)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func setVisibility(_ newValue: Bool) async {
+        isSyncing = true
+        defer { isSyncing = false }
+        do {
+            try await APIClient.shared.setTourVisibility(tourId: tour.id, isPublic: newValue)
+            isPublic = newValue
+        } catch {
+            tourVM.communityMessage = "Could not update visibility"
+        }
     }
 }
 

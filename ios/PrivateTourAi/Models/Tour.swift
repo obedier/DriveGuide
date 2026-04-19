@@ -19,6 +19,7 @@ struct Tour: Codable, Identifiable {
     let speedMph: Double?
     let customPrompt: String?
     let shareId: String?
+    let isPublic: Bool
     let stops: [TourStop]
     let narrationSegments: [NarrationSegment]
     let createdAt: String
@@ -43,6 +44,7 @@ struct Tour: Codable, Identifiable {
         speedMph = try container.decodeIfPresent(Double.self, forKey: .speedMph)
         customPrompt = try container.decodeIfPresent(String.self, forKey: .customPrompt)
         shareId = try container.decodeIfPresent(String.self, forKey: .shareId)
+        isPublic = try container.decodeIfPresent(Bool.self, forKey: .isPublic) ?? false
         stops = try container.decodeIfPresent([TourStop].self, forKey: .stops) ?? []
         narrationSegments = try container.decodeIfPresent([NarrationSegment].self, forKey: .narrationSegments) ?? []
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
@@ -62,6 +64,7 @@ struct Tour: Codable, Identifiable {
         case speedMph = "speed_mph"
         case customPrompt = "custom_prompt"
         case shareId = "share_id"
+        case isPublic = "is_public"
         case narrationSegments = "narration_segments"
         case createdAt = "created_at"
     }

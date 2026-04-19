@@ -451,6 +451,26 @@ class TourViewModel: ObservableObject {
         }
     }
 
+    // 2.10: Public library (sorted browse surface backed by the new
+    // `/v1/tours/public` endpoint). Kept separate from the legacy
+    // `communityTours` array so the existing UI keeps working while the
+    // new sorted list rolls in.
+    @Published var publicTours: [APIClient.PublicTourItem] = []
+    @Published var publicSort: String = "top"  // "top" | "recent" | "trending"
+    @Published var isLoadingPublic = false
+
+    func loadPublicTours(sort: String? = nil, metro: String? = nil) async {
+        if let sort { publicSort = sort }
+        isLoadingPublic = true
+        defer { isLoadingPublic = false }
+        do {
+            let response = try await APIClient.shared.getPublicTours(sort: publicSort, metro: metro)
+            publicTours = response.tours
+        } catch {
+            print("[PublicLibrary] Failed to load: \(error)")
+        }
+    }
+
     func clearTour() {
         currentPreview = nil
         currentTour = nil

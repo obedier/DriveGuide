@@ -141,6 +141,46 @@ final class APIClient: Sendable {
         let _: StatusResponse = try await authPost("/tours/\(tourId)/unpublish", body: EmptyBody())
     }
 
+    /// 2.10: single source of truth for public/private — hits the new
+    /// `POST /v1/tours/:id/visibility` endpoint. Reuses the existing
+    /// publish/unpublish endpoints under the hood would also work, but this
+    /// matches the opt-in flag model on the tour itself.
+    func setTourVisibility(tourId: String, isPublic: Bool) async throws {
+        struct VisibilityRequest: Encodable { let isPublic: Bool }
+        struct VisibilityResponse: Decodable { let id: String; let isPublic: Bool }
+        let _: VisibilityResponse = try await authPost(
+            "/tours/\(tourId)/visibility",
+            body: VisibilityRequest(isPublic: isPublic)
+        )
+    }
+
+    /// 2.10: browse surface for the public tour library.
+    /// sort: "top" | "recent" | "trending"
+    struct PublicTourItem: Decodable, Identifiable, Sendable {
+        let id: String
+        let title: String
+        let description: String
+        let durationMinutes: Int
+        let stopCount: Int
+        let transportMode: String
+        let metroArea: String?
+        let avgRating: Double
+        let ratingCount: Int
+        let createdAt: String
+    }
+
+    struct PublicToursResponse: Decodable { let tours: [PublicTourItem]; let total: Int }
+
+    func getPublicTours(sort: String = "top", metro: String? = nil, limit: Int = 20, offset: Int = 0)
+        async throws -> PublicToursResponse {
+        var path = "/tours/public?sort=\(sort)&limit=\(limit)&offset=\(offset)"
+        if let metro, !metro.isEmpty {
+            let encoded = metro.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? metro
+            path += "&metro=\(encoded)"
+        }
+        return try await get(path)
+    }
+
     struct CommunityTourItem: Decodable, Identifiable {
         let id: String
         let title: String

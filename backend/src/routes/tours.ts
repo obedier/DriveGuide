@@ -132,7 +132,15 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Tour not found' } });
     }
 
-    return { tour };
+    // Surface is_public so clients can render the community-visibility toggle.
+    // loadTour spreads every column from the tours row, but the Tour type does
+    // not yet declare is_public — pull it off the raw row to make it explicit.
+    const db = getDb();
+    const row = db.prepare('SELECT is_public FROM tours WHERE id = ?')
+      .get(request.params.id) as { is_public: number } | undefined;
+    const isPublic = Boolean(row?.is_public);
+
+    return { tour: { ...tour, is_public: isPublic } };
   });
 
   // DELETE /tours/:id
@@ -523,5 +531,173 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
         created_at: r.created_at,
       })),
     };
+  });
+
+  // -------------------------------------------------------------------------
+  // v2.10 Community tour library — public browse + owner visibility toggle
+  //
+  // TODO(moderation-v2): Moderation is opt-in-public with manual admin review
+  // only. When we add a reporting / queue-based moderation flow, hook it in
+  // here — e.g. filter out rows flagged for review from the browse response
+  // and gate POST /tours/:id/visibility on a pending-report check.
+  // -------------------------------------------------------------------------
+
+  type PublicSort = 'top' | 'recent' | 'trending';
+
+  interface CommunityTourRow {
+    id: string;
+    title: string;
+    description: string;
+    duration_minutes: number;
+    stop_count: number;
+    transport_mode: string | null;
+    metro_area: string | null;
+    community_rating: number | null;
+    community_rating_count: number;
+    created_at: string;
+  }
+
+  const parsePublicSort = (raw: string | undefined): PublicSort => {
+    if (raw === 'recent' || raw === 'trending') return raw;
+    return 'top';
+  };
+
+  const serializeCommunityTour = (row: CommunityTourRow): {
+    id: string;
+    title: string;
+    description: string;
+    durationMinutes: number;
+    stopCount: number;
+    transportMode: string;
+    metroArea: string | null;
+    avgRating: number;
+    ratingCount: number;
+    createdAt: string;
+  } => ({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    durationMinutes: row.duration_minutes,
+    stopCount: row.stop_count,
+    transportMode: row.transport_mode ?? 'car',
+    metroArea: row.metro_area,
+    avgRating: row.community_rating ?? 0,
+    ratingCount: row.community_rating_count,
+    createdAt: row.created_at,
+  });
+
+  // GET /tours/public — PUBLIC — browse list for the community library.
+  app.get<{
+    Querystring: {
+      metro?: string;
+      sort?: string;
+      limit?: string;
+      offset?: string;
+    };
+  }>('/tours/public', async (request, reply) => {
+    const db = getDb();
+
+    const sort = parsePublicSort(request.query.sort);
+    const metro = request.query.metro?.trim();
+
+    const limitRaw = parseInt(request.query.limit ?? '20', 10);
+    const offsetRaw = parseInt(request.query.offset ?? '0', 10);
+
+    if (!Number.isFinite(limitRaw) || limitRaw < 1) {
+      return reply.code(400).send({ error: { code: 'INVALID_INPUT', message: 'limit must be >= 1' } });
+    }
+    if (!Number.isFinite(offsetRaw) || offsetRaw < 0) {
+      return reply.code(400).send({ error: { code: 'INVALID_INPUT', message: 'offset must be >= 0' } });
+    }
+
+    const limit = Math.min(limitRaw, 50);
+    const offset = offsetRaw;
+
+    const whereParts: string[] = ["t.is_public = 1", "t.status = 'ready'"];
+    const whereParams: unknown[] = [];
+
+    if (metro) {
+      whereParts.push('t.metro_area = ?');
+      whereParams.push(metro);
+    }
+
+    const whereSql = whereParts.join(' AND ');
+
+    const total = (db.prepare(`SELECT COUNT(*) as count FROM tours t WHERE ${whereSql}`)
+      .get(...whereParams) as { count: number }).count;
+
+    // Build ORDER BY per sort. All sorts are over the filtered `tours t`
+    // join with a stop-count sub-aggregate.
+    let orderBy: string;
+    const selectParams: unknown[] = [...whereParams];
+
+    if (sort === 'recent') {
+      orderBy = 't.created_at DESC';
+    } else if (sort === 'trending') {
+      // Trending heuristic: tours that have received ratings in the last 7 days,
+      // weighted by recency. Falls back to recent when the ratings table has
+      // no recent activity for the tour.
+      orderBy = `(
+        SELECT COUNT(*) FROM community_ratings r
+        WHERE r.tour_id = t.id
+          AND r.created_at >= datetime('now', '-7 days')
+      ) DESC, t.created_at DESC`;
+    } else {
+      // 'top' (default): highest rating, then most ratings as tiebreaker.
+      orderBy = 't.community_rating DESC, t.community_rating_count DESC, t.created_at DESC';
+    }
+
+    const rows = db.prepare(`
+      SELECT
+        t.id,
+        t.title,
+        t.description,
+        t.duration_minutes,
+        t.transport_mode,
+        t.metro_area,
+        t.community_rating,
+        t.community_rating_count,
+        t.created_at,
+        (SELECT COUNT(*) FROM tour_stops s WHERE s.tour_id = t.id) AS stop_count
+      FROM tours t
+      WHERE ${whereSql}
+      ORDER BY ${orderBy}
+      LIMIT ? OFFSET ?
+    `).all(...selectParams, limit, offset) as CommunityTourRow[];
+
+    return {
+      tours: rows.map(serializeCommunityTour),
+      total,
+    };
+  });
+
+  // POST /tours/:id/visibility — owner-only public/private toggle.
+  app.post<{
+    Params: { id: string };
+    Body: { isPublic?: boolean };
+  }>('/tours/:id/visibility', {
+    preHandler: requireAuth,
+  }, async (request, reply) => {
+    const db = getDb();
+    const { isPublic } = request.body ?? {};
+
+    if (typeof isPublic !== 'boolean') {
+      return reply.code(400).send({
+        error: { code: 'INVALID_INPUT', message: 'isPublic must be a boolean' },
+      });
+    }
+
+    const tour = db.prepare('SELECT id, user_id FROM tours WHERE id = ?')
+      .get(request.params.id) as { id: string; user_id: string | null } | undefined;
+
+    if (!tour || !tour.user_id || tour.user_id !== request.user!.userId) {
+      // Match the existing 404-on-not-owned pattern to avoid leaking tour IDs.
+      return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Tour not found' } });
+    }
+
+    db.prepare("UPDATE tours SET is_public = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(isPublic ? 1 : 0, tour.id);
+
+    return { id: tour.id, isPublic };
   });
 }

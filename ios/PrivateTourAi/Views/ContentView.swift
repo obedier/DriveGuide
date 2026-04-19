@@ -308,7 +308,69 @@ struct LibraryView: View {
 
     // MARK: - Community Content
 
+    var publicSortChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach([("top", "Top"), ("recent", "Recent"), ("trending", "Trending")], id: \.0) { pair in
+                    Button {
+                        Task { await tourVM.loadPublicTours(sort: pair.0) }
+                    } label: {
+                        Text(pair.1)
+                            .font(.caption.bold())
+                            .foregroundStyle(tourVM.publicSort == pair.0 ? .brandNavy : .white.opacity(0.7))
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .background(tourVM.publicSort == pair.0 ? Color.brandGold : Color.white.opacity(0.08), in: Capsule())
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    var publicToursList: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(tourVM.publicTours) { item in
+                    PublicTourCard(item: item) {
+                        Task {
+                            do {
+                                let tour = try await APIClient.shared.getSharedTour(shareId: item.id)
+                                tourVM.currentTour = tour
+                                tourVM.showTourDetail = true
+                            } catch {
+                                tourVM.communityMessage = "Failed to load tour"
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+        }
+    }
+
     var communityContent: some View {
+        VStack(spacing: 0) {
+            // 2.10: Top/Recent/Trending chips driven by the new /tours/public endpoint.
+            publicSortChips
+
+            if tourVM.isLoadingPublic {
+                Spacer()
+                ProgressView().tint(.brandGold)
+                Spacer()
+            } else if !tourVM.publicTours.isEmpty {
+                publicToursList
+            } else {
+                legacyCommunityContent
+            }
+        }
+        .task { if tourVM.publicTours.isEmpty { await tourVM.loadPublicTours() } }
+    }
+
+    @ViewBuilder
+    var legacyCommunityContent: some View {
         Group {
             if tourVM.isLoadingCommunity {
                 VStack(spacing: 16) {
@@ -440,6 +502,63 @@ struct TourListCard: View {
         switch mode {
         case "walk": return "figure.walk"; case "bike": return "bicycle"
         case "boat": return "ferry.fill"; case "plane": return "airplane"
+        default: return "car.fill"
+        }
+    }
+}
+
+// MARK: - Public Tour Card (2.10 — backed by /tours/public)
+
+struct PublicTourCard: View {
+    let item: APIClient.PublicTourItem
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(item.title)
+                        .font(.headline)
+                        .foregroundStyle(.brandGold)
+                        .lineLimit(1)
+                    Spacer()
+                    if item.ratingCount > 0 {
+                        HStack(spacing: 2) {
+                            Image(systemName: "star.fill").font(.caption2).foregroundStyle(.brandGold)
+                            Text(String(format: "%.1f", item.avgRating)).font(.caption).foregroundStyle(.white)
+                            Text("(\(item.ratingCount))").font(.caption2).foregroundStyle(.white.opacity(0.5))
+                        }
+                    }
+                }
+                if !item.description.isEmpty {
+                    Text(item.description)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(2)
+                }
+                HStack(spacing: 12) {
+                    Label("\(item.stopCount)", systemImage: "mappin.and.ellipse")
+                    Label(formatDuration(item.durationMinutes), systemImage: "clock")
+                    Label(item.transportMode.capitalized, systemImage: publicTransportIcon(item.transportMode))
+                    if let metro = item.metroArea, !metro.isEmpty {
+                        Spacer()
+                        Text(metro).lineLimit(1)
+                    }
+                }
+                .font(.caption).foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(14)
+            .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func publicTransportIcon(_ mode: String) -> String {
+        switch mode {
+        case "walk": return "figure.walk"
+        case "bike": return "bicycle"
+        case "boat": return "ferry.fill"
+        case "plane": return "airplane"
         default: return "car.fill"
         }
     }

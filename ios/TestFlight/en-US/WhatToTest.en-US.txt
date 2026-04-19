@@ -1,10 +1,11 @@
-What's new in 2.9:
+What's new in 2.10:
 
-• Share any tour with friends — new Share button on every tour detail screen uses a waipoint.o11r.com/tour/... link that opens directly in the app (or falls back to Safari if they don't have it installed).
-• Passenger Mode — new simplified playback view with larger text, manual next/previous, and no map or GPS. Perfect for someone in the passenger seat or reading along at home. Reachable via the new "Passenger Mode" button or from shared /passenger/<id> links.
-• Offline-aware sharing — if you've downloaded the tour locally, shared links still work instantly.
+• Community tour library — new Top / Recent / Trending chips at the top of the Tours → Community tab. Top shows the highest-rated public tours, Trending surfaces tours with recent rating activity.
+• Opt-in public visibility — a new "Visible in Community" toggle on every tour detail screen. Tours are private by default; flip the switch when you want others to see them.
+• Backend: new /v1/tours/public endpoint with sort + metro filter, and a visibility endpoint for the toggle.
 
 Please test:
-• Open any tour → tap Share → send the link to yourself. Tapping the link should open the tour in the app (requires the apple-app-site-association file to be deployed on waipoint.o11r.com; until then, the share link opens in Safari).
-• Open any tour → tap Passenger Mode → big play/pause/next/previous controls work, text is readable at arm's length.
-• Paste a link of the form https://waipoint.o11r.com/passenger/<shareId> into Messages and tap — should jump straight into Passenger Mode.
+• Create a tour → open its detail → flip the "Visible in Community" toggle on → go to Tours → Community → confirm it appears under "Recent"
+• Flip the toggle off → confirm it disappears from Community within a few seconds
+• Tap Top / Recent / Trending chips and confirm different orderings come back
+• Tap any tour card in Community — should open the full tour detail
