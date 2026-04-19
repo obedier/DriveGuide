@@ -26,6 +26,14 @@
 				<string>com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.privatetourai.app.share</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>waipoint</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>

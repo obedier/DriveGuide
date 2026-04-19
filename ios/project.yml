@@ -72,8 +72,12 @@ targets:
       properties:
         com.apple.developer.applesignin:
           - Default
-        com.apple.developer.associated-domains:
-          - applinks:waipoint.o11r.com
+    # Universal Links are deferred until the App ID enables "Associated
+    # Domains" in the Apple Developer Portal. Re-add once that's done:
+    #   com.apple.developer.associated-domains:
+    #     - applinks:waipoint.o11r.com
+    # Meanwhile waipoint:// custom-scheme deep links and the backend AASA
+    # route are already live so flip the switch and Universal Links work.
     info:
       path: PrivateTourAi/Info.plist
       properties:
@@ -83,6 +87,9 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - com.googleusercontent.apps.801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r
+          - CFBundleURLName: com.privatetourai.app.share
+            CFBundleURLSchemes:
+              - waipoint
         GIDClientID: "801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com"
         NSLocationWhenInUseUsageDescription: "wAIpoint needs your location to provide GPS-triggered narration during tours."
         NSLocationAlwaysAndWhenInUseUsageDescription: "wAIpoint needs continuous location access to trigger audio narration as you drive through your tour route."
