@@ -340,17 +340,20 @@ struct SearchCard: View {
 
                     if tourVM.showAdvancedSettings {
                         VStack(spacing: 8) {
-                            HStack(spacing: 16) {
-                                Toggle(isOn: $tourVM.useAsStartLocation) {
-                                    Label("Start from my location", systemImage: "location.fill")
-                                        .font(.caption).foregroundStyle(.white.opacity(0.7))
-                                }
-                                .toggleStyle(.switch).tint(.brandGold)
-                                Toggle(isOn: $tourVM.useAsEndLocation) {
-                                    Label("End at my location", systemImage: "location.fill.viewfinder")
-                                        .font(.caption).foregroundStyle(.white.opacity(0.7))
-                                }
-                                .toggleStyle(.switch).tint(.brandGold)
+                            HStack(spacing: 20) {
+                                CompactLocationToggle(
+                                    isOn: $tourVM.useAsStartLocation,
+                                    label: "Start",
+                                    icon: "location.fill",
+                                    tooltip: "Begin the tour at your current location."
+                                )
+                                CompactLocationToggle(
+                                    isOn: $tourVM.useAsEndLocation,
+                                    label: "End",
+                                    icon: "flag.checkered",
+                                    tooltip: "Finish the tour back at your current location."
+                                )
+                                Spacer(minLength: 0)
                             }
                             HStack {
                                 Text("Speed (mph)").font(.caption).foregroundStyle(.white.opacity(0.6))
@@ -601,4 +604,51 @@ func formatDuration(_ minutes: Int) -> String {
     if minutes < 60 { return "\(minutes) min" }
     let h = minutes / 60; let m = minutes % 60
     return m > 0 ? "\(h)h \(m)m" : "\(h) hr"
+}
+
+/// Compact one-word location toggle with an info button that reveals a popover
+/// explaining what the toggle does. Designed for narrow iPhone portrait layouts
+/// where the full "Start from my location" / "End at my location" labels truncate.
+struct CompactLocationToggle: View {
+    @Binding var isOn: Bool
+    let label: String
+    let icon: String
+    let tooltip: String
+
+    @State private var showTooltip = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Toggle(isOn: $isOn) {
+                HStack(spacing: 4) {
+                    Image(systemName: icon).font(.caption2)
+                    Text(label).font(.caption)
+                }
+                .foregroundStyle(.white.opacity(0.8))
+            }
+            .toggleStyle(.switch)
+            .tint(.brandGold)
+            .fixedSize()
+
+            Button { showTooltip.toggle() } label: {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("About \(label) location")
+            .accessibilityHint(tooltip)
+            .popover(isPresented: $showTooltip) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(label == "Start" ? "Start from my location" : "End at my location",
+                          systemImage: icon)
+                        .font(.caption.bold())
+                    Text(tooltip).font(.caption2).foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .frame(maxWidth: 240)
+                .presentationCompactAdaptation(.popover)
+            }
+        }
+    }
 }
