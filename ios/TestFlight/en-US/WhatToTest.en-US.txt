@@ -1,12 +1,11 @@
-What's new in 2.7:
+What's new in 2.8:
 
-• "Continue your tour" chip on the home screen for tours created in the last 48 hours — one-tap return to where you left off
-• Preview the narrator's voice before you commit — new play button on the tour preview card plays a 10-second sample
-• Compact Start/End toggles in Advanced options (no more cut-off labels on portrait phones) with tooltips explaining each
-• Tap the green verified address to change it — clearer affordance than before
+• Download tours for offline — new "Download for offline" button on every tour detail screen. Once downloaded, the tour plays end-to-end with no network (airplane mode, spotty roaming, international travel).
+• Offline tours load instantly — no "Preparing audio..." delay.
+• Auto-cleanup: older downloads are evicted after you pass ~500MB of offline content.
 
 Please test:
-• Generate a tour, leave the app, and reopen within 48 hours — the Continue chip should appear above the search card
-• Tap Preview → Play on any newly previewed tour to hear the narrator (takes a few seconds the first time)
-• Search a city, open Advanced, and confirm both Start and End toggles + info buttons are readable in portrait
-• Tap the verified-address line to reset the location and search again
+• Generate any tour → open it → tap "Download for offline" → wait for progress to hit 100%
+• Turn on airplane mode → reopen the tour → tap Start Guided Tour → narration should play without any network
+• Open Tour Detail again and confirm the "Available offline" check mark + size appear
+• Tap the ••• menu → "Remove download" — the check mark should revert to the Download button

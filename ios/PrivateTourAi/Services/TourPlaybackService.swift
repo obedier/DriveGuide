@@ -65,6 +65,21 @@ class TourPlaybackService: ObservableObject {
 
         let engine = voiceEngine
         let quality = voiceQuality
+
+        // Fastest path: this tour has been saved for offline playback. Skip the
+        // network entirely, load all audio bytes from disk, and flip audioReady.
+        if await OfflineTourStore.shared.isDownloaded(tourId: tour.id) {
+            let audio = await OfflineTourStore.shared.allAudioData(for: tour)
+            audioPlayer.setupFromOffline(segments: segments, audioBytes: audio)
+            audioReady = audioPlayer.hasAudio
+            audioProgress = audioReady ? "" : "Offline audio unavailable"
+            if audioReady {
+                preparedTourId = tour.id
+                preparedEngine = engine
+            }
+            return
+        }
+
         audioProgress = engine == "kokoro" ? "Preparing Kim..." : "Preparing audio..."
 
         // Fast path: cached URLs from a previous session — download first only

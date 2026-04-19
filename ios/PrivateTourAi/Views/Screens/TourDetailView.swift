@@ -10,6 +10,10 @@ struct TourDetailView: View {
     @State private var showPaywall = false
     @State private var showRegenerate = false
     @StateObject private var store = StoreKitService.shared
+    @StateObject private var downloader = TourDownloader()
+    @State private var isOfflineAvailable = false
+    @AppStorage("voiceEngine") private var voiceEngine: String = "google"
+    @AppStorage("voiceQuality") private var voiceQuality: String = "premium"
     @State private var regeneratePrompt = ""
     @State private var isRegenerating = false
 
@@ -108,6 +112,15 @@ struct TourDetailView: View {
                             }
                             .buttonStyle(.bordered)
                             .tint(.blue)
+
+                            // Offline download — keeps tours playable with no network
+                            OfflineDownloadRow(
+                                tour: tour,
+                                downloader: downloader,
+                                isAvailable: $isOfflineAvailable,
+                                voiceEngine: voiceEngine,
+                                voicePreference: voiceQuality
+                            )
                         }
                     }
                     .padding(.horizontal)
@@ -542,6 +555,118 @@ func transportIconFor(_ mode: String?) -> String {
     case "boat": return "ferry.fill"
     case "plane": return "airplane"
     default: return "car.fill"
+    }
+}
+
+/// Unified download / downloading / downloaded row shown on TourDetailView.
+/// Three states: idle (show Download button), downloading (progress + cancel),
+/// downloaded (check mark + size + remove option).
+struct OfflineDownloadRow: View {
+    let tour: Tour
+    @ObservedObject var downloader: TourDownloader
+    @Binding var isAvailable: Bool
+    let voiceEngine: String
+    let voicePreference: String
+
+    @State private var totalSizeBytes: Int64 = 0
+
+    var body: some View {
+        Group {
+            if downloader.isDownloading {
+                downloadingState
+            } else if isAvailable {
+                downloadedState
+            } else {
+                idleState
+            }
+        }
+        .task { await refreshState() }
+    }
+
+    private var idleState: some View {
+        Button {
+            downloader.download(
+                tour: tour,
+                voiceEngine: voiceEngine,
+                voicePreference: voicePreference,
+                onComplete: {
+                    Task { await refreshState() }
+                }
+            )
+        } label: {
+            HStack {
+                Image(systemName: "arrow.down.circle")
+                Text("Download for offline")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.bordered)
+        .tint(.brandGold)
+        .accessibilityIdentifier("downloadForOfflineButton")
+    }
+
+    private var downloadingState: some View {
+        VStack(spacing: 8) {
+            ProgressView(value: downloader.progress)
+                .tint(.brandGold)
+            HStack {
+                Text("Downloading \(Int(downloader.progress * 100))%")
+                    .font(.caption)
+                Spacer()
+                Button("Cancel") { downloader.cancel() }
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private var downloadedState: some View {
+        HStack {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Available offline").font(.subheadline).fontWeight(.semibold)
+                if totalSizeBytes > 0 {
+                    Text(formatBytes(totalSizeBytes))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Menu {
+                Button(role: .destructive) {
+                    Task { await removeOffline() }
+                } label: {
+                    Label("Remove download", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle").font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func refreshState() async {
+        let downloaded = await OfflineTourStore.shared.isDownloaded(tourId: tour.id)
+        isAvailable = downloaded
+        if downloaded, let manifest = try? await OfflineTourStore.shared.manifest(for: tour.id) {
+            totalSizeBytes = manifest.totalBytes
+        } else {
+            totalSizeBytes = 0
+        }
+    }
+
+    private func removeOffline() async {
+        try? await OfflineTourStore.shared.delete(tourId: tour.id)
+        await refreshState()
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        formatter.allowedUnits = [.useMB, .useKB]
+        return formatter.string(fromByteCount: bytes)
     }
 }
 

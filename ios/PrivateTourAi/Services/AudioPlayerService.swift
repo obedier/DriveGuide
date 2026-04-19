@@ -289,4 +289,21 @@ class AudioPlayerService: NSObject, ObservableObject, AVAudioPlayerDelegate {
         setup(segments: segments, audioUrls: audioUrls)
         await bufferInitial()
     }
+
+    /// Seed the player with pre-downloaded audio bytes (one entry per segment,
+    /// in segment order). Used when a tour has been saved for offline playback —
+    /// we skip the network entirely and the AVAudioSession is primed immediately.
+    func setupFromOffline(segments: [NarrationSegment], audioBytes: [Data]) {
+        self.segments = segments
+        self.audioUrls = Array(repeating: "", count: segments.count)
+        // Normalize: anything below the 100-byte playable threshold is treated as
+        // "missing" so hasAudio / playSegment fall back cleanly.
+        self.audioData = audioBytes.map { $0.count > 100 ? $0 : nil }
+
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers, .duckOthers])
+        try? session.setActive(true)
+
+        print("[AudioPlayer] Setup from offline: \(segments.count) segments, \(audioData.compactMap{$0}.count) playable")
+    }
 }
