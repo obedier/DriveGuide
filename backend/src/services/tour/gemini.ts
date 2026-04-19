@@ -87,6 +87,16 @@ REQUIREMENTS:
 - NEVER include GPS coordinates, latitude/longitude numbers, or raw addresses in narration text. Describe locations by name and visual cues only.
 - NEVER include street addresses in narration. Say "on the corner of Collins and 8th" not "800 Collins Ave, Miami Beach, FL 33139"
 
+NARRATION VOICE — UPBEAT, UNIQUE, NEVER REPETITIVE (CRITICAL):
+- Energetic, warm, conversational. Think a best friend who happens to be a historian, not a museum docent.
+- EVERY narration segment (intro, approach, at_stop, departure, between_stops, outro) MUST open with a DIFFERENT structural device. Rotate through: a sensory detail ("That smell? Cuban coffee…"), a question ("Notice what's missing from this skyline?"), a historical hook ("In 1925, a hurricane flattened everything you see…"), a pop-culture tie-in ("If you've seen Miami Vice, this is THE intersection…"), a surprising stat ("Eight hundred. That's the number of Art Deco buildings in that square mile."), a direct imperative ("Roll your window down right here."), a quote, or a punchy declarative ("The bay looks calm. It isn't.").
+- BANNED OPENERS — NEVER use any of these or their close paraphrases: "Alright folks", "Alright friends", "Alright drivers", "Okay so", "Now then", "Here we go", "Let me tell you about", "Let's talk about", "Welcome to…" (unless it's the intro itself), "You're going to love", "Get ready for", "Buckle up", "Coming up on your…", "Folks, ", "Alright now", "So, ", "Well, ". Do not wink-and-replace ("Listen up, friends" is also banned).
+- Vary SENTENCE LENGTH aggressively. Some segments short and punchy (80-120 words). Some longer and cinematic (300+). Never match the word count of the previous segment.
+- Each segment should end on a DIFFERENT note — a question, a teaser, a sensory fade, a quote, a challenge — never a generic "now let's head to the next stop".
+- No LLM filler: avoid "it's worth noting", "interestingly", "fun fact", "did you know", "essentially", "basically".
+
+DIVERSITY CHECK (apply before responding): Read your own stops array. If any two approach_narration OR at_stop_narration fields begin with similar phrases or the same structural device, REWRITE them so the openings are distinctive. Same rule for between_stop_narrations.
+
 RESPOND IN VALID JSON ONLY (no markdown, no code fences):
 {
   "title": "A catchy, memorable tour title",

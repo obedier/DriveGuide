@@ -554,6 +554,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     metro_area: string | null;
     community_rating: number | null;
     community_rating_count: number;
+    is_featured: number;
     created_at: string;
   }
 
@@ -572,6 +573,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     metroArea: string | null;
     avgRating: number;
     ratingCount: number;
+    isFeatured: boolean;
     createdAt: string;
   } => ({
     id: row.id,
@@ -583,6 +585,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     metroArea: row.metro_area,
     avgRating: row.community_rating ?? 0,
     ratingCount: row.community_rating_count,
+    isFeatured: row.is_featured === 1,
     createdAt: row.created_at,
   });
 
@@ -643,8 +646,15 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
           AND r.created_at >= datetime('now', '-7 days')
       ) DESC, t.created_at DESC`;
     } else {
-      // 'top' (default): highest rating, then most ratings as tiebreaker.
-      orderBy = 't.community_rating DESC, t.community_rating_count DESC, t.created_at DESC';
+      // 'top' (default): wAIpoint Featured (curated) tours surface first,
+      // then community tours by highest rating.
+      //
+      // Featured tours are owned by the system user `waipoint-featured-system`
+      // and have `is_featured = 1`. They have no community ratings yet, so a
+      // pure rating sort would bury them beneath any 5-star community tour.
+      // Ordering by `is_featured DESC` first guarantees curated content leads
+      // the Top list until organic ratings grow past the curated set.
+      orderBy = 't.is_featured DESC, t.community_rating DESC, t.community_rating_count DESC, t.created_at DESC';
     }
 
     const rows = db.prepare(`
@@ -657,6 +667,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
         t.metro_area,
         t.community_rating,
         t.community_rating_count,
+        t.is_featured,
         t.created_at,
         (SELECT COUNT(*) FROM tour_stops s WHERE s.tour_id = t.id) AS stop_count
       FROM tours t

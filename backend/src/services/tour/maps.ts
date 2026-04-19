@@ -110,6 +110,44 @@ export async function getPlacePhoto(placeId: string): Promise<string | null> {
   return `${MAPS_BASE}/place/photo?maxwidth=600&photo_reference=${photoRef}&key=${env.googleMapsKey}`;
 }
 
+/**
+ * Resolve a stop (by name + approximate lat/lng) to a Google Places Photo URL
+ * at a specific width. Returns null if no photo can be found.
+ *
+ * Strategy: Text Search limited by a small location bias, take the top match,
+ * then Place Details photos. This is the cheapest + most reliable way to
+ * match curated stop names ("Vizcaya Museum & Gardens exterior") to a real
+ * Google place.
+ */
+export async function resolvePlacePhotoByName(
+  stopName: string,
+  latitude: number,
+  longitude: number,
+  maxWidth: number = 1200,
+): Promise<{ url: string; placeId: string } | null> {
+  // 1. Find the place.
+  const textSearchUrl = `${MAPS_BASE}/place/textsearch/json?query=${encodeURIComponent(stopName)}&location=${latitude},${longitude}&radius=1500&key=${env.googleMapsKey}`;
+  const searchRes = await fetch(textSearchUrl);
+  const searchData = await searchRes.json() as {
+    status: string;
+    results?: Array<{ place_id: string; name: string; geometry?: { location: { lat: number; lng: number } } }>;
+  };
+  const topMatch = searchData.results?.[0];
+  if (!topMatch) return null;
+
+  // 2. Get photo_reference.
+  const detailUrl = `${MAPS_BASE}/place/details/json?place_id=${topMatch.place_id}&fields=photos&key=${env.googleMapsKey}`;
+  const detailRes = await fetch(detailUrl);
+  const detailData = await detailRes.json() as { result?: { photos?: Array<{ photo_reference: string }> } };
+  const photoRef = detailData.result?.photos?.[0]?.photo_reference;
+  if (!photoRef) return null;
+
+  return {
+    url: `${MAPS_BASE}/place/photo?maxwidth=${maxWidth}&photo_reference=${photoRef}&key=${env.googleMapsKey}`,
+    placeId: topMatch.place_id,
+  };
+}
+
 type GoogleTravelMode = 'driving' | 'walking' | 'bicycling' | 'transit';
 
 function toGoogleTravelMode(mode: string): GoogleTravelMode {
