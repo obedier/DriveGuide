@@ -13,7 +13,12 @@ enum APIError: Error, LocalizedError {
         switch self {
         case .invalidURL: return "Invalid URL"
         case .networkError(let error): return "Network error: \(error.localizedDescription)"
-        case .decodingError(let error): return "Data error: \(error.localizedDescription)"
+        case .decodingError:
+            // Deliberately generic — the DecodingError's localizedDescription
+            // ("The data couldn't be read because it isn't in the correct
+            // format") is confusing to end users. Full diagnostic is logged
+            // in APIClient.post() before the throw.
+            return "We had trouble reading the server's response. Please try again."
         case .serverError(let code, let message): return "Server error (\(code)): \(message)"
         case .unauthorized: return "Please sign in to continue"
         case .noData: return "No data received"
@@ -174,6 +179,45 @@ final class APIClient: Sendable {
 
         /// Use this instead of `id` for any `/tours/shared/:x` lookup.
         var resolvableShareId: String { shareId ?? id }
+
+        private enum CodingKeys: String, CodingKey {
+            case id, title, description
+            case shareId = "share_id"
+            case durationMinutes = "duration_minutes"
+            case stopCount = "stop_count"
+            case transportMode = "transport_mode"
+            case metroArea = "metro_area"
+            case avgRating = "avg_rating"
+            case ratingCount = "rating_count"
+            case isFeatured = "is_featured"
+            case createdAt = "created_at"
+        }
+
+        /// Custom decoder — SQLite returns BOOL as 0/1 INTEGER and
+        /// occasionally drops optional columns, so synthesized Decodable
+        /// would bubble up as "Data error: the data couldn't be read
+        /// because it isn't in the correct format." (TF #29 bug 5)
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            shareId = try c.decodeIfPresent(String.self, forKey: .shareId)
+            title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+            description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+            durationMinutes = (try? c.decodeIfPresent(Int.self, forKey: .durationMinutes)) ?? 0
+            stopCount = (try? c.decodeIfPresent(Int.self, forKey: .stopCount)) ?? 0
+            transportMode = try c.decodeIfPresent(String.self, forKey: .transportMode) ?? "car"
+            metroArea = try c.decodeIfPresent(String.self, forKey: .metroArea)
+            avgRating = (try? c.decodeIfPresent(Double.self, forKey: .avgRating)) ?? 0
+            ratingCount = (try? c.decodeIfPresent(Int.self, forKey: .ratingCount)) ?? 0
+            if let b = try? c.decodeIfPresent(Bool.self, forKey: .isFeatured) {
+                isFeatured = b
+            } else if let i = try? c.decodeIfPresent(Int.self, forKey: .isFeatured) {
+                isFeatured = i != 0
+            } else {
+                isFeatured = false
+            }
+            createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        }
     }
 
     struct PublicToursResponse: Decodable { let tours: [PublicTourItem]; let total: Int }

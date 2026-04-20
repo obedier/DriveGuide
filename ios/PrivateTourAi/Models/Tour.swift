@@ -115,6 +115,53 @@ struct TourStop: Codable, Identifiable {
         case googlePlaceId = "google_place_id"
         case photoUrl = "photo_url"
     }
+
+    init(
+        id: String, sequenceOrder: Int, name: String, description: String,
+        category: String, latitude: Double, longitude: Double,
+        recommendedStayMinutes: Int, isOptional: Bool,
+        approachNarration: String, atStopNarration: String,
+        departureNarration: String, googlePlaceId: String?, photoUrl: String?
+    ) {
+        self.id = id
+        self.sequenceOrder = sequenceOrder
+        self.name = name
+        self.description = description
+        self.category = category
+        self.latitude = latitude
+        self.longitude = longitude
+        self.recommendedStayMinutes = recommendedStayMinutes
+        self.isOptional = isOptional
+        self.approachNarration = approachNarration
+        self.atStopNarration = atStopNarration
+        self.departureNarration = departureNarration
+        self.googlePlaceId = googlePlaceId
+        self.photoUrl = photoUrl
+    }
+
+    /// Custom decoder — tolerates the usual SQLite/JSON shape mismatches so
+    /// a single off-by-one field (is_optional stored as 0/1 int, a missing
+    /// narration string, etc.) doesn't abort the whole tour decode and
+    /// surface as "Data error: the data couldn't be read because it isn't
+    /// in the correct format." (TF #29 bug 5)
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        sequenceOrder = (try? c.decodeIfPresent(Int.self, forKey: .sequenceOrder)) ?? 0
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        category = try c.decodeIfPresent(String.self, forKey: .category) ?? "landmark"
+        latitude = try c.decodeIfPresent(Double.self, forKey: .latitude) ?? 0
+        longitude = try c.decodeIfPresent(Double.self, forKey: .longitude) ?? 0
+        recommendedStayMinutes = (try? c.decodeIfPresent(Int.self, forKey: .recommendedStayMinutes)) ?? 0
+        // SQLite stores BOOL as INTEGER — accept both.
+        isOptional = Tour.flexibleBool(c, key: .isOptional) ?? false
+        approachNarration = try c.decodeIfPresent(String.self, forKey: .approachNarration) ?? ""
+        atStopNarration = try c.decodeIfPresent(String.self, forKey: .atStopNarration) ?? ""
+        departureNarration = try c.decodeIfPresent(String.self, forKey: .departureNarration) ?? ""
+        googlePlaceId = try c.decodeIfPresent(String.self, forKey: .googlePlaceId)
+        photoUrl = try c.decodeIfPresent(String.self, forKey: .photoUrl)
+    }
 }
 
 struct NarrationSegment: Codable, Identifiable {
