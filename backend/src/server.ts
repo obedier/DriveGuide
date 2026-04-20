@@ -6,6 +6,7 @@ import { runMigrations } from './lib/migrate.js';
 import { closeDb, getDb } from './lib/db.js';
 import { healthRoutes } from './routes/health.js';
 import { tourRoutes } from './routes/tours.js';
+import { scoringRoutes } from './routes/scoring.js';
 import { audioRoutes } from './routes/audio.js';
 import { libraryRoutes } from './routes/library.js';
 import { pageRoutes } from './routes/pages.js';
@@ -106,6 +107,7 @@ async function start(): Promise<void> {
   // Routes
   await app.register(healthRoutes);
   await app.register(tourRoutes, { prefix: '/v1' });
+  await app.register(scoringRoutes, { prefix: '/v1' });
   await app.register(audioRoutes, { prefix: '/v1' });
   await app.register(libraryRoutes, { prefix: '/v1' });
   await app.register(pageRoutes);
