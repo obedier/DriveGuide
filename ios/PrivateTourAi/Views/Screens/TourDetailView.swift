@@ -2,7 +2,21 @@ import SwiftUI
 import MapKit
 
 struct TourDetailView: View {
-    let tour: Tour
+    /// The tour the view was initialised with. Kept immutable so the original
+    /// inputs to the screen are discoverable. All rendering should go through
+    /// `tour` (computed below) which prefers the regenerated copy when one
+    /// exists.
+    private let initialTour: Tour
+    /// When the user regenerates, the API returns a brand-new Tour with a new
+    /// id. We stash it here so every subsequent read through `tour` reflects
+    /// the fresh stops/narration without needing to tear the sheet down.
+    @State private var regeneratedTour: Tour?
+
+    init(tour: Tour) { self.initialTour = tour }
+
+    /// Live tour — regenerated copy when present, else the original.
+    private var tour: Tour { regeneratedTour ?? initialTour }
+
     @EnvironmentObject var tourVM: TourViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedStop: TourStop?
@@ -16,6 +30,9 @@ struct TourDetailView: View {
     @AppStorage("voiceQuality") private var voiceQuality: String = "premium"
     @State private var regeneratePrompt = ""
     @State private var isRegenerating = false
+    /// Focus-state for the regenerate prompt field so we can programmatically
+    /// dismiss the keyboard when the request fires.
+    @FocusState private var regeneratePromptFocused: Bool
 
     // Editable stops (local state so drag/remove/insert work without mutating immutable Tour)
     @State private var editableStops: [TourStop] = []
@@ -210,6 +227,9 @@ struct TourDetailView: View {
                                     .font(.callout)
                                     .lineLimit(2...4)
                                     .textFieldStyle(.roundedBorder)
+                                    .focused($regeneratePromptFocused)
+                                    .submitLabel(.done)
+                                    .onSubmit { regeneratePromptFocused = false }
 
                                 Button {
                                     Task { await regenerateTour() }
@@ -265,6 +285,9 @@ struct TourDetailView: View {
                     }
                 }
             }
+            // Drag the scroll view down to dismiss the keyboard so the
+            // regenerate prompt UX isn't stuck under the IME. (TF #29 bug 3)
+            .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -586,11 +609,38 @@ struct TourDetailView: View {
     // MARK: - Regenerate
 
     private func regenerateTour() async {
+        // Dismiss the keyboard immediately so the user can see the spinner
+        // and "Regenerating..." state without the IME blocking the bottom
+        // half of the screen. (TF #29 bug 3)
+        regeneratePromptFocused = false
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
+
         isRegenerating = true
         let originalPrompt = tour.customPrompt ?? ""
-        let combinedPrompt = [originalPrompt, regeneratePrompt]
-            .filter { !$0.isEmpty }
-            .joined(separator: ". Also: ")
+        let userRequest = regeneratePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Make the user's request impossible for the model to ignore. Prior
+        // wording ("Also: X") was being diluted by the original prompt and
+        // produced an identical stop list, so we explicitly instruct the
+        // model to visibly change stops to match what was asked.
+        let combinedPrompt: String? = {
+            guard !userRequest.isEmpty else {
+                return originalPrompt.isEmpty ? nil : originalPrompt
+            }
+            var parts: [String] = []
+            if !originalPrompt.isEmpty {
+                parts.append("Original request: \(originalPrompt).")
+            }
+            parts.append(
+                "USER EXPLICITLY REQUESTED: \(userRequest). "
+                + "The rebuilt tour MUST visibly reflect this request — "
+                + "replace at least 2 existing stops with new stops that "
+                + "match the request, and clearly differ from the previous version."
+            )
+            return parts.joined(separator: " ")
+        }()
 
         do {
             let newTour = try await APIClient.shared.generateFullTour(
@@ -598,11 +648,15 @@ struct TourDetailView: View {
                 durationMinutes: tour.durationMinutes,
                 themes: tour.themes,
                 transportMode: tour.transportMode ?? "car",
-                customPrompt: combinedPrompt.isEmpty ? nil : combinedPrompt
+                customPrompt: combinedPrompt
             )
             TourStorage.shared.save(newTour)
             tourVM.savedTours = TourStorage.shared.loadAll()
             tourVM.currentTour = newTour
+            // Swap the in-view tour so the stops list + map + title all
+            // update without needing the sheet to redraw. (TF #29 bug 2)
+            regeneratedTour = newTour
+            editableStops = newTour.stops
             regeneratePrompt = ""
             showRegenerate = false
         } catch {
