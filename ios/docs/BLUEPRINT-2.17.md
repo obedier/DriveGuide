@@ -1,4 +1,4 @@
-# wAIpoint 3.0 — Blueprint
+# wAIpoint 2.17 — Blueprint
 
 **Theme.** "Scoring-driven tour engine." Every tour — curated, user-shared, or AI-generated — runs through the same scoring framework. Featured tours are just the exemplars that the engine emits at the top of the distribution.
 
@@ -103,13 +103,13 @@ This blueprint operationalizes those specs; it does NOT re-design them.
 | C3 | `score_breakdown` in API + iOS Tour model | C2 | — |
 | C4 | iOS score chip + A/B picker UI | C3 | — |
 | D1 | End-to-end QA + on-device test | all | — |
-| D2 | TestFlight + ASC submission (3.0) | D1 | — |
+| D2 | TestFlight + ASC submission (2.17) | D1 | — |
 
 ---
 
 ## Decisions I've already made (to avoid bikeshedding)
 
-1. **Version:** 3.0. This is a major engine change plus new content, not a polish release.
+1. **Version:** 2.17. This is a major engine change plus new content, not a polish release.
 2. **Cities (9):** LA, SF, Chicago, NYC, DC, Boston, Seattle, New Orleans, Austin. No Nashville (Austin covers South), no Vegas (lower narrative density).
 3. **2 tours per city** (driving + walking), matching Miami's structure → 18 new tours + 2 existing Miami = 20 featured.
 4. **Score gate: ≥85 absolute** on Layer A composite for featured tours. Regenerate up to 3 times with targeted feedback, then flag for manual review if still below.
@@ -122,7 +122,7 @@ This blueprint operationalizes those specs; it does NOT re-design them.
 
 ## Two things I want confirmation on before I start coding
 
-1. **Is 3.0 the right marketing version?** Alternative: 2.17 (incremental) — which downplays the user-visible surface of the scoring UI. I'm proposing 3.0 because "AI tours that explain why they're good" is a category-level positioning shift.
+1. **Is 2.17 the right marketing version?** Alternative: 2.17 (incremental) — which downplays the user-visible surface of the scoring UI. I'm proposing 2.17 because "AI tours that explain why they're good" is a category-level positioning shift.
 
 2. **Should the A/B candidate picker ship on day 1?** It's the most interesting UX outgrowth of the scoring engine, but it doubles the generation cost per request (user sees 2 tours, we discard 1). Three options:
    - (a) Ship A/B on day 1 — demonstrates the engine, max user delight, 2× cost per generation.
