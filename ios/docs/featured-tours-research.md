@@ -1,28 +1,191 @@
-# wAIpoint Featured Tours — Research Dossier (Top 50 Metros)
+# wAIpoint Featured Tours — Research Dossier + Benchmark Framework
 
-**Purpose:** Pre-generate "featured" tours for the top 50 global metros so first-time wAIpoint users get an instant, 5-star, zero-wait experience. Each metro entry contains:
+> **Companions:** [tour-scoring-spec.md](./tour-scoring-spec.md) defines the scoring engine. [gold-standard-tours.md](./gold-standard-tours.md) is the 10-tour calibration set.
 
-1. A 1-2 sentence blurb on what makes the city tour-worthy.
-2. Top 15 attractions, ranked, with neighborhood, coordinates (~4 decimals), why-it-matters, and evidence tags.
-3. A proposed **2-hour DRIVING tour** (6-9 stops, scenic, traffic-aware, iconic views).
-4. A proposed **4-hour WALKING tour** (8-12 stops, tight urban cluster, with food/coffee pauses).
+## 0. Strategic frame
 
-**Evidence tags used:**
-- `TA` = TripAdvisor "Things to Do" top-ranked
-- `GM` = Google Maps top-rated / high-review-volume
-- `LP` = Lonely Planet featured
-- `Fodor` = Fodor's / Condé Nast Traveler "best of"
-- `NYT36` = NYT "36 Hours in …" series
-- `Reddit` = r/travel or r/<city> consensus
-- `Social` = high Instagram/TikTok hashtag volume, viral social presence
-- `Viator` = top-selling Viator / GetYourGuide tour inclusion (revealed-preference)
+**wAIpoint's core product is personalized adaptive tour generation from user input.** Featured tours are **not** the product. They're four things, in decreasing order of importance:
 
-**Selection bias:** We optimize for the "you have to do this one thing" tier — iconic, photogenic, story-rich, geographically logical. We are NOT chasing comprehensiveness. 15 is the top-tier cap.
+1. **Calibration exemplars** for the scoring engine — the quality bar every AI-generated tour is measured against.
+2. **Training signal** — structured gold examples that tune weights, intents, and stop attributes.
+3. **Free conversion hooks** — the public-facing standard of quality users experience before they pay.
+4. **Showcase** — a visible answer to "is the tour AI any good?"
 
-**Status legend:**
-- ✅ **Full** = 15 ranked attractions + both tours researched
-- 🟡 **Partial** = blurb + top attractions only, tours pending
-- ⬜ **Placeholder** = name only, Wave-2 work
+**One schema, one scoring model, two populations.** Curated "featured" tours and custom on-the-fly tours use the same stop schema (see §1), the same dimension set, and the same scoring formulas (see [tour-scoring-spec.md](./tour-scoring-spec.md)). Curated tours are just very high-scoring exemplars. This keeps the quality bar portable and lets the generator learn from the curated set.
+
+**Free vs paid.**
+
+- **Free.** A small curated set of benchmark tours in major cities. Users experience them without a subscription. This is the product's *public standard of quality*, not a freebie.
+- **Paid.** Custom tours generated from user input — constraints, preferences, time budget, intent, dynamic conditions (weather, traffic, closures). This is the real product.
+
+**What this doc must do.** Help the system *explain* quality in structured terms — not just display a 4.9-star rating. Every stop has attributes the generator can reason over. Every tour has a score breakdown the UI can verbalize. The goal is that the app can say "this version is less famous but better matches your request for hidden gems" — and mean it literally.
+
+---
+
+## 1. Stop-selection methodology (structured)
+
+We optimize for the "you have to do this one thing" tier — iconic, photogenic, story-rich, geographically logical. The editorial intuition is unchanged. What's new is making that intuition *machine-readable*.
+
+### 1.1 Stop attribute schema
+
+Every stop in every tour — curated or custom — carries this structured attribute block. Full TypeScript interface lives in [tour-scoring-spec.md §6](./tour-scoring-spec.md#6-persisted-json-schema).
+
+| Attribute | Values | Notes |
+|---|---|---|
+| `stop_type` | `icon` · `viewpoint` · `neighborhood` · `museum` · `food` · `park` · `scenic_drive` · `waterfront` · `other` | Drives variety_balance scoring |
+| `iconicity_score` | 0-10 | Global recognizability |
+| `scenic_payoff_score` | 0-10 | Visual "wow" delivered per visit |
+| `story_significance_score` | 0-10 | Density of narratable meaning |
+| `tourist_popularity_score` | 0-10 | Crowd + visitor-volume indicator |
+| `local_authenticity_score` | 0-10 | Whether locals actually go here |
+| `dwell_time_minutes_estimate` | integer | Realistic time needed |
+| `access_friction` | `low` · `medium` · `high` | Getting there |
+| `parking_friction` | `low` · `medium` · `high` · `not_applicable` | Car-tour relevant |
+| `walking_burden` | `none` · `light` · `moderate` · `heavy` | Walking-tour relevant |
+| `family_friendliness` | 0-10 | Kid appeal and safety |
+| `weather_sensitivity` | `none` · `moderate` · `high` | Outdoor exposure |
+| `best_time_of_day` | `morning` · `midday` · `afternoon` · `golden_hour` · `night` · `any` | Drives time_of_day_fit |
+| `day_night_suitability` | `day_only` · `both` · `night_only` | Gates time-based intents |
+| `reservation_risk` | `none` · `low` · `high` | Timed entry hazards |
+| `crowding_risk` | `low` · `medium` · `high` | Experience-quality factor |
+| `accessibility_notes` | text | Wheelchair / mobility |
+| `photo_value` | 0-10 | Photographic payoff |
+| `wow_per_minute` | 0-10 | Emotional payoff / dwell time |
+| `cluster_id` | string | Groups geographically adjacent stops |
+| `adjacent_compatible_stops` | string[] | Stop ids that route naturally together |
+
+### 1.2 Signature moments — the city-level abstraction
+
+Every city has a fixed set of **signature moments** — named peaks we want every tour to be able to draw from. These are the atoms tours are built from, and the vocabulary the generator uses when explaining tradeoffs.
+
+Standard signature-moment slots per city:
+
+- **Best skyline reveal** — the moment a new arrival first "sees" the city
+- **Best sunset stop** — highest-payoff golden-hour position
+- **Best short wow stop** — highest wow_per_minute, under 10 min dwell
+- **Best scenic drive segment** — highest-scoring continuous stretch of road
+- **Best coffee/food pause** — the perfect mid-tour dwell
+- **Best local texture moment** — the neighborhood ground-truth for this city
+- **Best ending point** — narrative-flow-maximizing finale
+- **Best worth-the-detour** — the "add this if you have 20 extra minutes" stop
+
+The top-10 city entries (§3) include the full signature-moments table. The remaining 40 cities (§4) get a condensed version as part of the structured header.
+
+### 1.3 Evidence tags (retained from v0)
+
+Used in the attraction tables below as quick provenance:
+
+- `TA` — TripAdvisor "Things to Do" top-ranked
+- `GM` — Google Maps top-rated / high-review-volume
+- `LP` — Lonely Planet featured
+- `Fodor` — Fodor's / Condé Nast Traveler "best of"
+- `NYT36` — NYT "36 Hours in …" series
+- `Reddit` — r/travel or r/<city> consensus
+- `Social` — high Instagram/TikTok hashtag volume
+- `Viator` — top-selling Viator / GetYourGuide inclusion (revealed-preference)
+
+---
+
+## 2. Source strategy — six source families
+
+Current sources are strong for **discovery** but insufficient for **rigorous scoring**. The big missing layer is operational realism + graph-based route logic. Going forward, sources are organized into six families with explicit jobs.
+
+### 2.1 Popularity / mainstream demand
+**Sources:** TripAdvisor, Google Maps, Viator, GetYourGuide, Airbnb Experiences bookings.
+**Job:** Tell us what users *actually* visit and book. Surface floor for iconicity_score and tourist_popularity_score. Revealed-preference is the strongest popularity signal.
+**Known weakness:** Biased toward first-time tourists; underrepresents local favorites and hidden gems.
+
+### 2.2 Editorial / taste / curation
+**Sources:** NYT "36 Hours in …", Lonely Planet, Fodor's, Condé Nast Traveler, Afar, The Guardian Travel.
+**Job:** Tell us what discerning travelers *should* experience. Ceiling for story_significance_score; primary input for narrative_flow design.
+**Known weakness:** Slow to update; sometimes over-corrects against mainstream (tries too hard to be "authentic").
+
+### 2.3 Local texture / friction / sentiment
+**Sources:** Reddit (r/travel, r/<city>, city-specific subs), recent review text on Google/TripAdvisor, local blogs, Substack city newsletters.
+**Job:** Tell us what *current* ground truth is. Primary input for local_authenticity_score, crowding_risk, and real friction (opening-hour quirks, scam risks, line lengths).
+**Known weakness:** Unstructured; requires careful text extraction to be useful.
+
+### 2.4 Visual / scenic / social proof
+**Sources:** Instagram hashtag counts, TikTok place-tag volume, Flickr geotag density, Unsplash city presence.
+**Job:** Photo_value, scenic_payoff_score. Where do people actually take and share photos?
+**Known weakness:** Overweights novelty/trending spots; tracks the selfie aesthetic more than the scenic aesthetic.
+
+### 2.5 Operational realism — the currently under-developed layer
+**Sources:** Google Maps Routes / Distance Matrix API, Places API, official venue sites (hours, closures, ticketing), parking APIs, transit APIs, weather APIs.
+**Job:** This is the *missing* layer. It turns a list of attractions into a realistic, schedulable tour. Without it, tours that look great on paper fail in reality.
+
+Specific needs:
+
+- Real driving ETAs with traffic-band (morning/midday/evening) — feeds `time_realism` and `geographic_coherence`.
+- Walking distances on real networks, not straight-line — feeds `walking_burden` and `time_realism`.
+- Timed-entry requirements (Colosseum, Sagrada Família, Vatican, Sistine) — feeds `reservation_risk`.
+- Seasonal closures (Vizcaya hours vary; Japanese gardens close in winter) — feeds `weather_sensitivity` and `access_friction`.
+- Accessibility data (step counts, ramp availability) — feeds `accessibility`.
+- Parking availability near stops — feeds `parking_friction`.
+
+**Action item.** Operational-realism sources need to be integrated *before* the scoring engine can score custom tours credibly. Curated tours can be hand-scored; generated tours cannot.
+
+### 2.6 Internal annotations — the most important source over time
+**Sources:** Our own curator edits, user-tour completion data, favorite/skip rates, in-app feedback, ratings from completed tours.
+**Job:** Once enough usage accumulates, our own structured judgments become the highest-quality signal — because they are stored in the exact shape the scoring engine uses.
+
+Internal annotations override external signals when they conflict. A stop may score iconicity 8 from external data but be locally known to be "tourist-trap disappointing" — our curators should be able to mark it, and the scoring engine should respect that mark.
+
+---
+
+## 3. Per-city structure
+
+Each city entry has four subsections:
+
+- **A. City summary** — 1-2 sentence blurb + city touring strengths + best-fit use cases (e.g. *strongest for driving + sunset + architecture; weak for family*).
+- **B. Gold-standard stop graph** — the top benchmark stops with structured attributes, cluster IDs, signature-moments table, route-compatibility notes.
+- **C. Benchmark tours** — carefully selected gold-standard tours for calibration. Each tagged with target user type and intent tags.
+- **D. Scoring metadata** — the tour-level score breakdowns per [tour-scoring-spec.md](./tour-scoring-spec.md).
+
+### Status legend
+
+- ✅ **Full (v2)** = full new schema — stop graph + signature moments + benchmark tours + scoring metadata
+- 🔹 **Header + legacy** = structured header (summary + signature moments + clusters) above existing v1 attraction data and tour prose
+- ⬜ **Placeholder** = name only, not yet researched
+
+**Depth at this writing:**
+
+- Top 10 cities (NYC, LA, SF, Chicago, Miami, London, Paris, Rome, Barcelona, Tokyo) → ✅ Full (v2)
+- Remaining 40 cities → 🔹 Header + legacy
+
+---
+
+## 4. Scoring-to-generation feedback (city-doc-relevant summary)
+
+The per-city data in this doc is not just reference — it feeds the generation pipeline. Full spec in [tour-scoring-spec.md §8](./tour-scoring-spec.md#8-scoring-to-generation-feedback-loop). Summary:
+
+1. **Candidate generation.** For a user request, generate N candidate tours per city from this stop graph.
+2. **Reranking.** Score against Layer A + user intent. Pick the highest-scoring candidate that passes the absolute-quality gate.
+3. **Constraint balancing.** Maximize one dimension subject to a floor on another ("maximize scenic_payoff subject to duration_realism ≥ 8").
+4. **Tradeoff explanation.** Every shown tour carries human-readable explanations derived from the score breakdown — "this version gives up the Vatican to create a stronger Trastevere finish."
+5. **Iterative refinement.** When the top candidate is borderline, run one refinement pass (swap a stop, reorder, shift time), re-score, keep if improved.
+6. **Feedback loop.** Compare user completion / skip / favorite rates against benchmark expectations; retune weights quarterly.
+
+---
+
+## 5. Free-hook strategy
+
+The curated tours below are the product's **public standard of quality**. Several ship as free benchmark tours in major cities. Proposed merchandising slots:
+
+- "Best First Tour in Miami" → Causeway Miami (Tour 10 in [gold-standard-tours.md](./gold-standard-tours.md))
+- "2-Hour Scenic SF Drive" → Golden Hour Bay Loop (Tour 3)
+- "Romantic Sunset LA Drive" → Mulholland to the Pacific (Tour 1)
+- "Classic NYC Intro Walk" → Manhattan Classics (Tour 6)
+- "Best Family Tour in Chicago" or DC → National Mall for Kids (Tour 8)
+- "Rome in an Afternoon" → Centro Storico Classics (Tour 2)
+- "Paris After Dark" → Right Bank After Dark (Tour 7)
+- "Tokyo Like a Local" → Shimokitazawa Drift (Tour 9)
+
+Free tours are positioned as *"this is what wAIpoint tours feel like"* — not as a teaser. The paid product is tour *generation from your input*, not access to more curated tours.
+
+---
+
+# PART 2 — CITY DOSSIERS
 
 ---
 
@@ -30,11 +193,20 @@
 
 ---
 
-## 1. New York City ✅
+## 1. New York City ✅ (v2)
 
-**Blurb:** The most filmed, photographed, and mythologized city on earth — Manhattan's skyline, Central Park, Times Square, and the Statue of Liberty form a five-borough film set where almost every block carries pop-culture weight.
+### A. City summary
 
-### Top 15 Attractions
+The most filmed, photographed, and mythologized city on earth — Manhattan's skyline, Central Park, Times Square, and the Statue of Liberty form a five-borough film set where almost every block carries pop-culture weight.
+
+- **Strongest for:** first-time walking, architecture, food-heavy, photo-heavy, romantic evening.
+- **Weak for:** scenic driving (Manhattan traffic), pure-sunset experiences (limited west-view access from the core).
+- **Unique strength:** density of canonical stops per mile — walking tours deliver extraordinary variety in 3 mi.
+
+### B. Gold-standard stop graph
+
+**Top 15 attractions (evidence and coordinates):**
+
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
 |---|------|-------------|-----|-----|-----|----------|
 | 1 | Statue of Liberty + Ellis Island | New York Harbor | 40.6892 | -74.0445 | Global symbol of America; the immigrant arrival story | TA, GM, LP, Viator, Social |
@@ -53,8 +225,49 @@
 | 14 | DUMBO / Brooklyn Bridge Park | Brooklyn | 40.7033 | -73.9881 | Washington St bridge framing = most Instagrammed NY view | GM, Social, NYT36 |
 | 15 | Flatiron Building + Madison Square Park | Flatiron | 40.7411 | -73.9897 | Architecture icon; Shake Shack's original flagship | TA, Social |
 
-### 2-Hour Driving Tour — "Manhattan in Motion"
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | walking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Grand Central | icon | 9 | 8 | 10 | 20 | light | any | nyc_midtown |
+| Times Square | icon | 10 | 6 | 7 | 15 | light | any | nyc_midtown |
+| The High Line | park | 9 | 9 | 8 | 45 | moderate | afternoon | nyc_chelsea |
+| Washington Sq Park | neighborhood | 8 | 7 | 8 | 20 | light | any | nyc_village |
+| SoHo cast-iron | neighborhood | 8 | 8 | 8 | 25 | light | any | nyc_downtown |
+| Brooklyn Bridge walkway | icon | 10 | 10 | 9 | 30 | moderate | golden_hour | nyc_bridge |
+| Statue of Liberty | icon | 10 | 9 | 10 | 120 | light | any | nyc_harbor |
+| Top of the Rock | viewpoint | 9 | 10 | 7 | 60 | light | golden_hour | nyc_midtown |
+| Central Park (Bethesda) | park | 9 | 9 | 9 | 45 | moderate | afternoon | nyc_cp |
+| DUMBO / Jane's Carousel | viewpoint | 9 | 10 | 7 | 30 | moderate | golden_hour | nyc_bridge |
+| 9/11 Memorial | icon | 9 | 7 | 10 | 45 | light | morning | nyc_downtown |
+| Met Museum | museum | 9 | 7 | 10 | 120 | light | any | nyc_uptown |
+
+**Clusters:** `nyc_midtown` · `nyc_chelsea` · `nyc_village` · `nyc_downtown` · `nyc_bridge` · `nyc_harbor` · `nyc_cp` · `nyc_uptown`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Brooklyn Bridge pedestrian walkway midpoint |
+| Best sunset stop | DUMBO / Brooklyn Bridge Park (Main St) |
+| Best short wow | Grand Central main concourse |
+| Best scenic drive segment | West Side Highway northbound at dusk |
+| Best coffee/food pause | Chelsea Market (Los Tacos No. 1) |
+| Best local texture | SoHo → Little Italy → Chinatown walking corridor |
+| Best ending point | Brooklyn Bridge midpoint at golden hour |
+| Best worth-the-detour | Top of the Rock at blue hour |
+
+### C. Benchmark tours
+
+#### Tour NYC-1 — "Manhattan Classics" (4h walking) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 6](./gold-standard-tours.md#tour-6--manhattan-classics). Target user: first-time NYC visitor. Intent tags: `first_time_highlights`, `photo_heavy`, `architecture`. **`tour_absolute` = 92.0 · first_time fit = 96**.
+
+#### Tour NYC-2 — "Manhattan in Motion" (2h driving)
+
 *Traffic-aware route avoiding midtown gridlock; emphasizes skyline vantages from the West Side Highway and bridges. Best 8-11am Sunday, or evening after 7pm.*
+
+Intent: `scenic_sunset` (evening variant) · `minimal_walking` · `efficient_short`.
 
 1. **Brooklyn Bridge Park / Pier 1** (40.7003, -73.9967) — start with the canonical skyline photo.
 2. Cross **Brooklyn Bridge** into Manhattan (~1 mi).
@@ -65,27 +278,47 @@
 7. Cross through Central Park via **86th St Transverse** → **Fifth Avenue southbound** past the Met, the Frick, Central Park East (~3 mi).
 8. End at **Columbus Circle / Central Park South** (40.7680, -73.9819) — Time Warner Center, horse carriages, classic NY finale.
 
-### 4-Hour Walking Tour — "Midtown to the Village"
-*Dense iconic core, ~3.5 miles total, south-running so sun is behind you. Food pauses built in.*
+### D. Scoring metadata
+
+**NYC-1 (Manhattan Classics):** `tour_absolute = 92.0` · iconic 9.5 · geographic 9.5 · time_realism 8.0 · narrative 9.5 · scenic 9.0 · variety 9.5 · usability 8.5. Primary intent `first_time_highlights` = 96. **Final (hybrid) = 93.6**. Full breakdown in [gold-standard-tours.md — Tour 6](./gold-standard-tours.md#tour-6--manhattan-classics).
+
+**NYC-2 (Manhattan in Motion):** `tour_absolute ≈ 82` · iconic 8.5 · geographic 9.0 · time_realism 7.0 (NYC traffic risk) · narrative 8.0 · scenic 9.0 · variety 7.5 · usability 7.0. Primary intent `scenic_sunset` = 84 (evening only). **Final (pure_curation) = 82**.
+
+---
+
+#### Tour NYC-3 — "Midtown to the Village" (4h walking, alternate)
+
+*Dense iconic core, ~3.5 miles total, south-running so sun is behind you. Food pauses built in. Note: the gold tour (NYC-1) is this route's stronger sibling — this alternate emphasizes food and village texture over bridge finale.*
+
+Intent: `food_heavy`, `local_flavor`, `first_time_highlights` (soft).
 
 1. **Grand Central Terminal** (40.7527, -73.9772) — start inside the main concourse.
 2. **Bryant Park + NY Public Library lions** (40.7536, -73.9832).
 3. **Times Square** (40.7580, -73.9855) — cross and keep moving.
 4. **The High Line** southern entry at Gansevoort St (40.7398, -74.0084), walk through Chelsea Market.
-5. ☕ **Chelsea Market** (40.7424, -74.0061) — food hall pause, lobster rolls or Los Tacos No. 1.
+5. ☕ **Chelsea Market** (40.7424, -74.0061) — food hall pause.
 6. **Washington Square Park** (40.7308, -73.9973) — arch and fountain.
 7. **SoHo cast-iron district** (Prince & Greene Sts, 40.7244, -73.9985).
-8. 🍕 **Lombardi's / Prince Street Pizza pause** (40.7223, -73.9946).
+8. **Lombardi's / Prince Street Pizza pause** (40.7223, -73.9946).
 9. **Little Italy → Chinatown** via Mulberry and Mott Sts (40.7157, -73.9970).
-10. **Brooklyn Bridge pedestrian walkway** entrance (40.7126, -73.9993) — end by walking halfway onto the bridge for skyline sunset.
+10. **Brooklyn Bridge pedestrian walkway** entrance (40.7126, -73.9993).
+
+**NYC-3 score:** `tour_absolute ≈ 88` · iconic 8.5 · geographic 9.5 · time_realism 8.0 · narrative 8.5 · scenic 8.0 · variety 9.5 · usability 8.5. Primary intent `food_heavy` = 88. **Final (hybrid, food_heavy) = 88**.
 
 ---
 
-## 2. Los Angeles ✅
+## 2. Los Angeles ✅ (v2)
 
-**Blurb:** A 500-sq-mile movie set where every neighborhood has a cinematic identity — from Venice Beach's boardwalk chaos to the Hollywood Sign, Griffith Observatory, and the Pacific-facing cliffs of Malibu. LA is the defining car city, which makes it tailor-made for the driving tour.
+### A. City summary
 
-### Top 15 Attractions
+A 500-sq-mile movie set where every neighborhood has a cinematic identity — from Venice Beach's boardwalk chaos to the Hollywood Sign, Griffith Observatory, and the Pacific-facing cliffs of Malibu. LA is the defining car city, which makes it tailor-made for the driving tour.
+
+- **Strongest for:** iconic driving, scenic sunset, architecture (mid-century + contemporary), first-time highlights.
+- **Weak for:** walking (low density; requires clusters + rideshare between them), food-heavy tours in a compact area.
+- **Unique strength:** the hills-to-ocean descent is a single-session emotional arc you can't get in any other US city.
+
+### B. Gold-standard stop graph
+
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
 |---|------|-------------|-----|-----|-----|----------|
 | 1 | Griffith Observatory | Los Feliz | 34.1184 | -118.3004 | Best skyline + Hollywood Sign view in the city; La La Land finale | TA, GM, NYT36, Social |
@@ -104,6 +337,44 @@
 | 14 | Dodger Stadium | Elysian Park | 34.0739 | -118.2400 | Oldest MLB park west of Mississippi; sunset game = bucket list | TA, GM |
 | 15 | Universal Studios / Hollywood Bowl | Universal City | 34.1381 | -118.3534 | Tour + summer concert venue; optional but iconic | TA, GM |
 
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | parking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Griffith Observatory | viewpoint | 9 | 10 | 8 | 25 | medium | afternoon | la_hills |
+| Mulholland overlook | viewpoint | 7 | 9 | 6 | 10 | medium | afternoon | la_hills |
+| Sunset Strip drive-by | neighborhood | 8 | 6 | 9 | 10 | medium | afternoon | la_central |
+| Rodeo Drive / Beverly Hills | neighborhood | 8 | 6 | 6 | 10 | low | any | la_central |
+| Santa Monica Pier | icon | 9 | 9 | 7 | 20 | high | golden_hour | la_coast |
+| Venice Boardwalk | neighborhood | 8 | 7 | 7 | 20 | medium | golden_hour | la_coast |
+| Getty Center | museum | 9 | 9 | 9 | 120 | low | any | la_westside |
+| El Matador Beach | viewpoint | 7 | 10 | 4 | 20 | medium | golden_hour | la_malibu |
+| The Broad + Disney Hall | icon | 8 | 9 | 9 | 60 | medium | any | la_dtla |
+| Grand Central Market | food | 7 | 6 | 8 | 45 | medium | midday | la_dtla |
+
+**Clusters:** `la_hills` · `la_central` · `la_coast` · `la_westside` · `la_malibu` · `la_dtla`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Griffith Observatory west lawn |
+| Best sunset stop | Santa Monica Pier at ferris-wheel light-up |
+| Best short wow | Urban Light at LACMA |
+| Best scenic drive segment | Sunset Blvd from Hollywood to Pacific Palisades |
+| Best coffee/food pause | Grand Central Market (Eggslut) |
+| Best local texture | Echo Park Lake at weekend afternoon |
+| Best ending point | Santa Monica Pier or Venice Boardwalk |
+| Best worth-the-detour | Getty Center tram ride + terrace |
+
+### C. Benchmark tours
+
+#### Tour LA-1 — "Mulholland to the Pacific" (2h driving) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 1](./gold-standard-tours.md#tour-1--mulholland-to-the-pacific). Target user: first-time LA visitor wanting the canonical hills-to-ocean drive. Intent tags: `first_time_highlights`, `scenic_sunset`, `minimal_walking` (soft). **`tour_absolute` = 90.0 · scenic_sunset fit = 93**.
+
+Route summary:
+
 ### 2-Hour Driving Tour — "Mulholland to the Pacific"
 *The defining LA drive: hills → Sunset → beach. Best 2-5pm so you hit Santa Monica at golden hour.*
 
@@ -116,14 +387,17 @@
 7. **PCH southbound** back to **Santa Monica Pier** (34.0086, -118.4977) for sunset (~15 mi).
 8. End at **Venice Boardwalk** (33.9850, -118.4695) (~2 mi).
 
-### 4-Hour Walking Tour — "Hollywood + Griffith Sunset"
+#### Tour LA-2 — "Hollywood + Griffith Sunset" (4h, two-cluster walk + rideshare)
+
 *LA is hard to walk end-to-end; this is a two-cluster walk requiring a short drive or rideshare between. If strictly walking: pick the Hollywood cluster only and extend with Melrose.*
+
+Intent: `first_time_highlights`, `scenic_sunset`, `photo_heavy`.
 
 **Cluster A — Hollywood Core (2 hrs):**
 1. **TCL Chinese Theatre / Walk of Fame** (34.1022, -118.3413).
 2. **Dolby Theatre / Hollywood & Highland** (34.1019, -118.3387).
 3. **El Capitan Theatre** (34.1018, -118.3396).
-4. ☕ **Musso & Frank Grill** (34.1015, -118.3327) — oldest Hollywood restaurant, martini pause.
+4. **Musso & Frank Grill** (34.1015, -118.3327) — oldest Hollywood restaurant.
 5. **Amoeba Music / Hollywood Blvd east** (34.0967, -118.3263).
 6. **Sunset Blvd + Cinerama Dome** drive-by (34.0971, -118.3278).
 
@@ -133,15 +407,28 @@
 7. **Griffith Observatory** (34.1184, -118.3004) — arrive 1 hr before sunset.
 8. **Mount Hollywood Trail** short loop (0.5 mi) behind observatory for Sign view.
 9. Sunset on the observatory west terrace.
-10. 🍽️ Descend to **Los Feliz / Vermont Ave** (34.1044, -118.2916) for dinner at Little Dom's or Home.
+10. Descend to **Los Feliz / Vermont Ave** (34.1044, -118.2916) for dinner.
+
+### D. Scoring metadata
+
+**LA-1 (Mulholland to the Pacific):** `tour_absolute = 90.0` · iconic 9.0 · geographic 9.5 · time_realism 8.5 · narrative 9.5 · scenic 9.0 · variety 8.5 · usability 8.0. Primary intent `scenic_sunset` = 93. **Final (hybrid) = 91.2**. Full breakdown in [gold-standard-tours.md — Tour 1](./gold-standard-tours.md#tour-1--mulholland-to-the-pacific).
+
+**LA-2 (Hollywood + Griffith Sunset):** `tour_absolute ≈ 81` · iconic 8.5 · geographic 7.0 (two-cluster friction) · time_realism 7.5 · narrative 9.0 · scenic 8.5 · variety 7.5 · usability 7.0. Primary intent `scenic_sunset` = 89. **Final (hybrid) = 84.2**.
 
 ---
 
-## 3. San Francisco ✅
+## 3. San Francisco ✅ (v2)
 
-**Blurb:** Seven-square-mile peninsula of hills, fog, Victorians, and the single most photographed bridge on earth — SF is the densest "wow per block" city in the US and works beautifully for both driving and walking.
+### A. City summary
 
-### Top 15 Attractions
+Seven-square-mile peninsula of hills, fog, Victorians, and the single most photographed bridge on earth — SF is the densest "wow per block" city in the US and works beautifully for both driving and walking.
+
+- **Strongest for:** scenic sunset, photo-heavy, iconic driving, romantic, architecture.
+- **Weak for:** minimal-walking tours (the hills are the point; avoidance kills the experience).
+- **Unique strength:** the Golden Gate Bridge has two canonical hero angles (Battery Spencer north; Baker Beach south) — routes that include both compress a whole day's payoff into 2 hours.
+
+### B. Gold-standard stop graph
+
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
 |---|------|-------------|-----|-----|-----|----------|
 | 1 | Golden Gate Bridge (Battery Spencer) | Marin Headlands | 37.8326 | -122.4836 | The canonical GGB shot is from the north, not the south | TA, GM, Social, NYT36 |
@@ -160,6 +447,50 @@
 | 14 | Golden Gate Park (Japanese Tea Garden, de Young) | Richmond | 37.7694 | -122.4862 | 1,017 acres, larger than Central Park | TA, LP |
 | 15 | Baker Beach | Presidio | 37.7933 | -122.4836 | Beach-level GGB view from the south side | Social, Reddit |
 
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | parking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Ferry Building | waterfront | 8 | 7 | 8 | 30 | medium | morning | sf_east |
+| Coit Tower | viewpoint | 8 | 9 | 8 | 25 | medium | afternoon | sf_east |
+| Lombard Street (crooked) | icon | 9 | 7 | 7 | 5 | medium | any | sf_central |
+| GGB — northbound crossing | icon | 10 | 10 | 9 | 5 | low | golden_hour | sf_bridge |
+| Battery Spencer | viewpoint | 10 | 10 | 8 | 20 | medium | golden_hour | sf_marin |
+| Baker Beach | viewpoint | 9 | 10 | 7 | 20 | medium | golden_hour | sf_presidio |
+| Alamo Sq Painted Ladies | neighborhood | 8 | 7 | 7 | 15 | medium | afternoon | sf_central |
+| Twin Peaks summit | viewpoint | 8 | 10 | 6 | 20 | medium | golden_hour | sf_twinpeaks |
+| Mission Dolores + murals | neighborhood | 7 | 8 | 9 | 30 | medium | any | sf_mission |
+| Chinatown Grant/Ross Alley | neighborhood | 8 | 7 | 9 | 25 | high | any | sf_chinatown |
+
+**Clusters:** `sf_east` · `sf_central` · `sf_bridge` · `sf_marin` · `sf_presidio` · `sf_twinpeaks` · `sf_mission` · `sf_chinatown`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Treasure Island pullover on Bay Bridge east approach |
+| Best sunset stop | Battery Spencer (primary) or Baker Beach (alternate) |
+| Best short wow | Lombard Street crooked section |
+| Best scenic drive segment | Presidio's Lincoln Blvd north from GGB toll plaza |
+| Best coffee/food pause | Ferry Building (Acme Bread + Blue Bottle) |
+| Best local texture | Mission District murals (Balmy + Clarion Alleys) |
+| Best ending point | Baker Beach at golden hour |
+| Best worth-the-detour | Filbert Steps climb to Coit Tower |
+
+### C. Benchmark tours
+
+#### Tour SF-1 — "Golden Hour Bay Loop" (2h driving) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 3](./gold-standard-tours.md#tour-3--golden-hour-bay-loop). Target user: visitor or local on a date or with a camera. Intent tags: `scenic_sunset`, `romantic`, `photo_heavy`. **`tour_absolute` = 90.0 · scenic_sunset fit = 97**.
+
+Route summary: Ferry Building → Coit Tower drive-up → Lombard → GGB north → Battery Spencer → GGB south → Baker Beach.
+
+#### Tour SF-2 — "Two Bridges and the Headlands" (2h driving)
+
+*Classic SF skyline drive; time it for 3-5pm to catch afternoon light on the bridge from Battery Spencer.*
+
+Intent: `first_time_highlights`, `scenic_sunset`, `photo_heavy`.
+
 ### 2-Hour Driving Tour — "Two Bridges and the Headlands"
 *Classic SF skyline drive; time it for 3-5pm to catch afternoon light on the bridge from Battery Spencer.*
 
@@ -173,8 +504,11 @@
 8. East on **Lake St / Geary** → **Alamo Square Painted Ladies** (37.7762, -122.4328) (~3.5 mi).
 9. End at **Twin Peaks summit** (37.7544, -122.4477) (~2.5 mi, optional if time).
 
-### 4-Hour Walking Tour — "Embarcadero to North Beach"
+#### Tour SF-3 — "Embarcadero to North Beach" (4h walking)
+
 *SF's most walkable arc; ~3 mi, mostly flat except Telegraph Hill climb.*
+
+Intent: `first_time_highlights`, `food_heavy`, `local_flavor`.
 
 1. **Ferry Building** (37.7955, -122.3937) — coffee + pastry at Blue Bottle / Acme Bread.
 2. Walk the Embarcadero north past piers (~1 mi).
@@ -182,20 +516,35 @@
 4. **Levi's Plaza / Filbert Steps** (37.8025, -122.4025) — climb the garden stairs.
 5. **Coit Tower** summit (37.8024, -122.4058).
 6. Descend to **Washington Square Park + Saints Peter and Paul Church** (37.8006, -122.4101).
-7. 🍝 **North Beach pause** — Tony's Pizza Napoletana or Liguria Bakery focaccia (37.8003, -122.4099).
+7. **North Beach pause** — Tony's Pizza Napoletana or Liguria Bakery focaccia (37.8003, -122.4099).
 8. Down Columbus Ave → **City Lights Bookstore + Vesuvio** (37.7975, -122.4065).
 9. **Chinatown via Jackson & Grant** → **Ross Alley** fortune cookie factory (37.7954, -122.4065).
 10. **Dragon Gate** at Grant & Bush (37.7905, -122.4057).
 11. Uphill three blocks to **Powell-Hyde cable car turntable** at Union Square (37.7856, -122.4082) — ride one stop for the photo.
 12. End at **Ghirardelli Square / Hyde Street Pier** (37.8064, -122.4222).
 
+### D. Scoring metadata
+
+**SF-1 (Golden Hour Bay Loop):** `tour_absolute = 90.0` · iconic 9.5 · geographic 9.0 · time_realism 8.5 · narrative 9.5 · scenic 10 · variety 8.0 · usability 7.5. Primary intent `scenic_sunset` = 97. **Final (hybrid) = 92.8**. Full breakdown in [gold-standard-tours.md — Tour 3](./gold-standard-tours.md#tour-3--golden-hour-bay-loop).
+
+**SF-2 (Two Bridges and the Headlands):** `tour_absolute ≈ 87` · iconic 9.0 · geographic 8.5 · time_realism 8.0 · narrative 8.5 · scenic 9.5 · variety 8.0 · usability 8.0. Primary intent `first_time_highlights` = 90. **Final (hybrid) = 88.2**.
+
+**SF-3 (Embarcadero to North Beach):** `tour_absolute ≈ 88` · iconic 8.5 · geographic 9.5 · time_realism 8.5 · narrative 8.5 · scenic 8.5 · variety 9.5 · usability 8.5. Primary intent `food_heavy` = 87. **Final (hybrid) = 87.6**.
+
 ---
 
-## 4. Chicago ✅
+## 4. Chicago ✅ (v2)
 
-**Blurb:** The architectural capital of America — Chicago invented the skyscraper and still flexes harder than anywhere else for river-level architecture, lakefront beaches, and a deep-dish food scene that's worth the drive.
+### A. City summary
 
-### Top 15 Attractions
+The architectural capital of America — Chicago invented the skyscraper and still flexes harder than anywhere else for river-level architecture, lakefront beaches, and a deep-dish food scene that's worth the drive.
+
+- **Strongest for:** architecture, first-time highlights, family, food-heavy (deep dish + Pilsen).
+- **Weak for:** pure-scenic driving in winter (lake wind); sunset-focused (east-facing city means dawn is the better light).
+- **Unique strength:** the river cruise is the single highest-rated tourist experience in America — structure architecture tours around it.
+
+### B. Gold-standard stop graph
+
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
 |---|------|-------------|-----|-----|-----|----------|
 | 1 | Cloud Gate ("The Bean") / Millennium Park | The Loop | 41.8827 | -87.6233 | Anish Kapoor's mirrored bean = most photographed thing in IL | TA, GM, Social, NYT36 |
@@ -214,8 +563,48 @@
 | 14 | Pilsen murals + 18th St | Pilsen | 41.8574 | -87.6582 | Mexican-American district; some of the best street art in US | NYT36, Social |
 | 15 | Chicago Theatre marquee + State St | The Loop | 41.8854 | -87.6278 | 1921 icon; the CHICAGO sign = postcard | TA, Social |
 
-### 2-Hour Driving Tour — "Lake Shore Loop"
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | parking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Cloud Gate (The Bean) | icon | 10 | 9 | 7 | 15 | medium | midday | chi_loop |
+| Art Institute | museum | 8 | 7 | 9 | 90 | medium | any | chi_loop |
+| Pritzker Pavilion | icon | 8 | 8 | 9 | 15 | low | any | chi_loop |
+| Riverwalk | waterfront | 8 | 9 | 9 | 30 | low | any | chi_river |
+| Architecture River Cruise | scenic_drive | 10 | 10 | 10 | 90 | low | afternoon | chi_river |
+| Tribune Tower + Wrigley Bldg | icon | 9 | 8 | 10 | 10 | low | any | chi_river |
+| Willis Tower Skydeck | viewpoint | 9 | 9 | 8 | 45 | medium | afternoon | chi_loop |
+| Navy Pier (Ferris wheel lit) | viewpoint | 8 | 8 | 6 | 30 | medium | night | chi_north |
+| Adler Planetarium lakefront | viewpoint | 7 | 10 | 7 | 20 | low | afternoon | chi_museum |
+| Wrigley Field | icon | 9 | 7 | 9 | 30 | medium | any | chi_wrigley |
+| Pilsen murals + 18th St | neighborhood | 6 | 8 | 9 | 30 | low | any | chi_pilsen |
+
+**Clusters:** `chi_loop` · `chi_river` · `chi_north` · `chi_museum` · `chi_wrigley` · `chi_pilsen`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Adler Planetarium lakefront (east-to-west Loop panorama) |
+| Best sunset stop | North Ave Beach with Hancock backdrop |
+| Best short wow | Cloud Gate at midday |
+| Best scenic drive segment | Lake Shore Dr southbound through Oak St Beach curve |
+| Best coffee/food pause | Lou Malnati's or Gino's East (deep dish) |
+| Best local texture | Pilsen murals + 18th St taquerias |
+| Best ending point | Navy Pier at dusk (Ferris wheel lit) |
+| Best worth-the-detour | Chicago Architecture Foundation River Cruise |
+
+### C. Benchmark tours
+
+#### Tour CHI-1 — "River Architecture + Loop" (3h hybrid) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 4](./gold-standard-tours.md#tour-4--river-architecture--loop). Target user: architecture-curious visitor. Intent tags: `architecture`, `architecture_modern`, `first_time_highlights`. **`tour_absolute` = 91.0 · architecture fit = 97**.
+
+#### Tour CHI-2 — "Lake Shore Loop" (2h driving)
+
 *Chicago's signature drive is Lake Shore Dr with the skyline on one side and Lake Michigan on the other. Best at sunset eastbound from the north.*
+
+Intent: `scenic_sunset`, `first_time_highlights`, `minimal_walking`.
 
 1. **Adler Planetarium** (41.8663, -87.6069) — start with skyline photo.
 2. **Lake Shore Drive northbound** past Grant Park, Navy Pier visible (~3 mi).
@@ -226,29 +615,48 @@
 7. South via Lake Shore Dr back to **Buckingham Fountain** (41.8758, -87.6189) (~6 mi).
 8. End at **Michigan Ave Bridge** with Wrigley Building lit (41.8886, -87.6244) (~1 mi).
 
-### 4-Hour Walking Tour — "The Loop + River + Mile"
-*~2.8 mi flat loop. Do on Saturday when Riverwalk is lively.*
+#### Tour CHI-3 — "The Loop + River + Mile" (4h walking)
+
+*~2.8 mi flat loop. Do on Saturday when Riverwalk is lively. Functions as the walking parallel to CHI-1 (gold).*
+
+Intent: `first_time_highlights`, `architecture`, `food_heavy` (soft).
 
 1. **Art Institute (lion statues)** (41.8796, -87.6237) — skip inside unless extra time.
 2. **Millennium Park / The Bean** (41.8827, -87.6233).
 3. **Pritzker Pavilion + Lurie Garden** (41.8818, -87.6220).
 4. **Riverwalk eastbound from Michigan Ave Bridge** (41.8886, -87.6244) — descend the stairs.
-5. ☕ **City Winery / Riverwalk cafés** mid-walk pause.
+5. **City Winery / Riverwalk cafés** mid-walk pause.
 6. **DuSable Bridge + Tribune Tower / Wrigley Building** above (41.8886, -87.6244).
 7. Up Michigan Ave = **Magnificent Mile walk** (~0.8 mi).
 8. **Water Tower + 360 Chicago base** (41.8975, -87.6241).
-9. 🍕 **Lou Malnati's or Gino's East pause** for a deep-dish slice (41.8920, -87.6260).
+9. **Lou Malnati's or Gino's East pause** for a deep-dish slice (41.8920, -87.6260).
 10. **Navy Pier** (41.8916, -87.6079) — optional east detour for Ferris wheel + skyline from the lake side.
 11. Back via **Lake Shore East → Maggie Daley Park** (41.8858, -87.6194).
 12. End at **Cloud Gate at dusk for the lights-on photo**.
 
+### D. Scoring metadata
+
+**CHI-1 (River Architecture + Loop):** `tour_absolute = 91.0` · iconic 9.5 · geographic 9.5 · time_realism 8.0 · narrative 9.5 · scenic 9.5 · variety 8.5 · usability 8.0. Primary intent `architecture` = 97. **Final (hybrid) = 93.4**. Full breakdown in [gold-standard-tours.md — Tour 4](./gold-standard-tours.md#tour-4--river-architecture--loop).
+
+**CHI-2 (Lake Shore Loop):** `tour_absolute ≈ 85` · iconic 8.5 · geographic 9.5 · time_realism 8.5 · narrative 8.5 · scenic 8.5 · variety 7.5 · usability 8.5. Primary intent `scenic_sunset` = 83. **Final (hybrid) = 84.2**.
+
+**CHI-3 (Loop + River + Mile walking):** `tour_absolute ≈ 87` · iconic 9.0 · geographic 9.0 · time_realism 8.0 · narrative 8.5 · scenic 8.5 · variety 9.0 · usability 8.5. Primary intent `first_time_highlights` = 91. **Final (hybrid) = 88.6**.
+
 ---
 
-## 5. Miami ✅
+## 5. Miami ✅ (v2)
 
-**Blurb:** Art Deco pastels, Cuban-American flavor, and the country's most theatrical beach — Miami runs on a neon Latin rhythm from Ocean Drive through Wynwood's murals to Little Havana's domino parks.
+### A. City summary
 
-### Top 15 Attractions
+Art Deco pastels, Cuban-American flavor, and the country's most theatrical beach — Miami runs on a neon Latin rhythm from Ocean Drive through Wynwood's murals to Little Havana's domino parks.
+
+- **Strongest for:** 2h efficient drives, scenic sunset, photo-heavy, local flavor (Little Havana, Wynwood).
+- **Weak for:** walking tours over 3h (heat + humidity + sprawl); architecture outside South Beach + Coral Gables.
+- **Unique strength:** the causeways are the attraction — Miami's bay crossings stack scenic payoff in a way no other US city can match.
+
+### B. Gold-standard stop graph
+
+#### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
 |---|------|-------------|-----|-----|-----|----------|
 | 1 | South Beach + Ocean Drive Art Deco | South Beach | 25.7825 | -80.1340 | 800 deco buildings; the lifeguard huts = Miami postcard | TA, GM, Social |
@@ -267,6 +675,48 @@
 | 14 | Key Biscayne + Bill Baggs State Park | Key Biscayne | 25.6667 | -80.1566 | Cape Florida lighthouse + palm-rimmed beach | TA, Reddit |
 | 15 | Coconut Grove waterfront | Coconut Grove | 25.7271 | -80.2378 | Sailing village feel; CocoWalk & Peacock Park | TA |
 
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | parking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| South Pointe Park pier | waterfront | 7 | 9 | 7 | 15 | medium | afternoon | miami_sobe |
+| Ocean Drive Deco strip | scenic_drive | 9 | 8 | 9 | 10 | high | afternoon | miami_sobe |
+| MacArthur Causeway | scenic_drive | 8 | 9 | 7 | 10 | not_applicable | afternoon | miami_bay |
+| PAMM skyline drive-by | viewpoint | 7 | 8 | 7 | 10 | medium | afternoon | miami_downtown |
+| Rickenbacker pullover | viewpoint | 6 | 10 | 5 | 15 | low | golden_hour | miami_key |
+| Vizcaya exterior | icon | 8 | 9 | 9 | 20 | medium | golden_hour | miami_grove |
+| Wynwood Walls | neighborhood | 8 | 9 | 8 | 60 | medium | afternoon | miami_wynwood |
+| Little Havana (Calle Ocho) | neighborhood | 8 | 7 | 10 | 60 | medium | afternoon | miami_havana |
+| Lincoln Road Mall | neighborhood | 6 | 6 | 6 | 30 | medium | any | miami_sobe |
+| Biltmore Hotel | icon | 6 | 8 | 9 | 30 | low | any | miami_gables |
+
+**Clusters:** `miami_sobe` · `miami_bay` · `miami_downtown` · `miami_key` · `miami_grove` · `miami_wynwood` · `miami_havana` · `miami_gables`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Rickenbacker Causeway pullover at dusk |
+| Best sunset stop | Vizcaya exterior at golden hour |
+| Best short wow | Ocean Drive Deco lifeguard huts |
+| Best scenic drive segment | MacArthur Causeway westbound |
+| Best coffee/food pause | Versailles or Café Versailles (Little Havana) |
+| Best local texture | Domino Park + Calle Ocho |
+| Best ending point | Vizcaya gardens against Biscayne Bay |
+| Best worth-the-detour | Wynwood Walls (40-min ticket entry) |
+
+### C. Benchmark tours
+
+#### Tour MIA-1 — "Causeway Miami" (2h driving) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 10](./gold-standard-tours.md#tour-10--causeway-miami). Target user: visitor with one evening and a rental car. Intent tags: `efficient_short`, `first_time_highlights`, `scenic_sunset`. **`tour_absolute` = 89.0 · efficient_short fit = 95**.
+
+#### Tour MIA-2 — "Causeway to Coconut Grove" (2h driving, alternate)
+
+*Miami's hero drive crosses the bay three times; best at golden hour Miami Beach → Coconut Grove.*
+
+Intent: `scenic_sunset`, `first_time_highlights`, `efficient_short`.
+
 ### 2-Hour Driving Tour — "Causeway to Coconut Grove"
 *Miami's hero drive crosses the bay three times; best at golden hour Miami Beach → Coconut Grove.*
 
@@ -279,30 +729,46 @@
 7. Return & take **S Miami Ave → Coconut Grove** (~4 mi).
 8. End at **Vizcaya Museum & Gardens exterior** (25.7443, -80.2109) — golden hour.
 
-### 4-Hour Walking Tour — "South Beach Deco + Wynwood" (requires one short rideshare)
+#### Tour MIA-3 — "South Beach Deco + Wynwood" (4h walking, two-cluster)
+
+*Requires one short rideshare between clusters. Strongest in cooler season — heat gates walkability 6+ months/yr.*
+
+Intent: `first_time_highlights`, `photo_heavy`, `local_flavor`.
+
 **Cluster A — South Beach (2.5 hrs, ~1.5 mi flat):**
 1. **South Pointe Park Pier** (25.7684, -80.1340).
 2. Ocean Drive north past **Clevelander, Colony, Leslie Hotels** (25.7812, -80.1326).
 3. **Versace Mansion / Casa Casuarina** (25.7816, -80.1318).
-4. ☕ **News Café or Front Porch** coffee pause.
+4. **News Café or Front Porch** coffee pause.
 5. **Lummus Park lifeguard stand photos** (25.7825, -80.1315).
 6. **Art Deco Welcome Center** (25.7803, -80.1307) — free gallery.
 7. Cross to **Lincoln Road** pedestrian mall (25.7907, -80.1394).
-8. 🍽️ **Joe's Stone Crab takeaway window** (25.7685, -80.1376).
+8. **Joe's Stone Crab takeaway window** (25.7685, -80.1376).
 
 *5-min rideshare to Wynwood.*
 
 **Cluster B — Wynwood (1.5 hrs):**
 9. **Wynwood Walls** ticket entry (25.8009, -80.1990).
 10. **NW 2nd Ave mural strip** (25.8015, -80.1994) — outside the paid walls.
-11. ☕ **Panther Coffee flagship** (25.8017, -80.1991).
+11. **Panther Coffee flagship** (25.8017, -80.1991).
 12. End at **Wynwood Marketplace** (25.8006, -80.1987).
+
+### D. Scoring metadata
+
+**MIA-1 (Causeway Miami):** `tour_absolute = 89.0` · iconic 8.0 · geographic 9.0 · time_realism 9.5 · narrative 9.0 · scenic 9.5 · variety 8.5 · usability 8.5. Primary intent `efficient_short` = 95. **Final (hybrid) = 91.4**. Full breakdown in [gold-standard-tours.md — Tour 10](./gold-standard-tours.md#tour-10--causeway-miami).
+
+**MIA-2 (Causeway to Coconut Grove):** `tour_absolute ≈ 86` · iconic 8.0 · geographic 9.0 · time_realism 8.5 · narrative 8.5 · scenic 9.0 · variety 8.0 · usability 8.5. Primary intent `scenic_sunset` = 90. **Final (hybrid) = 87.6**.
+
+**MIA-3 (SoBe + Wynwood walking):** `tour_absolute ≈ 81` · iconic 8.5 · geographic 7.0 (rideshare gap) · time_realism 7.5 · narrative 8.0 · scenic 8.5 · variety 8.5 · usability 7.0 (heat risk). Primary intent `first_time_highlights` = 85. **Final (hybrid) = 82.6**.
 
 ---
 
-## 6. Washington DC ✅
+## 6. Washington DC 🔹
 
-**Blurb:** A purpose-built monumental city — the National Mall concentrates more free world-class museums and national symbols per square mile than anywhere else on earth.
+**Summary:** A purpose-built monumental city — the National Mall concentrates more free world-class museums and national symbols per square mile than anywhere else on earth. **Strong for:** family, first-time highlights, architecture, walking flat-and-free. **Weak for:** sunset drives, local flavor.
+**Signature moments:** skyline reveal — Memorial Bridge dawn crossing · short wow — Lincoln Memorial steps · food pause — Mitsitam Native Foods Café · local texture — Eastern Market on Saturday · ending — Jefferson Memorial at dusk · worth the detour — Air & Space Museum.
+**Clusters:** `dc_mall_west` · `dc_mall_central` · `dc_mall_east` · `dc_georgetown` · `dc_arlington` · `dc_wharf`.
+**Gold tour:** National Mall for Kids ([Tour 8](./gold-standard-tours.md#tour-8--national-mall-for-kids)) — `tour_absolute = 89`, kid_friendly fit = 96.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -354,9 +820,11 @@
 
 ---
 
-## 7. Boston ✅
+## 7. Boston 🔹
 
-**Blurb:** The birthplace of American independence — Boston packs Colonial landmarks, Ivy-league campuses, and Italian North End food into a walkable peninsula where the Freedom Trail's red-brick line does the navigation for you.
+**Summary:** The birthplace of American independence — Boston packs Colonial landmarks, Ivy-league campuses, and Italian North End food into a walkable peninsula where the Freedom Trail's red-brick line does the navigation for you. **Strong for:** walking, first-time highlights, architecture_historic, food-heavy. **Weak for:** scenic drives (compact peninsula), sunset views.
+**Signature moments:** skyline reveal — Charles River Esplanade from Cambridge · short wow — Acorn Street · food pause — Mike's vs Modern Pastry cannoli on Hanover · local texture — North End Sunday · ending — Bunker Hill Monument at golden hour · worth the detour — Isabella Stewart Gardner Museum.
+**Clusters:** `bos_common` · `bos_northend` · `bos_charlestown` · `bos_backbay` · `bos_cambridge` · `bos_seaport`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -406,9 +874,11 @@
 
 ---
 
-## 8. Seattle ✅
+## 8. Seattle 🔹
 
-**Blurb:** The Pacific Northwest's tech capital wraps around Elliott Bay with volcano views on clear days — Pike Place Market, the Space Needle, and ferry-boat Puget Sound vistas anchor a compact walkable core.
+**Summary:** The Pacific Northwest's tech capital wraps around Elliott Bay with volcano views on clear days — Pike Place Market, the Space Needle, and ferry-boat Puget Sound vistas anchor a compact walkable core. **Strong for:** walking, scenic views (Mt Rainier), food-heavy, architecture. **Weak for:** weather-sensitive tours in rainy season; sunset reliability (clouds).
+**Signature moments:** skyline reveal — Kerry Park at golden hour · short wow — Gum Wall at Post Alley · food pause — Pike Place Chowder · local texture — Ballard on a weekend · ending — Bainbridge ferry sunset · worth the detour — Chihuly Garden and Glass.
+**Clusters:** `sea_downtown` · `sea_pike` · `sea_queenanne` · `sea_ballard` · `sea_capitolhill` · `sea_waterfront`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -459,9 +929,11 @@
 
 ---
 
-## 9. New Orleans ✅
+## 9. New Orleans 🔹
 
-**Blurb:** The most culturally distinct city in America — French Quarter wrought iron, Creole cooking, and live jazz 24/7 make NOLA a place where the tour IS the food-and-music sensory bath.
+**Summary:** The most culturally distinct city in America — French Quarter wrought iron, Creole cooking, and live jazz 24/7 make NOLA a place where the tour IS the food-and-music sensory bath. **Strong for:** food-heavy, local flavor, romantic evening, walking. **Weak for:** family (Bourbon St. adult-skew), scenic drives.
+**Signature moments:** short wow — Cathedral Basilica + Jackson Square · food pause — Café du Monde beignets · local texture — Frenchmen St. live jazz at 9pm · ending — Preservation Hall show · worth the detour — Lafayette Cemetery or Garden District streetcar.
+**Clusters:** `nola_frenchquarter` · `nola_frenchmen` · `nola_garden` · `nola_warehouse` · `nola_treme`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -511,9 +983,11 @@
 
 ---
 
-## 10. Nashville ✅
+## 10. Nashville 🔹
 
-**Blurb:** Music City USA — honky-tonk Broadway by night, southern food by day, and the Grand Ole Opry pilgrimage for anyone who ever loved country music.
+**Summary:** Music City USA — honky-tonk Broadway by night, southern food by day, and the Grand Ole Opry pilgrimage for anyone who ever loved country music. **Strong for:** food-heavy, music-themed, local flavor. **Weak for:** scenic, architecture tours.
+**Signature moments:** short wow — Broadway neon at night · food pause — Hattie B's hot chicken · local texture — The Bluebird Cafe songwriter round · ending — Opry House show.
+**Clusters:** `nash_broadway` · `nash_gulch` · `nash_12south` · `nash_eastnash` · `nash_musicrow`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -560,9 +1034,11 @@
 
 ---
 
-## 11. Austin ✅
+## 11. Austin 🔹
 
-**Blurb:** Live Music Capital of the World and barbecue mecca — 6th Street honky-tonks, Lady Bird Lake trails, and the quirky "Keep Austin Weird" ethos center a warm-weather college-town capital.
+**Summary:** Live Music Capital of the World and barbecue mecca — 6th Street honky-tonks, Lady Bird Lake trails, and the quirky "Keep Austin Weird" ethos center a warm-weather college-town capital. **Strong for:** food-heavy (BBQ), local flavor, music, park/waterfront walks. **Weak for:** architecture, walking in summer heat.
+**Signature moments:** short wow — Texas State Capitol dome · food pause — Franklin Barbecue or Terry Black's · local texture — Rainey Street bar district · ending — Congress Bridge bats at dusk · worth the detour — McKinney Falls State Park.
+**Clusters:** `atx_downtown` · `atx_southcongress` · `atx_rainey` · `atx_zilker` · `atx_eastside`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -610,9 +1086,11 @@
 
 ---
 
-## 12. Las Vegas ✅
+## 12. Las Vegas 🔹
 
-**Blurb:** A 4-mile boulevard of replica world monuments, fountains, and dancing lights — the Strip is a theatrical single-corridor city best experienced as a slow drive at night or a stop-and-duck-inside walk.
+**Summary:** A 4-mile boulevard of replica world monuments, fountains, and dancing lights — the Strip is a theatrical single-corridor city best experienced as a slow drive at night or a stop-and-duck-inside walk. **Strong for:** night-only tours, photo-heavy at night, efficient drives. **Weak for:** local flavor, family-daytime; heat gates most summer walking.
+**Signature moments:** short wow — Bellagio fountain show · night skyline reveal — High Roller observation wheel · local texture — Fremont Street (Old Vegas) · ending — Welcome to Las Vegas sign at dusk · worth the detour — Red Rock Canyon scenic drive.
+**Clusters:** `vegas_strip_south` · `vegas_strip_central` · `vegas_strip_north` · `vegas_fremont` · `vegas_redrock`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -662,9 +1140,11 @@
 
 ---
 
-## 13. San Diego ✅
+## 13. San Diego 🔹
 
-**Blurb:** Southern California's perfect-weather beach town — Balboa Park, Coronado's cross-bridge view, and La Jolla's sea-lion coves make San Diego a gentle rival to LA with better walkability.
+**Summary:** Southern California's perfect-weather beach town — Balboa Park, Coronado's cross-bridge view, and La Jolla's sea-lion coves make San Diego a gentle rival to LA with better walkability. **Strong for:** family, scenic sunset, walking, coastal drives. **Weak for:** architecture, deep-history tours.
+**Signature moments:** skyline reveal — Coronado Bridge crossing · sunset stop — Sunset Cliffs · short wow — La Jolla Cove sea lions · food pause — Puesto tacos or Hodad's · local texture — Little Italy Mercato.
+**Clusters:** `sd_balboa` · `sd_downtown` · `sd_coronado` · `sd_lajolla` · `sd_oceanbeach` · `sd_gaslamp`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -712,9 +1192,11 @@
 
 ---
 
-## 14. Philadelphia ✅
+## 14. Philadelphia 🔹
 
-**Blurb:** America's original capital and the revolutionary history cradle — Independence Hall, the Liberty Bell, Rocky's Art Museum steps, and cheesesteak rivalry in one dense walkable grid.
+**Summary:** America's original capital and the revolutionary history cradle — Independence Hall, the Liberty Bell, Rocky's Art Museum steps, and cheesesteak rivalry in one dense walkable grid. **Strong for:** walking, architecture_historic, first-time (for history-curious), food-heavy. **Weak for:** scenic drives, sunset tours.
+**Signature moments:** short wow — Rocky steps at PMA · food pause — Pat's vs Geno's cheesesteak · local texture — Reading Terminal Market · ending — Elfreth's Alley at golden hour · worth the detour — Barnes Foundation.
+**Clusters:** `phl_oldcity` · `phl_center` · `phl_parkway` · `phl_fairmount` · `phl_southphl` · `phl_universitycity`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -762,9 +1244,11 @@
 
 ---
 
-## 15. Charleston ✅
+## 15. Charleston 🔹
 
-**Blurb:** The South's most beautifully preserved pre-war port — pastel Rainbow Row, palmetto-lined Battery, and a walkable peninsula where every side street yields a wrought-iron gate and a harbor breeze.
+**Summary:** The South's most beautifully preserved pre-war port — pastel Rainbow Row, palmetto-lined Battery, and a walkable peninsula where every side street yields a wrought-iron gate and a harbor breeze. **Strong for:** romantic, walking, architecture_historic, food-heavy. **Weak for:** scale (small city; 2h can cover it).
+**Signature moments:** short wow — Rainbow Row pastel lineup · food pause — Husk or FIG · local texture — Gullah market stands at City Market · ending — Battery sunset · worth the detour — Magnolia Plantation.
+**Clusters:** `chs_historic` · `chs_french` · `chs_battery` · `chs_upper`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -812,9 +1296,11 @@
 
 ---
 
-## 16. Savannah ✅
+## 16. Savannah 🔹
 
-**Blurb:** 22 moss-draped garden squares, Spanish moss dripping from every oak, and river-port ghost stories — Savannah is America's most atmospheric small city and a walking-tour dream.
+**Summary:** 22 moss-draped garden squares, Spanish moss dripping from every oak, and river-port ghost stories — Savannah is America's most atmospheric small city and a walking-tour dream. **Strong for:** walking, romantic, local flavor, architecture_historic. **Weak for:** scenic drives; pure-family (historic cemetery / ghost-tour adult theming).
+**Signature moments:** short wow — Forsyth Park fountain · food pause — Leopold's ice cream · local texture — Bonaventure Cemetery · ending — River Street at dusk with a praline.
+**Clusters:** `sav_squares` · `sav_riverstreet` · `sav_forsyth` · `sav_starland`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -863,9 +1349,11 @@
 
 ---
 
-## 17. Santa Fe ✅
+## 17. Santa Fe 🔹
 
-**Blurb:** America's oldest state capital at 7,200 ft — Pueblo-Revival adobe architecture, green chile on everything, and the largest art market in the US per capita.
+**Summary:** America's oldest state capital at 7,200 ft — Pueblo-Revival adobe architecture, green chile on everything, and the largest art market in the US per capita. **Strong for:** walking, architecture (Pueblo Revival), food-heavy (green chile), local flavor. **Weak for:** family with young kids, skyline photography.
+**Signature moments:** short wow — Loretto Chapel staircase · food pause — The Shed or La Choza · local texture — Canyon Road gallery walk · ending — Cross of the Martyrs sunset over the town.
+**Clusters:** `sf_plaza` · `sf_canyonroad` · `sf_railyard` · `sf_museumhill`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -914,9 +1402,11 @@
 
 ---
 
-## 18. Portland, OR ✅
+## 18. Portland, OR 🔹
 
-**Blurb:** The Pacific Northwest's quirky counterweight — Forest Park in the city limits, food-cart pods, craft beer gardens, and short drives to waterfalls and volcano views.
+**Summary:** The Pacific Northwest's quirky counterweight — Forest Park in the city limits, food-cart pods, craft beer gardens, and short drives to waterfalls and volcano views. **Strong for:** food-heavy (cart pods), local flavor, hidden gems, nature day-trips. **Weak for:** architecture, classic first-time tours.
+**Signature moments:** short wow — Powell's City of Books · food pause — Pine State Biscuits or Nong's Khao Man Gai · local texture — Alberta Arts 3rd Thursday · worth the detour — Multnomah Falls (30 mi east).
+**Clusters:** `pdx_downtown` · `pdx_pearl` · `pdx_alberta` · `pdx_hawthorne` · `pdx_gorge`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -964,9 +1454,11 @@
 
 ---
 
-## 19. Denver ✅
+## 19. Denver 🔹
 
-**Blurb:** Mile High city and gateway to the Rockies — craft beer pioneer with walkable downtown LoDo, Red Rocks Amphitheatre, and quick access to 14,000-ft peaks.
+**Summary:** Mile High city and gateway to the Rockies — craft beer pioneer with walkable downtown LoDo, Red Rocks Amphitheatre, and quick access to 14,000-ft peaks. **Strong for:** scenic drives (foothills), nature day-trips, food + beer. **Weak for:** compact walking tours of deep history.
+**Signature moments:** skyline reveal — Lookout Mountain / Buffalo Bill · short wow — Colorado State Capitol 15th step (exactly 1 mile high) · food pause — Rioja or Wynkoop · ending — Red Rocks Amphitheatre · worth the detour — Mt. Evans Scenic Byway (seasonal, highest paved road in US).
+**Clusters:** `den_lodo` · `den_capitol` · `den_rino` · `den_redrocks` · `den_cityp park`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1013,9 +1505,11 @@
 
 ---
 
-## 20. Honolulu / Oahu ✅
+## 20. Honolulu / Oahu 🔹
 
-**Blurb:** Waikiki's beach crescent + Diamond Head + Pearl Harbor + North Shore surf in one hour-wide island — Oahu is the accessible Hawaiian experience at scale.
+**Summary:** Waikiki's beach crescent + Diamond Head + Pearl Harbor + North Shore surf in one hour-wide island — Oahu is the accessible Hawaiian experience at scale. **Strong for:** scenic sunset drives, family, iconic driving (island circumnavigation), beach photography. **Weak for:** walking-only tours (Waikiki aside).
+**Signature moments:** short wow — Diamond Head summit · sunset stop — Magic Island · food pause — Leonard's malasadas · ending — North Shore sunset at Sunset Beach · worth the detour — Kualoa Regional Park ridges (Jurassic Park filming).
+**Clusters:** `oahu_waikiki` · `oahu_diamondhead` · `oahu_pearlharbor` · `oahu_northshore` · `oahu_windward` · `oahu_leeward`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1061,9 +1555,11 @@
 
 ---
 
-## 21. Key West ✅
+## 21. Key West 🔹
 
-**Blurb:** Southernmost point in the continental US — a 4-sq-mile conch-republic island of Hemingway's six-toed cats, Duval Street bars, and Mallory Square sunsets.
+**Summary:** Southernmost point in the continental US — a 4-sq-mile conch-republic island of Hemingway's six-toed cats, Duval Street bars, and Mallory Square sunsets. **Strong for:** walking, sunset, local flavor, 2h efficient. **Weak for:** architecture tours in the classical sense; family at adult-bar blocks of Duval.
+**Signature moments:** short wow — Southernmost Point marker · food pause — Blue Heaven · local texture — Mallory Square sunset celebration · ending — Mallory Square at golden hour · worth the detour — Fort Zachary Taylor Beach.
+**Clusters:** `kw_oldtown` · `kw_duval` · `kw_mallory` · `kw_fort_zach`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1111,9 +1607,11 @@
 
 ---
 
-## 22. Asheville ✅
+## 22. Asheville 🔹
 
-**Blurb:** Blue Ridge Mountains foothills with America's largest home (Biltmore), a deep craft-brewery scene, and an arts-and-craft river district — outdoor adventure plus urban weirdness.
+**Summary:** Blue Ridge Mountains foothills with America's largest home (Biltmore), a deep craft-brewery scene, and an arts-and-craft river district — outdoor adventure plus urban weirdness. **Strong for:** scenic drives (Blue Ridge Parkway), food + beer, local flavor. **Weak for:** major-icon walking tours.
+**Signature moments:** short wow — Biltmore Estate façade · food pause — Buxton Hall BBQ or Cúrate · local texture — River Arts District studios · scenic drive — Blue Ridge Parkway milepost 384 sunset.
+**Clusters:** `avl_downtown` · `avl_biltmore` · `avl_rad` · `avl_southslope` · `avl_brp`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1160,9 +1658,11 @@
 
 ---
 
-## 23. Minneapolis ✅
+## 23. Minneapolis 🔹
 
-**Blurb:** City of Lakes with 22 freshwater lakes inside city limits, Mississippi River rapids, and a Scandinavian-rooted arts scene anchored by Walker Art Center's Spoonbridge sculpture.
+**Summary:** City of Lakes with 22 freshwater lakes inside city limits, Mississippi River rapids, and a Scandinavian-rooted arts scene anchored by Walker Art Center's Spoonbridge sculpture. **Strong for:** park/lakeside walks, architecture (Guthrie Theater cantilever), sculpture photography. **Weak for:** winter outdoor (8 months of cold).
+**Signature moments:** short wow — Spoonbridge and Cherry · food pause — Matt's Bar Jucy Lucy · local texture — Minneapolis Farmers Market · scenic — Stone Arch Bridge at sunset.
+**Clusters:** `mpls_downtown` · `mpls_northeast` · `mpls_uptown` · `mpls_chain-of-lakes` · `mpls_mill_district`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1210,9 +1710,11 @@
 
 ---
 
-## 24. Atlanta ✅
+## 24. Atlanta 🔹
 
-**Blurb:** Capital of the New South — Civil Rights history, hip-hop royalty, world-class aquarium, and MLK Jr.'s boyhood home make ATL a cultural heavyweight.
+**Summary:** Capital of the New South — Civil Rights history, hip-hop royalty, world-class aquarium, and MLK Jr.'s boyhood home make ATL a cultural heavyweight. **Strong for:** first-time highlights with history, food-heavy (southern + global), family (aquarium). **Weak for:** walking-only (sprawl).
+**Signature moments:** short wow — MLK Historic Site birthplace · food pause — Busy Bee Cafe or Mary Mac's · local texture — Ponce City Market + BeltLine · ending — Jackson Street Bridge skyline photo.
+**Clusters:** `atl_downtown` · `atl_mlk` · `atl_ponce` · `atl_midtown` · `atl_westside`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1259,9 +1761,11 @@
 
 ---
 
-## 25. San Antonio ✅
+## 25. San Antonio 🔹
 
-**Blurb:** Historic Spanish missions and the most beloved River Walk in North America — a soft alternative to Austin with serious historical weight (the Alamo).
+**Summary:** Historic Spanish missions and the most beloved River Walk in North America — a soft alternative to Austin with serious historical weight (the Alamo). **Strong for:** walking, family, first-time highlights with history, romantic (River Walk night). **Weak for:** scenic drives, architecture_modern.
+**Signature moments:** short wow — Alamo façade · food pause — Mi Tierra (24h Tex-Mex) · local texture — Pearl District farmers market · ending — River Walk barge at dusk.
+**Clusters:** `sat_alamo` · `sat_riverwalk` · `sat_pearl` · `sat_missions`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1312,9 +1816,52 @@
 
 ---
 
-## 26. London ✅
+## 26. London ✅ (v2)
 
-**Blurb:** 2,000 years of royal, imperial, and pop culture in one Thames-side megalopolis — Big Ben, Tower Bridge, the West End theaters, and a museum landscape nearly all free to enter.
+### A. City summary
+
+2,000 years of royal, imperial, and pop culture in one Thames-side megalopolis — Big Ben, Tower Bridge, the West End theaters, and a museum landscape nearly all free to enter.
+
+- **Strongest for:** walking first-time highlights, architecture, romantic evening (Thames bridges lit), food-heavy (Borough Market).
+- **Weak for:** driving (Congestion Zone + slow traffic + narrow streets); scenic sunset drives.
+- **Unique strength:** museums are free — a 4h walking tour can include 2 world-class museums at zero cost, which reshapes the scoring of variety + story_richness.
+
+### B. Gold-standard stop graph
+
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | walking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Westminster Bridge + Big Ben view | icon | 10 | 9 | 9 | 15 | light | any | lon_westminster |
+| Westminster Abbey | icon | 9 | 8 | 10 | 60 | light | morning | lon_westminster |
+| Trafalgar Sq + National Gallery | icon | 9 | 7 | 9 | 45 | light | any | lon_center |
+| Covent Garden | neighborhood | 8 | 7 | 8 | 30 | light | any | lon_center |
+| St. Paul's Cathedral | icon | 9 | 9 | 10 | 45 | moderate | any | lon_city |
+| Millennium Bridge + Tate Modern | viewpoint | 8 | 9 | 8 | 60 | light | afternoon | lon_bankside |
+| Borough Market | food | 8 | 7 | 8 | 45 | light | midday | lon_bankside |
+| Tower Bridge + Tower of London | icon | 10 | 9 | 10 | 60 | light | afternoon | lon_tower |
+| Buckingham Palace (Changing Guard) | icon | 9 | 7 | 9 | 45 | light | morning | lon_westminster |
+| British Museum | museum | 9 | 7 | 10 | 120 | light | any | lon_bloomsbury |
+| Camden + Primrose Hill | neighborhood | 7 | 8 | 7 | 60 | moderate | golden_hour | lon_north |
+
+**Clusters:** `lon_westminster` · `lon_center` · `lon_city` · `lon_bankside` · `lon_tower` · `lon_bloomsbury` · `lon_north`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Waterloo Bridge looking east — the canonical London Thames view |
+| Best sunset stop | Primrose Hill (classic London skyline at golden hour) |
+| Best short wow | Millennium Bridge crossing from Tate Modern to St. Paul's |
+| Best scenic drive segment | Embankment eastbound from Westminster to Tower |
+| Best coffee/food pause | Borough Market (Monmouth Coffee + food stalls) |
+| Best local texture | Columbia Road Flower Market (Sundays) |
+| Best ending point | Tower Bridge at dusk with lit bascules |
+| Best worth-the-detour | Shakespeare's Globe evening performance |
+
+### C. Benchmark tours
+
+Both tours below are strong calibration candidates — **LON-2 (Westminster to Tower) is the candidate gold tour for London**, pending calibration pass.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1335,8 +1882,11 @@
 | 14 | Notting Hill + Portobello Road Market | West London | 51.5170 | -0.2057 | Pastel houses + Saturday antiques market | TA, Social |
 | 15 | Shakespeare's Globe | Bankside | 51.5081 | -0.0972 | Reconstructed Elizabethan playhouse | TA, LP |
 
-### 2-Hour Driving Tour — "Thames Bridges Loop"
+#### Tour LON-1 — "Thames Bridges Loop" (2h driving)
+
 *Central London driving is slow and has Congestion Zone £15/day charge. Do evenings post-7pm or Sunday morning.*
+
+Intent: `first_time_highlights`, `scenic_sunset` (evening), `minimal_walking`.
 
 1. **Tower Bridge north side** (51.5055, -0.0754) — start.
 2. **Lower Thames St → Victoria Embankment** (~2 mi).
@@ -1349,28 +1899,83 @@
 9. **Hyde Park Corner → Park Lane** (~1 mi).
 10. End via **Oxford St → Tottenham Court Rd** back toward City.
 
-### 4-Hour Walking Tour — "Westminster to Tower"
-*Classic London walk along the Thames. ~3 mi, all flat.*
+#### Tour LON-2 — "Westminster to Tower" (4h walking) [CANDIDATE GOLD]
+
+*Classic London walk along the Thames. ~3 mi, all flat. Best-scoring London tour; promotion-candidate for gold once calibrated.*
+
+Intent: `first_time_highlights`, `architecture_historic`, `food_heavy` (at Borough).
 
 1. **Westminster Bridge + Big Ben view** (51.5007, -0.1246).
 2. **Houses of Parliament + Westminster Abbey** (51.4993, -0.1273).
 3. **Horse Guards Parade** (51.5046, -0.1280).
 4. **Trafalgar Square + National Gallery** (51.5080, -0.1281) — 30-min browse.
 5. **Covent Garden Piazza** (51.5117, -0.1240).
-6. ☕ **Monmouth Coffee or Covent Garden Market stalls** pause.
+6. **Monmouth Coffee or Covent Garden Market stalls** pause.
 7. **Royal Courts of Justice + Fleet Street** (51.5138, -0.1122).
 8. **St. Paul's Cathedral** (51.5138, -0.0984) — exterior + optional £21 entry.
 9. **Millennium Bridge** south (51.5096, -0.0982).
 10. **Tate Modern** (51.5076, -0.0994) — 30 min.
-11. 🍽️ **Borough Market** food stop (51.5054, -0.0907).
+11. **Borough Market** food stop (51.5054, -0.0907).
 12. **Shakespeare's Globe** (51.5081, -0.0972).
 13. End at **Tower Bridge** (51.5055, -0.0754).
 
+### D. Scoring metadata
+
+**LON-1 (Thames Bridges Loop):** `tour_absolute ≈ 82` · iconic 9.0 · geographic 8.5 · time_realism 7.5 (traffic + CZ) · narrative 7.5 · scenic 9.0 · variety 7.0 · usability 7.0. Primary intent `first_time_highlights` = 84. **Final (hybrid) = 82.8**.
+
+**LON-2 (Westminster to Tower):** `tour_absolute ≈ 91` · iconic 9.5 · geographic 9.5 · time_realism 8.5 · narrative 9.5 · scenic 9.0 · variety 9.5 · usability 9.0. Primary intent `first_time_highlights` = 95. **Final (hybrid) = 92.6**. Candidate for gold promotion once calibration pass confirms.
+
 ---
 
-## 27. Paris ✅
+## 27. Paris ✅ (v2)
 
-**Blurb:** The most visited city on earth — Eiffel Tower, Louvre, Notre-Dame, and café-lined Haussmann boulevards make Paris the textbook "walkable romantic capital."
+### A. City summary
+
+The most visited city on earth — Eiffel Tower, Louvre, Notre-Dame, and café-lined Haussmann boulevards make Paris the textbook "walkable romantic capital."
+
+- **Strongest for:** romantic evening, walking first-time highlights, architecture, photo-heavy, food-heavy (bakery/bistro density).
+- **Weak for:** driving tours (narrow streets, ZTL-like restrictions, scooter chaos); kid-heavy itineraries (distance between child-friendly stops).
+- **Unique strength:** the Eiffel Tower sparkles every hour on the hour from dusk to 1am — the single most reliable nocturnal set piece in any major city.
+
+### B. Gold-standard stop graph
+
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | walking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Trocadéro | viewpoint | 9 | 10 | 7 | 15 | light | golden_hour | paris_eiffel |
+| Eiffel Tower base (Champ de Mars) | icon | 10 | 10 | 9 | 30 | light | any | paris_eiffel |
+| Louvre Cour Napoléon (pyramid) | icon | 10 | 10 | 10 | 30 | light | any | paris_right |
+| Musée d'Orsay | museum | 9 | 7 | 10 | 90 | light | any | paris_seine |
+| Place Vendôme | icon | 8 | 9 | 8 | 10 | light | night | paris_right |
+| Palais Royal (Colonnes de Buren) | neighborhood | 7 | 9 | 8 | 15 | light | any | paris_right |
+| Pont Alexandre III | icon | 9 | 10 | 8 | 15 | light | night | paris_seine |
+| Montmartre + Sacré-Cœur | icon | 9 | 9 | 9 | 60 | heavy | morning | paris_montmartre |
+| Sainte-Chapelle | icon | 8 | 10 | 9 | 45 | light | midday | paris_cite |
+| Notre-Dame exterior | icon | 9 | 8 | 10 | 20 | light | any | paris_cite |
+| Le Marais (Place des Vosges) | neighborhood | 7 | 8 | 8 | 45 | light | any | paris_marais |
+| Luxembourg Gardens | park | 8 | 9 | 7 | 45 | light | afternoon | paris_left |
+
+**Clusters:** `paris_eiffel` · `paris_right` · `paris_seine` · `paris_montmartre` · `paris_cite` · `paris_marais` · `paris_left`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Trocadéro terrace (Eiffel at any time) |
+| Best sunset stop | Sacré-Cœur steps at golden hour |
+| Best short wow | Sainte-Chapelle upper chapel |
+| Best scenic drive segment | Pont Neuf → Pont Alexandre III along Seine (after 8pm) |
+| Best coffee/food pause | Angelina hot chocolate; Du Pain et des Idées bakery |
+| Best local texture | Rue Mouffetard market morning |
+| Best ending point | Trocadéro at the 10pm Eiffel sparkle |
+| Best worth-the-detour | Musée d'Orsay top floor Impressionists |
+
+### C. Benchmark tours
+
+#### Tour PAR-1 — "Right Bank After Dark" (2.5h walking evening) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 7](./gold-standard-tours.md#tour-7--right-bank-after-dark). Target user: couple on a Paris date night. Intent tags: `romantic`, `scenic_sunset` (night variant), `photo_heavy`. **`tour_absolute` = 90.5 · romantic fit = 97**.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1391,6 +1996,12 @@
 | 14 | Pantheon | 5th arr. | 48.8462 | 2.3464 | Foucault's pendulum + French mausoleum | LP |
 | 15 | Trocadéro + Palais de Chaillot | 16th arr. | 48.8616 | 2.2893 | The canonical Eiffel photo spot | Social, GM |
 
+#### Tour PAR-2 — "Right Bank + Seine Sweep" (2h driving)
+
+*Evening driving works despite Paris's narrow streets — traffic quiets after 9pm and the lit-river route is dense with icons.*
+
+Intent: `romantic`, `scenic_sunset` (night), `minimal_walking`.
+
 ### 2-Hour Driving Tour — "Right Bank + Seine Sweep"
 1. **Trocadéro** (48.8616, 2.2893) — start with Eiffel view.
 2. **Quai Branly east along Seine** (~2 km).
@@ -1403,25 +2014,81 @@
 9. **Pont Neuf** (48.8570, 2.3417).
 10. End at **Rue de Rivoli → Place Vendôme** (48.8676, 2.3292).
 
-### 4-Hour Walking Tour — "Rive Droite Classic"
+#### Tour PAR-3 — "Rive Droite Classic" (4h walking)
+
+Intent: `first_time_highlights`, `architecture_historic`, `food_heavy` (soft).
+
 1. **Trocadéro** (48.8616, 2.2893) — start with photo.
 2. Cross **Pont d'Iéna** to **Eiffel Tower base** (48.8584, 2.2945).
 3. Walk **Champ de Mars → École Militaire**.
-4. ☕ **Café Constant or Les Cocottes** on Rue Saint-Dominique.
+4. **Café Constant or Les Cocottes** on Rue Saint-Dominique.
 5. Along Seine east to **Musée d'Orsay** (48.8600, 2.3266) — 45 min.
 6. Cross **Pont Royal** → **Jardin des Tuileries** (48.8634, 2.3275).
 7. **Louvre exterior + pyramid photo** (48.8606, 2.3376).
 8. **Palais Royal gardens + Colonnes de Buren** (48.8640, 2.3364).
-9. 🥐 **Angelina Rue de Rivoli hot chocolate** (48.8651, 2.3276).
+9. **Angelina Rue de Rivoli hot chocolate** (48.8651, 2.3276).
 10. **Rue Saint-Honoré → Place Vendôme** (48.8676, 2.3292).
 11. **Opéra Garnier** (48.8720, 2.3316).
 12. End at **Café de la Paix** outdoor table (48.8710, 2.3313).
 
+### D. Scoring metadata
+
+**PAR-1 (Right Bank After Dark):** `tour_absolute = 90.5` · iconic 9.5 · geographic 9.0 · time_realism 9.0 · narrative 9.5 · scenic 10 · variety 7.0 · usability 8.5. Primary intent `romantic` = 97. **Final (hybrid) = 93.1**. Full breakdown in [gold-standard-tours.md — Tour 7](./gold-standard-tours.md#tour-7--right-bank-after-dark).
+
+**PAR-2 (Right Bank + Seine Sweep):** `tour_absolute ≈ 82` · iconic 9.0 · geographic 8.0 · time_realism 7.0 (daytime traffic) · narrative 8.5 · scenic 9.0 · variety 7.5 · usability 7.5. Primary intent `scenic_sunset` = 85. **Final (hybrid) = 83.2**.
+
+**PAR-3 (Rive Droite Classic):** `tour_absolute ≈ 90` · iconic 9.5 · geographic 9.0 · time_realism 8.5 · narrative 9.0 · scenic 9.0 · variety 9.0 · usability 8.5. Primary intent `first_time_highlights` = 93. **Final (hybrid) = 91.2**. Strong candidate — if PAR-1 weren't already gold, this would be the Paris gold tour.
+
 ---
 
-## 28. Rome ✅
+## 28. Rome ✅ (v2)
 
-**Blurb:** 2,500 years of layered civilization in one open-air museum — Colosseum, Vatican, Trevi Fountain, and the best espresso culture in Europe.
+### A. City summary
+
+2,500 years of layered civilization in one open-air museum — Colosseum, Vatican, Trevi Fountain, and the best espresso culture in Europe.
+
+- **Strongest for:** iconic walking, architecture_historic, first-time highlights, food-heavy (Trastevere).
+- **Weak for:** driving tours (ZTL restrictions in the historic core); sunset-focused (east-facing centro, west-facing Gianicolo is the workaround).
+- **Unique strength:** the centro storico is the world's densest walkable icon cluster — 4h delivers 4+ top-tier world landmarks plus neighborhood texture.
+
+### B. Gold-standard stop graph
+
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | walking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Colosseum + Arch | icon | 10 | 9 | 10 | 60 | light | morning | rome_ancient |
+| Roman Forum + Palatine | icon | 10 | 8 | 10 | 75 | moderate | morning | rome_ancient |
+| Trevi Fountain | icon | 10 | 9 | 8 | 20 | light | midday | rome_baroque |
+| Pantheon | icon | 10 | 9 | 10 | 20 | light | midday | rome_baroque |
+| Piazza Navona | icon | 9 | 8 | 9 | 15 | light | any | rome_baroque |
+| Spanish Steps | icon | 8 | 7 | 7 | 15 | moderate | any | rome_baroque |
+| Vatican (St. Peter's) | icon | 10 | 9 | 10 | 120 | heavy | morning | rome_vatican |
+| Castel Sant'Angelo | icon | 8 | 8 | 9 | 30 | light | afternoon | rome_vatican |
+| Trastevere (Piazza S. Maria) | neighborhood | 8 | 7 | 9 | 60 | light | afternoon | rome_trastevere |
+| Gianicolo terrace | viewpoint | 6 | 9 | 6 | 15 | moderate | golden_hour | rome_trastevere |
+| Piazza del Popolo + Pincio | viewpoint | 7 | 9 | 7 | 20 | moderate | afternoon | rome_baroque |
+
+**Clusters:** `rome_ancient` · `rome_baroque` · `rome_vatican` · `rome_trastevere`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Gianicolo terrace at golden hour |
+| Best sunset stop | Pincio Terrace over Piazza del Popolo |
+| Best short wow | Pantheon oculus interior |
+| Best scenic drive segment | Gianicolo → Tiber perimeter → Castel Sant'Angelo |
+| Best coffee/food pause | Sant'Eustachio espresso or Giolitti gelato |
+| Best local texture | Trastevere after 7pm |
+| Best ending point | Piazza Santa Maria in Trastevere with an aperitivo |
+| Best worth-the-detour | Campo de' Fiori morning market |
+
+### C. Benchmark tours
+
+#### Tour ROM-1 — "Centro Storico Classics" (4h walking) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 2](./gold-standard-tours.md#tour-2--centro-storico-classics). Target user: first-time Rome visitor on foot. Intent tags: `first_time_highlights`, `architecture_historic`, `photo_heavy`. **`tour_absolute` = 93.0 · first_time fit = 97**.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1442,6 +2109,12 @@
 | 14 | Bocca della Verità / Mouth of Truth | Ripa | 41.8881 | 12.4816 | Roman Holiday hand-in-mouth photo | TA, Social |
 | 15 | Ostia Antica (20 mi SW) | Ostia | 41.7551 | 12.2921 | Roman port ruins, Pompeii-lite | LP |
 
+#### Tour ROM-2 — "Ancient Loop + Gianicolo View" (2h driving)
+
+*Central Rome is largely ZTL (residents only). This route sticks to driveable perimeter roads. The gold walking tour (ROM-1) covers the core — this is the complement for visitors staying outside the historic center.*
+
+Intent: `first_time_highlights`, `scenic_sunset`, `minimal_walking`.
+
 ### 2-Hour Driving Tour — "Ancient Loop + Gianicolo View"
 *Central Rome is largely restricted ZTL (residents only). This route sticks to driveable perimeter roads.*
 
@@ -1456,25 +2129,78 @@
 9. Via Nazionale → **Piazza Venezia** (41.8955, 12.4823).
 10. End with **Via dei Fori Imperiali past Colosseum** (41.8902, 12.4922).
 
-### 4-Hour Walking Tour — "Centro Storico Classics"
+### 4-Hour Walking Tour — "Centro Storico Classics" (ROM-1 route)
+
+*(This is the ROM-1 gold tour — full structured per-stop attributes and scoring in [gold-standard-tours.md — Tour 2](./gold-standard-tours.md#tour-2--centro-storico-classics). Summary below.)*
+
 1. **Colosseum + Arch of Constantine** (41.8902, 12.4922).
 2. **Roman Forum + Palatine Hill** (41.8925, 12.4853) — optional 60-min browse.
 3. **Via dei Fori Imperiali north to Piazza Venezia** (41.8955, 12.4823).
 4. **Altar of the Fatherland terrace** (41.8955, 12.4823).
 5. **Via del Corso → Trevi Fountain** (41.9009, 12.4833).
-6. ☕ **Giolitti gelato** or **Sant'Eustachio coffee** (41.8977, 12.4752).
+6. **Giolitti gelato** or **Sant'Eustachio coffee** (41.8977, 12.4752).
 7. **Pantheon** (41.8986, 12.4769).
 8. **Piazza Navona** (41.8992, 12.4731) — Bernini fountain.
 9. **Campo de' Fiori market** (41.8957, 12.4722).
-10. 🍝 **Ditirambo or Emma Pizzeria** lunch pause.
+10. **Ditirambo or Emma Pizzeria** lunch pause.
 11. Cross Ponte Sisto to **Trastevere** (41.8890, 12.4666).
 12. End at **Piazza Santa Maria in Trastevere** with spritz (41.8894, 12.4695).
 
+### D. Scoring metadata
+
+**ROM-1 (Centro Storico Classics):** `tour_absolute = 93.0` · iconic 10 · geographic 9.5 · time_realism 8.5 · narrative 9.5 · scenic 9.0 · variety 9.0 · usability 8.5. Primary intent `first_time_highlights` = 97. **Final (hybrid) = 94.6**. Full breakdown in [gold-standard-tours.md — Tour 2](./gold-standard-tours.md#tour-2--centro-storico-classics).
+
+**ROM-2 (Ancient Loop + Gianicolo):** `tour_absolute ≈ 81` · iconic 8.5 · geographic 8.5 · time_realism 8.0 · narrative 8.0 · scenic 8.5 · variety 7.5 · usability 7.5. Primary intent `scenic_sunset` = 85 (Gianicolo finale). **Final (hybrid) = 82.6**.
+
 ---
 
-## 29. Barcelona ✅
+## 29. Barcelona ✅ (v2)
 
-**Blurb:** Gaudí's modernist fever dream by the Mediterranean — Sagrada Família, Park Güell, tapas on Gothic alley terraces, and Barceloneta beach 10 minutes from the cathedral.
+### A. City summary
+
+Gaudí's modernist fever dream by the Mediterranean — Sagrada Família, Park Güell, tapas on Gothic alley terraces, and Barceloneta beach 10 minutes from the cathedral.
+
+- **Strongest for:** architecture (Modernisme), walking first-time highlights, food-heavy (Boqueria + El Born tapas), local flavor.
+- **Weak for:** minimal-walking driving tours (narrow Gothic Quarter streets + parking scarcity); kid-heavy (high-crowd stress at Sagrada Família, Park Güell).
+- **Unique strength:** Gaudí's Modernisme stops (Sagrada, Casa Batlló, Casa Milà, Park Güell) form a unique architectural arc found nowhere else — architecture_modern tours score near-max here.
+
+### B. Gold-standard stop graph
+
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | walking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Sagrada Família | icon | 10 | 10 | 10 | 90 | light | morning | bcn_eixample |
+| Casa Batlló | icon | 9 | 9 | 10 | 60 | light | any | bcn_eixample |
+| Casa Milà (La Pedrera) | icon | 9 | 9 | 10 | 60 | light | afternoon | bcn_eixample |
+| Park Güell | icon | 9 | 10 | 9 | 90 | heavy | morning | bcn_gracia |
+| La Rambla + Boqueria | neighborhood | 9 | 7 | 8 | 60 | light | morning | bcn_rambla |
+| Gothic Quarter + Cathedral | neighborhood | 9 | 8 | 10 | 60 | light | any | bcn_gothic |
+| Barcelona Cathedral | icon | 8 | 9 | 10 | 30 | light | any | bcn_gothic |
+| El Born + Santa Maria del Mar | neighborhood | 7 | 8 | 9 | 60 | light | afternoon | bcn_born |
+| Picasso Museum | museum | 8 | 7 | 9 | 90 | light | any | bcn_born |
+| Barceloneta Beach | waterfront | 7 | 8 | 6 | 45 | light | afternoon | bcn_beach |
+| Bunkers del Carmel | viewpoint | 6 | 10 | 7 | 30 | heavy | golden_hour | bcn_carmel |
+| Montjuïc (Castle + Magic Fountain) | viewpoint | 7 | 9 | 7 | 60 | moderate | night | bcn_montjuic |
+
+**Clusters:** `bcn_eixample` · `bcn_gracia` · `bcn_rambla` · `bcn_gothic` · `bcn_born` · `bcn_beach` · `bcn_carmel` · `bcn_montjuic`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Bunkers del Carmel at golden hour |
+| Best sunset stop | Bunkers del Carmel (free, 360°) |
+| Best short wow | Pont del Bisbe in Gothic Quarter |
+| Best scenic drive segment | Passeig de Gràcia Modernisme corridor |
+| Best coffee/food pause | La Boqueria fresh juice + jamón |
+| Best local texture | El Born at aperitivo hour |
+| Best ending point | Santa Maria del Mar nave + tapas row |
+| Best worth-the-detour | Sagrada Família interior with timed entry |
+
+### C. Benchmark tours
+
+Both tours below are candidate gold — **BCN-2 (Gothic + El Born + Boqueria) is the candidate Barcelona gold tour**, pending calibration.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1495,6 +2221,10 @@
 | 14 | Bunkers del Carmel viewpoint | Carmel | 41.4182 | 2.1588 | Free panorama of all Barcelona | Social, Reddit |
 | 15 | Palau de la Música Catalana | Ciutat Vella | 41.3875 | 2.1753 | Modernista stained-glass concert hall | LP |
 
+#### Tour BCN-1 — "Montjuïc + Tibidabo Lite" (2h driving)
+
+Intent: `scenic_sunset`, `first_time_highlights`, `minimal_walking`.
+
 ### 2-Hour Driving Tour — "Montjuïc + Tibidabo Lite"
 1. **Plaça d'Espanya** (41.3756, 2.1491) — start.
 2. **Av Reina Maria Cristina → Montjuïc road** (41.3711, 2.1516) — hairpins up (~3 km).
@@ -1506,7 +2236,10 @@
 8. **Av Diagonal to Av Tibidabo** (41.4245, 2.1351) (~6 km).
 9. End at **Bunkers del Carmel** (41.4182, 2.1588) (~4 km).
 
-### 4-Hour Walking Tour — "Gothic + El Born + Boqueria"
+#### Tour BCN-2 — "Gothic + El Born + Boqueria" (4h walking) [CANDIDATE GOLD]
+
+Intent: `first_time_highlights`, `architecture_historic`, `food_heavy`.
+
 1. **Plaça de Catalunya** (41.3870, 2.1701) — start.
 2. **La Rambla south** (41.3809, 2.1729).
 3. **La Boqueria market** (41.3817, 2.1720) — fresh juice + jamón.
@@ -1515,17 +2248,25 @@
 6. East into **Gothic Quarter — Plaça Sant Jaume** (41.3829, 2.1769).
 7. **Barcelona Cathedral** (41.3839, 2.1769).
 8. **Pont del Bisbe** (41.3831, 2.1764) — Instagram bridge.
-9. 🍷 **La Vinateria del Call or Bodega La Puntual** pause.
+9. **La Vinateria del Call or Bodega La Puntual** pause.
 10. East to **Plaça del Rei → Via Laietana** (41.3838, 2.1780).
 11. **Santa Maria del Mar** (41.3841, 2.1819).
 12. **Picasso Museum exterior or visit** (41.3853, 2.1808).
 13. End at **El Born cultural center + tapas row** (41.3856, 2.1820).
 
+### D. Scoring metadata
+
+**BCN-1 (Montjuïc + Tibidabo Lite):** `tour_absolute ≈ 80` · iconic 7.5 · geographic 8.0 · time_realism 7.5 · narrative 8.0 · scenic 9.0 · variety 7.0 · usability 7.5. Primary intent `scenic_sunset` = 86. **Final (hybrid) = 82.4**.
+
+**BCN-2 (Gothic + El Born + Boqueria):** `tour_absolute ≈ 90` · iconic 9.0 · geographic 9.5 · time_realism 9.0 · narrative 9.0 · scenic 8.5 · variety 9.0 · usability 8.5. Primary intent `first_time_highlights` = 94. **Final (hybrid) = 91.6**. Candidate for gold.
+
 ---
 
-## 30. Amsterdam ✅
+## 30. Amsterdam 🔹
 
-**Blurb:** Golden Age canals in UNESCO-listed concentric rings, bicycles outnumbering residents, gabled merchant houses, and a serious museum quarter — the archetypal "just walk / just bike" city.
+**Summary:** Golden Age canals in UNESCO-listed concentric rings, bicycles outnumbering residents, gabled merchant houses, and a serious museum quarter — the archetypal "just walk / just bike" city. **Strong for:** walking, architecture, museums, romantic (canal-side evening). **Weak for:** driving (nearly impossible), family (bike-chaos safety).
+**Signature moments:** short wow — Rijksmuseum Night Watch gallery · food pause — De Drie Graefjes apple pie or bitterballen at Café Hoppe · local texture — Jordaan canals + Sunday Noordermarkt · ending — Magere Brug (Skinny Bridge) at golden hour.
+**Clusters:** `ams_center` · `ams_jordaan` · `ams_museumplein` · `ams_deplan` · `ams_eastdocks`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1576,9 +2317,11 @@
 
 ---
 
-## 31. Lisbon ✅
+## 31. Lisbon 🔹
 
-**Blurb:** Seven hills over the Tagus — pastel azulejo tiles, yellow tram 28, fado in the Alfama, and the best Atlantic-cliff sunsets in Europe at under half the price of Paris.
+**Summary:** Seven hills over the Tagus — pastel azulejo tiles, yellow tram 28, fado in the Alfama, and the best Atlantic-cliff sunsets in Europe at under half the price of Paris. **Strong for:** scenic sunset, romantic, walking (hilly), local flavor, food. **Weak for:** minimal-walking (hills); family with strollers.
+**Signature moments:** sunset stop — Miradouro da Senhora do Monte · short wow — Tram 28 uphill ride · food pause — Pastéis de Belém · local texture — Alfama fado house evening · ending — Praça do Comércio at night.
+**Clusters:** `lis_baixa` · `lis_alfama` · `lis_chiado` · `lis_belem` · `lis_principereal` · `lis_lxfactory`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1627,9 +2370,11 @@
 
 ---
 
-## 32. Berlin ✅
+## 32. Berlin 🔹
 
-**Blurb:** Europe's most emotionally raw capital — Brandenburg Gate, the surviving Wall, cold-war checkpoints, and Museum Island on the Spree, wrapped in the continent's most creative club scene.
+**Summary:** Europe's most emotionally raw capital — Brandenburg Gate, the surviving Wall, cold-war checkpoints, and Museum Island on the Spree, wrapped in the continent's most creative club scene. **Strong for:** walking, architecture (both historic and modern), museums, story-heavy history tours. **Weak for:** scenic sunset (flat city); romantic-fairy-tale tours.
+**Signature moments:** short wow — East Side Gallery Wall murals · food pause — Curry 36 currywurst · local texture — Kreuzberg + Turkish market (Tuesdays & Fridays) · ending — Reichstag dome evening entry.
+**Clusters:** `ber_mitte` · `ber_museum-island` · `ber_kreuzberg` · `ber_prenzlauerberg` · `ber_eastside`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1678,9 +2423,11 @@
 
 ---
 
-## 33. Prague ✅
+## 33. Prague 🔹
 
-**Blurb:** Bohemia's medieval capital with the greatest concentration of preserved Gothic and Baroque architecture in Europe — Charles Bridge, Astronomical Clock, and pilsner at the source.
+**Summary:** Bohemia's medieval capital with the greatest concentration of preserved Gothic and Baroque architecture in Europe — Charles Bridge, Astronomical Clock, and pilsner at the source. **Strong for:** walking, architecture_historic, first-time highlights, romantic, photo-heavy. **Weak for:** driving (old town pedestrianized); modern-architecture interest.
+**Signature moments:** short wow — Charles Bridge at dawn (tourist-free) · food pause — U Medvidku brewery tank pilsner · local texture — Letná Park beer garden · sunset — Prague Castle from Strahov monastery · ending — Old Town Square at the astronomical clock top-of-hour.
+**Clusters:** `prg_oldtown` · `prg_castle` · `prg_malastrana` · `prg_josefov` · `prg_vinohrady` · `prg_letna`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1731,9 +2478,11 @@
 
 ---
 
-## 34. Dublin ✅
+## 34. Dublin 🔹
 
-**Blurb:** Georgian doors, literary pubs, Guinness at St. James's Gate, and the Book of Kells at Trinity — small-scale walkable Ireland with outsized pub-culture pull.
+**Summary:** Georgian doors, literary pubs, Guinness at St. James's Gate, and the Book of Kells at Trinity — small-scale walkable Ireland with outsized pub-culture pull. **Strong for:** walking, pub/food-heavy, local flavor, literary-themed. **Weak for:** scenic drives; architecture_modern.
+**Signature moments:** short wow — Book of Kells Long Room · food pause — The Brazen Head (oldest pub) · local texture — Temple Bar evening trad session · ending — Ha'penny Bridge at dusk.
+**Clusters:** `dub_templebar` · `dub_trinity` · `dub_georgian` · `dub_smithfield`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1781,9 +2530,11 @@
 
 ---
 
-## 35. Edinburgh ✅
+## 35. Edinburgh 🔹
 
-**Blurb:** Two cities in one — the medieval Old Town with a castle on a volcanic rock spine, and the Georgian New Town grid — separated by a garden valley where the ghost stories never stop.
+**Summary:** Two cities in one — the medieval Old Town with a castle on a volcanic rock spine, and the Georgian New Town grid — separated by a garden valley where the ghost stories never stop. **Strong for:** walking, architecture_historic, romantic, literary tours, photo-heavy. **Weak for:** warm-weather-only driving; scale for multi-day itineraries.
+**Signature moments:** short wow — Edinburgh Castle esplanade · food pause — The Witchery or Oink hog roast · local texture — Grassmarket pubs · ending — Arthur's Seat summit at golden hour · worth the detour — Dean Village (10 min walk from Princes St).
+**Clusters:** `edi_oldtown` · `edi_newtown` · `edi_castle` · `edi_arthurseat` · `edi_dean`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1830,9 +2581,11 @@
 
 ---
 
-## 36. Istanbul ✅
+## 36. Istanbul 🔹
 
-**Blurb:** Two continents, three empires — Byzantine-Ottoman-Turkic layers in one megacity where Hagia Sophia faces the Blue Mosque across a plaza, and the Grand Bazaar has been selling carpets since 1461.
+**Summary:** Two continents, three empires — Byzantine-Ottoman-Turkic layers in one megacity where Hagia Sophia faces the Blue Mosque across a plaza, and the Grand Bazaar has been selling carpets since 1461. **Strong for:** architecture_historic, food-heavy, first-time highlights, photo-heavy, scenic (Bosphorus). **Weak for:** minimal-walking; kid-focused tours (crowd density).
+**Signature moments:** short wow — Hagia Sophia interior dome · food pause — Çiya Sofrası or Hafız Mustafa baklava · local texture — Kadıköy market (Asian side) · ending — Bosphorus ferry at sunset · worth the detour — Süleymaniye Mosque terrace view.
+**Clusters:** `ist_sultanahmet` · `ist_grandbazaar` · `ist_beyoglu` · `ist_galata` · `ist_kadikoy` · `ist_bosphorus`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1882,9 +2635,11 @@
 
 ---
 
-## 37. Athens ✅
+## 37. Athens 🔹
 
-**Blurb:** The source code of Western civilization — Acropolis and Parthenon still the highest-altitude tourist site in Europe, with neon-buzzing Plaka below and a Riviera just 20 minutes away.
+**Summary:** The source code of Western civilization — Acropolis and Parthenon still the highest-altitude tourist site in Europe, with neon-buzzing Plaka below and a Riviera just 20 minutes away. **Strong for:** first-time highlights, architecture_historic, walking (hilly), photo-heavy. **Weak for:** scenic-driving tours; hot-summer walking.
+**Signature moments:** short wow — Parthenon on the Acropolis · food pause — Psarras Taverna or Loukoumades Krinos · local texture — Monastiraki flea market · sunset — Lykavittos Hill · ending — Plaka tavernas evening.
+**Clusters:** `ath_acropolis` · `ath_plaka` · `ath_monastiraki` · `ath_syntagma` · `ath_lykavittos`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1933,9 +2688,11 @@
 
 ---
 
-## 38. Copenhagen ✅
+## 38. Copenhagen 🔹
 
-**Blurb:** Scandinavia's most livable harbor city — Nyhavn's colored canal row, Tivoli's 1843 amusement gardens, and a bicycle infrastructure that makes walking almost optional.
+**Summary:** Scandinavia's most livable harbor city — Nyhavn's colored canal row, Tivoli's 1843 amusement gardens, and a bicycle infrastructure that makes walking almost optional. **Strong for:** walking, family (Tivoli), architecture (historic + modern), food-heavy (new Nordic). **Weak for:** scenic drives.
+**Signature moments:** short wow — Nyhavn colored houses · food pause — Torvehallerne market · local texture — Reffen street-food village · ending — Tivoli Gardens at night · worth the detour — Louisiana Museum of Modern Art (35 min north).
+**Clusters:** `cph_indre` · `cph_nyhavn` · `cph_vesterbro` · `cph_christianshavn` · `cph_refshaleoen`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -1984,9 +2741,11 @@
 
 ---
 
-## 39. Venice ✅
+## 39. Venice 🔹
 
-**Blurb:** 118 islands, 400 bridges, zero cars — La Serenissima is the most implausibly beautiful city in the world and the only one in which the "walking tour" IS the only tour.
+**Summary:** 118 islands, 400 bridges, zero cars — La Serenissima is the most implausibly beautiful city in the world and the only one in which the "walking tour" IS the only tour. **Strong for:** walking, romantic, photo-heavy, architecture_historic. **Weak for:** driving (literally no cars); family with strollers (bridges).
+**Signature moments:** short wow — Piazza San Marco arrival · food pause — All'Arco cicchetti bar · local texture — Rialto market morning · sunset — Giudecca Canal from Zattere · ending — St Mark's at night with orchestra cafés · worth the detour — Burano's painted houses.
+**Clusters:** `ven_sanmarco` · `ven_rialto` · `ven_dorsoduro` · `ven_castello` · `ven_cannaregio` · `ven_burano`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2037,9 +2796,11 @@
 
 ---
 
-## 40. Florence ✅
+## 40. Florence 🔹
 
-**Blurb:** The birthplace of the Renaissance — Uffizi, Duomo, Michelangelo's David, and a compact walkable historic center where every church has a Giotto or a Botticelli.
+**Summary:** The birthplace of the Renaissance — Uffizi, Duomo, Michelangelo's David, and a compact walkable historic center where every church has a Giotto or a Botticelli. **Strong for:** walking, architecture_historic, museums, romantic. **Weak for:** driving (ZTL restrictions); family (indoor-museum energy).
+**Signature moments:** short wow — Duomo Brunelleschi dome · food pause — All'Antico Vinaio panini · local texture — Oltrarno artisan workshops · sunset — Piazzale Michelangelo · worth the detour — Boboli Gardens.
+**Clusters:** `flr_duomo` · `flr_uffizi` · `flr_oltrarno` · `flr_sanlorenzo` · `flr_santacroce`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2092,9 +2853,56 @@
 
 ---
 
-## 41. Tokyo ✅
+## 41. Tokyo ✅ (v2)
 
-**Blurb:** 23-ward megacity where neon Shibuya, temple-lined Asakusa, and Edo-era garden temples coexist in perfect fractal order — Tokyo is the cleanest, safest, most efficient city most travelers will ever see.
+### A. City summary
+
+23-ward megacity where neon Shibuya, temple-lined Asakusa, and Edo-era garden temples coexist in perfect fractal order — Tokyo is the cleanest, safest, most efficient city most travelers will ever see.
+
+- **Strongest for:** walking (multi-neighborhood cluster-based), food-heavy, local flavor / hidden gems (Shimokita, Yanaka, Kichijoji), photo-heavy.
+- **Weak for:** driving (not advisable; taxis for point-to-point only); minimal-walking tours (the walking is the point).
+- **Unique strength:** Tokyo neighborhoods function as self-contained 3-4h mini-tours — more than any other city, tours here map 1:1 to clusters.
+
+### B. Gold-standard stop graph
+
+**Structured attributes (key stops):**
+
+| Stop | stop_type | iconicity | scenic | story | dwell | walking | best_time | cluster |
+|---|---|---|---|---|---|---|---|---|
+| Shibuya Scramble + Hachiko | icon | 10 | 6 | 9 | 15 | light | any | tky_shibuya |
+| Shibuya Sky observation | viewpoint | 8 | 10 | 6 | 60 | light | golden_hour | tky_shibuya |
+| Meiji Jingu Shrine | icon | 9 | 8 | 9 | 45 | moderate | morning | tky_harajuku |
+| Senso-ji / Kaminarimon | icon | 10 | 8 | 10 | 45 | light | morning | tky_asakusa |
+| Omoide Yokocho | neighborhood | 8 | 8 | 9 | 30 | light | night | tky_shinjuku |
+| Golden Gai | neighborhood | 8 | 7 | 9 | 45 | light | night | tky_shinjuku |
+| Tsukiji Outer Market | food | 8 | 6 | 9 | 60 | light | morning | tky_tsukiji |
+| teamLab Planets | museum | 9 | 10 | 7 | 90 | light | any | tky_toyosu |
+| Imperial Palace East Garden | park | 7 | 8 | 9 | 45 | moderate | any | tky_marunouchi |
+| Ginza shopping corridor | neighborhood | 7 | 7 | 7 | 45 | light | any | tky_ginza |
+| Tokyo Tower + Zojo-ji | icon | 8 | 8 | 8 | 45 | light | night | tky_minato |
+| Shimokitazawa | neighborhood | 3 | 7 | 7 | 120 | light | any | shimokita |
+| Yanaka Ginza | neighborhood | 3 | 7 | 8 | 45 | light | any | tky_yanaka |
+
+**Clusters:** `tky_shibuya` · `tky_harajuku` · `tky_asakusa` · `tky_shinjuku` · `tky_tsukiji` · `tky_toyosu` · `tky_marunouchi` · `tky_ginza` · `tky_minato` · `shimokita` · `tky_yanaka`
+
+### Signature moments
+
+| Slot | Stop |
+|---|---|
+| Best skyline reveal | Shibuya Sky open-air rooftop at golden hour |
+| Best sunset stop | Odaiba waterfront (Rainbow Bridge backdrop) |
+| Best short wow | Shibuya Scramble from Starbucks 2F |
+| Best scenic drive segment | Rainbow Bridge loop (taxi; driving not advised) |
+| Best coffee/food pause | Bear Pond Espresso (Shimokita) or Blue Bottle Aoyama |
+| Best local texture | Shimokitazawa or Yanaka Ginza |
+| Best ending point | Omoide Yokocho at 7pm (lanterns, yakitori smoke) |
+| Best worth-the-detour | teamLab Planets (requires timed-entry reservation) |
+
+### C. Benchmark tours
+
+#### Tour TKY-1 — "Shimokitazawa Drift" (3h walking) [GOLD]
+
+See full benchmark with per-stop attributes and score breakdown in [gold-standard-tours.md — Tour 9](./gold-standard-tours.md#tour-9--shimokitazawa-drift). Target user: second-time Tokyo visitor wanting local Tokyo. Intent tags: `hidden_gems`, `local_flavor`, `food_heavy` (soft). **`tour_absolute` = 85.5 · hidden_gems fit = 97**.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2115,6 +2923,10 @@
 | 14 | Shinjuku Gyoen National Garden | Shinjuku | 35.6852 | 139.7100 | 144-acre garden across 3 styles | LP |
 | 15 | Tokyo Tower + Zojo-ji | Minato | 35.6586 | 139.7454 | Eiffel-inspired 1958 icon + temple foreground | TA |
 
+#### Tour TKY-2 — "Imperial Loop + Rainbow Bridge" (2h taxi/driving)
+
+Intent: `first_time_highlights`, `minimal_walking`, `scenic_sunset` (evening).
+
 ### 2-Hour Driving Tour — "Imperial Loop + Rainbow Bridge"
 *Tokyo is a driver's maze; stick to expressways/landmarks. Taxi-hire recommended.*
 
@@ -2128,25 +2940,40 @@
 8. **Roppongi Hills drive-by** (35.6605, 139.7290) (~5 km).
 9. End at **Shibuya Scramble** (35.6595, 139.7004) (~3 km).
 
-### 4-Hour Walking Tour — "Shibuya + Harajuku + Meiji"
+#### Tour TKY-3 — "Shibuya + Harajuku + Meiji" (4h walking)
+
+*The canonical "Tokyo's greatest hits" walk — counterpoint to the hidden-gems gold. Connects three major clusters in one western-Tokyo arc.*
+
+Intent: `first_time_highlights`, `photo_heavy`, `food_heavy` (at Shinjuku).
+
 1. **Hachiko statue + Shibuya Scramble** (35.6595, 139.7004).
 2. **Shibuya Sky** (35.6586, 139.7016) — timed entry.
 3. Walk **Omotesando Hills Avenue** north (~1.5 km).
 4. **Meiji Jingu Shrine** (35.6764, 139.6993).
 5. **Takeshita Street Harajuku** (35.6709, 139.7029).
-6. ☕🥞 Crepe at **Marion Crepes** or **Blue Bottle Aoyama**.
+6. Crepe at **Marion Crepes** or **Blue Bottle Aoyama**.
 7. Metro one stop or walk to **Shinjuku**.
 8. **Shinjuku Gyoen Garden** (35.6852, 139.7100) — short stroll.
 9. **Omoide Yokocho** (35.6937, 139.6996) — yakitori smoke lane.
-10. 🍜 **Ichiran Ramen Shinjuku** pause.
+10. **Ichiran Ramen Shinjuku** pause.
 11. **Shinjuku Golden Gai** (35.6940, 139.7036) — pick one mini-bar.
 12. End at **Kabukicho neon + Godzilla head** (35.6947, 139.7021).
 
+### D. Scoring metadata
+
+**TKY-1 (Shimokitazawa Drift):** `tour_absolute = 85.5` · iconic 4.5 · geographic 9.0 · time_realism 9.0 · narrative 8.5 · scenic 7.5 · variety 9.5 · usability 9.5. Primary intent `hidden_gems` = 97. **Final (pure_custom) = 92.4**. Full breakdown in [gold-standard-tours.md — Tour 9](./gold-standard-tours.md#tour-9--shimokitazawa-drift).
+
+**TKY-2 (Imperial Loop + Rainbow Bridge):** `tour_absolute ≈ 78` · iconic 7.5 · geographic 8.5 · time_realism 8.0 · narrative 7.5 · scenic 8.0 · variety 7.0 · usability 7.0. Primary intent `minimal_walking` = 82. **Final (hybrid) = 79.6**.
+
+**TKY-3 (Shibuya + Harajuku + Meiji):** `tour_absolute ≈ 90` · iconic 9.5 · geographic 8.5 · time_realism 8.5 · narrative 9.0 · scenic 8.5 · variety 9.5 · usability 8.5. Primary intent `first_time_highlights` = 94. **Final (hybrid) = 91.6**. Strong candidate for gold promotion on the "first-time Tokyo" archetype.
+
 ---
 
-## 42. Kyoto ✅
+## 42. Kyoto 🔹
 
-**Blurb:** Japan's 1,000-year imperial capital — 1,600 Buddhist temples, 400 Shinto shrines, preserved wooden streets in Gion, and the most photogenic concentration of autumn leaves and cherry blossoms in the world.
+**Summary:** Japan's 1,000-year imperial capital — 1,600 Buddhist temples, 400 Shinto shrines, preserved wooden streets in Gion, and the most photogenic concentration of autumn leaves and cherry blossoms in the world. **Strong for:** walking, architecture_historic, photo-heavy (seasons), romantic. **Weak for:** scenic driving; summer heat; overcrowded mid-season icons.
+**Signature moments:** short wow — Fushimi Inari torii gates at sunrise · food pause — Nishiki Market street food · local texture — Pontocho Alley evening · sunset — Kiyomizu-dera terrace · worth the detour — Arashiyama bamboo grove.
+**Clusters:** `kyo_gion` · `kyo_higashiyama` · `kyo_arashiyama` · `kyo_fushimi` · `kyo_nishiki` · `kyo_northern-temples`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2195,9 +3022,11 @@
 
 ---
 
-## 43. Sydney ✅
+## 43. Sydney 🔹
 
-**Blurb:** The harbor-city of postcards — Opera House, Harbour Bridge, Bondi Beach, all within 30 minutes of downtown, with the world's most photogenic ferry commute.
+**Summary:** The harbor-city of postcards — Opera House, Harbour Bridge, Bondi Beach, all within 30 minutes of downtown, with the world's most photogenic ferry commute. **Strong for:** scenic (harbor), first-time highlights, family, walking + ferry hybrid tours. **Weak for:** compact walking-only (spread-out attractions).
+**Signature moments:** short wow — Opera House arrival by ferry · food pause — Bourke Street Bakery · local texture — Bondi to Coogee coastal walk · sunset — Mrs Macquarie's Chair · worth the detour — Blue Mountains day trip.
+**Clusters:** `syd_cbd` · `syd_rocks` · `syd_circularquay` · `syd_bondi` · `syd_paddington` · `syd_manly`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2245,9 +3074,11 @@
 
 ---
 
-## 44. Melbourne ✅
+## 44. Melbourne 🔹
 
-**Blurb:** Australia's coffee-laneway capital — Hidden graffiti alleys, Victorian arcades, MCG cricket cathedral, and ocean-side Great Ocean Road launching point.
+**Summary:** Australia's coffee-laneway capital — Hidden graffiti alleys, Victorian arcades, MCG cricket cathedral, and ocean-side Great Ocean Road launching point. **Strong for:** walking (laneway-based), food-heavy (coffee + brunch), local flavor, architecture (Victorian arcades). **Weak for:** major-icon tourism.
+**Signature moments:** short wow — Hosier Lane street art · food pause — Pellegrini's espresso or Chin Chin · local texture — Queen Victoria Market · worth the detour — Great Ocean Road.
+**Clusters:** `mel_cbd` · `mel_southbank` · `mel_fitzroy` · `mel_stkilda` · `mel_docklands` · `mel_greatoceanroad`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2294,9 +3125,11 @@
 
 ---
 
-## 45. Cape Town ✅
+## 45. Cape Town 🔹
 
-**Blurb:** Table Mountain rising 1km straight out of the Atlantic above a wine-growing peninsula — Cape Town is visually the most dramatic city on earth and an easy base for Robben Island, the Cape of Good Hope, and penguin beaches.
+**Summary:** Table Mountain rising 1km straight out of the Atlantic above a wine-growing peninsula — Cape Town is visually the most dramatic city on earth and an easy base for Robben Island, the Cape of Good Hope, and penguin beaches. **Strong for:** scenic driving (Chapman's Peak), photo-heavy, sunset, day-trip reach. **Weak for:** compact-walking tours (sprawl + safety variance).
+**Signature moments:** short wow — Table Mountain cable car summit · sunset — Signal Hill · local texture — Bo-Kaap colored houses · scenic drive — Chapman's Peak Drive · worth the detour — Boulders Beach penguins.
+**Clusters:** `ct_citybowl` · `ct_bokaap` · `ct_vawaterfront` · `ct_campsbay` · `ct_capepeninsula` · `ct_winelands`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2344,9 +3177,11 @@
 
 ---
 
-## 46. Marrakech ✅
+## 46. Marrakech 🔹
 
-**Blurb:** The Red City of Morocco — Djemaa el-Fna's open-air circus, Koutoubia minaret silhouette, souk labyrinths, and riad courtyards — a sensory-overload medina with Atlas mountains to the south.
+**Summary:** The Red City of Morocco — Djemaa el-Fna's open-air circus, Koutoubia minaret silhouette, souk labyrinths, and riad courtyards — a sensory-overload medina with Atlas mountains to the south. **Strong for:** sensory/first-time tours, food-heavy (tajines), photo-heavy, local flavor. **Weak for:** family-first-time (hustle intensity); kid-heavy tours.
+**Signature moments:** short wow — Djemaa el-Fna at dusk · food pause — Nomad rooftop tajine · local texture — Ben Youssef Medersa courtyard · sunset — Café Kessabine rooftop over Djemaa el-Fna.
+**Clusters:** `mar_medina` · `mar_souks` · `mar_jardin` · `mar_guéliz` · `mar_palmeraie`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2397,9 +3232,12 @@
 
 ---
 
-## 47. Mexico City ✅
+## 47. Mexico City 🔹
 
-**Blurb:** The Americas' largest metro — Aztec pyramids in the Zócalo, Frida Kahlo's blue house, Diego Rivera murals, and the world's most formidable street-taco scene, all at a mile-high altitude.
+**Summary:** The Americas' largest metro — Aztec pyramids in the Zócalo, Frida Kahlo's blue house, Diego Rivera murals, and the world's most formidable street-taco scene, all at a mile-high altitude. **Strong for:** food-heavy, local flavor, walking by neighborhood cluster, architecture (modernist + colonial). **Weak for:** sprawl-driving tours without transit aid.
+**Signature moments:** short wow — Templo Mayor ruins in Zócalo · food pause — Tacos Hola El Güero or Pujol (high-end) · local texture — Condesa-Roma corridor · sunset — Chapultepec Castle terrace · worth the detour — Teotihuacán pyramids (30 mi NE).
+**Clusters:** `cdmx_centro` · `cdmx_condesa` · `cdmx_roma` · `cdmx_coyoacan` · `cdmx_polanco` · `cdmx_xochimilco`.
+**Gold tour:** Condesa-Roma Taco Crawl ([Tour 5](./gold-standard-tours.md#tour-5--condesa-roma-taco-crawl)) — `tour_absolute = 85.5`, food_heavy fit = 96.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2450,9 +3288,11 @@
 
 ---
 
-## 48. Cartagena ✅
+## 48. Cartagena 🔹
 
-**Blurb:** Colombia's walled Caribbean jewel — pastel colonial plazas, pirate-era bastions, bougainvillea balconies, and the bohemian Getsemani quarter for street art and late-night salsa.
+**Summary:** Colombia's walled Caribbean jewel — pastel colonial plazas, pirate-era bastions, bougainvillea balconies, and the bohemian Getsemani quarter for street art and late-night salsa. **Strong for:** walking, romantic, photo-heavy, local flavor. **Weak for:** driving; heat-sensitive midday tours.
+**Signature moments:** short wow — Torre del Reloj gate · food pause — La Cevichería · local texture — Getsemani murals and Plaza Trinidad salsa night · sunset — Cafe del Mar atop the city walls.
+**Clusters:** `cart_walledcity` · `cart_getsemani` · `cart_bocagrande` · `cart_castillo`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2502,9 +3342,11 @@
 
 ---
 
-## 49. Buenos Aires ✅
+## 49. Buenos Aires 🔹
 
-**Blurb:** The Paris of South America — Haussmannian boulevards, tango in San Telmo, steak at a parrilla, and the most passionately lived-in urban core in Latin America.
+**Summary:** The Paris of South America — Haussmannian boulevards, tango in San Telmo, steak at a parrilla, and the most passionately lived-in urban core in Latin America. **Strong for:** walking, romantic, food-heavy (parrilla), architecture, local flavor. **Weak for:** scenic sunset drives; family-tourism infrastructure.
+**Signature moments:** short wow — Recoleta Cemetery mausoleum corridor · food pause — Don Julio or La Cabrera parrilla · local texture — San Telmo Sunday feria · sunset — Puerto Madero + Puente de la Mujer · worth the detour — Teatro Colón backstage.
+**Clusters:** `ba_recoleta` · `ba_sanTelmo` · `ba_palermo` · `ba_puertomadero` · `ba_microcentro`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
@@ -2553,9 +3395,11 @@
 
 ---
 
-## 50. Rio de Janeiro ✅
+## 50. Rio de Janeiro 🔹
 
-**Blurb:** The most dramatic urban landscape on earth — Christ the Redeemer atop Corcovado, Sugarloaf cable car, Copacabana and Ipanema crescents, and carnaval energy year-round.
+**Summary:** The most dramatic urban landscape on earth — Christ the Redeemer atop Corcovado, Sugarloaf cable car, Copacabana and Ipanema crescents, and carnaval energy year-round. **Strong for:** scenic sunset, iconic driving, photo-heavy, beach-focused. **Weak for:** dense compact walking (sprawl + safety variance); family-independent-walking.
+**Signature moments:** short wow — Christ the Redeemer summit · sunset — Arpoador Rock between Copacabana and Ipanema · food pause — Aprazível (Santa Teresa) or an Ipanema caipirinha · local texture — Escadaria Selarón · scenic drive — Corcovado + Sugarloaf + Beaches loop.
+**Clusters:** `rio_corcovado` · `rio_sugarloaf` · `rio_copacabana` · `rio_ipanema` · `rio_santateresa` · `rio_lapa`.
 
 ### Top 15 Attractions
 | # | Name | Neighborhood | Lat | Lng | Why | Evidence |
