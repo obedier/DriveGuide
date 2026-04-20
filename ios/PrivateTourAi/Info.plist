@@ -39,6 +39,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GIDClientID</key>
 	<string>801121217326-6v9ha3uo49ocqjd9mhp5fc019qgurv2r.apps.googleusercontent.com</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>wAIpoint needs continuous location access to trigger audio narration as you drive through your tour route.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
