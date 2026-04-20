@@ -30,6 +30,8 @@ struct PassengerView: View {
                     Text(playback.audioProgress.isEmpty ? "Preparing audio..." : playback.audioProgress)
                         .font(.title3)
                         .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                 } else {
                     narrationContent
                 }
@@ -38,7 +40,9 @@ struct PassengerView: View {
 
                 controls
             }
-            .padding(24)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
         }
         .task {
             await playback.prepareTour(tour)
@@ -50,14 +54,30 @@ struct PassengerView: View {
     // MARK: - Subviews
 
     private var header: some View {
-        HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.down")
-                    .font(.title2)
-                    .foregroundStyle(.white.opacity(0.7))
-                    .frame(width: 44, height: 44)
+        VStack(spacing: 10) {
+            HStack {
+                // High-contrast gold capsule "Close" button so the dismiss
+                // control is obvious (prior chevron-only was invisible to
+                // some beta testers).
+                Button { dismiss() } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.down")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Close")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(Color.brandNavy)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.brandGold, in: Capsule())
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close Passenger Mode")
+
+                Spacer(minLength: 8)
             }
-            Spacer()
+
             VStack(spacing: 2) {
                 Text("PASSENGER MODE")
                     .font(.caption2).tracking(2)
@@ -65,11 +85,11 @@ struct PassengerView: View {
                 Text(tour.title)
                     .font(.headline)
                     .foregroundStyle(.white)
-                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+                    .frame(maxWidth: .infinity)
             }
-            Spacer()
-            // Invisible spacer matching the dismiss button for balance
-            Color.clear.frame(width: 44, height: 44)
         }
     }
 
@@ -79,6 +99,7 @@ struct PassengerView: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.brandGold)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
 
             ScrollView(showsIndicators: false) {
                 Text(playback.currentNarrationText)
@@ -86,12 +107,15 @@ struct PassengerView: View {
                     .foregroundStyle(.white.opacity(0.9))
                     .lineSpacing(8)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal, 4)
             }
-            .frame(maxHeight: 380)
+            .frame(maxWidth: .infinity, maxHeight: 380)
 
             segmentCounter
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var segmentCounter: some View {
