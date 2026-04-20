@@ -39,6 +39,7 @@ function insertTour(params: {
   id: string;
   title: string;
   isPublic: boolean;
+  isFeatured?: boolean;
   rating?: number | null;
   ratingCount?: number;
   metro?: string | null;
@@ -52,9 +53,9 @@ function insertTour(params: {
     INSERT INTO tours (
       id, user_id, title, description, location_query,
       duration_minutes, themes, language, status, transport_mode,
-      is_public, community_rating, community_rating_count, metro_area,
+      is_public, is_featured, community_rating, community_rating_count, metro_area,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, '[]', 'en', 'ready', ?, ?, ?, ?, ?,
+    ) VALUES (?, ?, ?, ?, ?, ?, '[]', 'en', 'ready', ?, ?, ?, ?, ?, ?,
       COALESCE(?, datetime('now')), datetime('now'))
   `).run(
     params.id,
@@ -65,6 +66,7 @@ function insertTour(params: {
     60,
     params.transportMode ?? 'car',
     params.isPublic ? 1 : 0,
+    params.isFeatured ? 1 : 0,
     params.rating ?? null,
     params.ratingCount ?? 0,
     params.metro ?? null,
@@ -185,6 +187,33 @@ describe('GET /v1/tours/public — sort', () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body) as { tours: Array<{ id: string }> };
     expect(body.tours[0].id).toBe('hi');
+  });
+
+  it('sort=top surfaces featured tours ahead of higher-rated community tours', async () => {
+    // A featured tour with no ratings must still lead a 5-star community tour.
+    insertTour({ id: 'five-star', title: 'All-time top (community)', isPublic: true, rating: 5.0, ratingCount: 200 });
+    insertTour({ id: 'feat-curated', title: 'Featured curated', isPublic: true, isFeatured: true, rating: null, ratingCount: 0 });
+    insertTour({ id: 'three-star', title: 'Mid (community)', isPublic: true, rating: 3.0, ratingCount: 10 });
+
+    const res = await app.inject({ method: 'GET', url: '/v1/tours/public' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as { tours: Array<{ id: string; isFeatured: boolean }> };
+    expect(body.tours[0].id).toBe('feat-curated');
+    expect(body.tours[0].isFeatured).toBe(true);
+    // The community tours fall in below, sorted by rating.
+    expect(body.tours[1].id).toBe('five-star');
+    expect(body.tours[2].id).toBe('three-star');
+  });
+
+  it('returned items include isFeatured boolean', async () => {
+    insertTour({ id: 'f', title: 'Featured', isPublic: true, isFeatured: true });
+    insertTour({ id: 'c', title: 'Community', isPublic: true, rating: 5.0, ratingCount: 3 });
+
+    const res = await app.inject({ method: 'GET', url: '/v1/tours/public' });
+    const body = JSON.parse(res.body) as { tours: Array<{ id: string; isFeatured: boolean }> };
+    const map = Object.fromEntries(body.tours.map((t) => [t.id, t.isFeatured]));
+    expect(map.f).toBe(true);
+    expect(map.c).toBe(false);
   });
 });
 

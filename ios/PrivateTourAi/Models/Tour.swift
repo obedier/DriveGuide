@@ -20,6 +20,11 @@ struct Tour: Codable, Identifiable {
     let customPrompt: String?
     let shareId: String?
     let isPublic: Bool
+    /// Curated / pre-generated tours (e.g., "Miami's Golden Hour") are flagged
+    /// is_featured=1 on the backend. iOS uses this to paint a gold border +
+    /// star on community cards so users can tell at a glance they're seeing a
+    /// gold-standard showcase tour vs a user-published one.
+    let isFeatured: Bool
     let stops: [TourStop]
     let narrationSegments: [NarrationSegment]
     let createdAt: String
@@ -44,7 +49,9 @@ struct Tour: Codable, Identifiable {
         speedMph = try container.decodeIfPresent(Double.self, forKey: .speedMph)
         customPrompt = try container.decodeIfPresent(String.self, forKey: .customPrompt)
         shareId = try container.decodeIfPresent(String.self, forKey: .shareId)
-        isPublic = try container.decodeIfPresent(Bool.self, forKey: .isPublic) ?? false
+        // SQLite-backed APIs return BOOLs as 0/1 ints; handle both without crashing.
+        isPublic = Self.flexibleBool(container, key: .isPublic) ?? false
+        isFeatured = Self.flexibleBool(container, key: .isFeatured) ?? false
         stops = try container.decodeIfPresent([TourStop].self, forKey: .stops) ?? []
         narrationSegments = try container.decodeIfPresent([NarrationSegment].self, forKey: .narrationSegments) ?? []
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
@@ -65,8 +72,19 @@ struct Tour: Codable, Identifiable {
         case customPrompt = "custom_prompt"
         case shareId = "share_id"
         case isPublic = "is_public"
+        case isFeatured = "is_featured"
         case narrationSegments = "narration_segments"
         case createdAt = "created_at"
+    }
+
+    /// SQLite-backed responses sometimes return BOOLs as 0/1 integers. Plain
+    /// `decodeIfPresent(Bool.self, ...)` throws a typeMismatch on those, which
+    /// aborts the whole Tour decode. This helper accepts either encoding and
+    /// normalises to Swift `Bool`.
+    static func flexibleBool<Key: CodingKey>(_ container: KeyedDecodingContainer<Key>, key: Key) -> Bool? {
+        if let b = try? container.decodeIfPresent(Bool.self, forKey: key) { return b }
+        if let i = try? container.decodeIfPresent(Int.self, forKey: key) { return i != 0 }
+        return nil
     }
 }
 

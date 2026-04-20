@@ -1,10 +1,23 @@
-What's new in 2.13:
+What's new in 2.16:
 
-• Fixed: the "Visible in Community" toggle on tour detail now actually stays on when you flip it. Previously the UI snapped back because the async API call completed after SwiftUI re-read the binding.
-• Make it your own — featured/community tours you don't own now show a gold "Make it your own" button that clones the tour into your library with a new title prefix ("My ...") so you can edit stops and narration without affecting the original.
-• Fallback for the visibility toggle: if the newer /visibility endpoint isn't deployed yet, the app transparently falls back to the existing publish/unpublish endpoints, so the toggle just works.
+• Location-aware "drive-to" narration — when you start a tour far from the first stop, we now play a dynamically generated intro while you travel there, then seamlessly hand off to the pre-written tour narration the moment you arrive. A status banner at the top shows live distance + ETA.
+• Follow-up narrations during long drives — adaptive cadence spaces 2-3 mini bridges across your drive so you don't sit in silence, each one with different framing (fact / sensory / pop-culture hook).
+• Accurate ETAs — Google Directions API drives the "~X min" estimate instead of a straight-line approximation, so it accounts for roads and traffic.
+
+• Featured "wAIpoint Featured" tours — new gold-standard showcase tours you can play for free. Miami's Golden Hour (2-hour driving) and Miami's Canvas (4-hour walking) are live now. Featured tours get a gold border + sparkle pill so you can tell them apart from user-shared tours at a glance.
+• Instant playback for featured tours — pre-generated audio loads without the "Preparing your tour…" delay.
+
+• "Make it your own" — every community/featured tour now has a one-tap button that clones it into your library with a "My…" title prefix, so you can edit stops or narration for your own version.
+• Segment list during navigation — the in-tour player has a new ⋯ menu that opens a full list of all segments. Tap any to skip to it; checkmark, waveform, and highlight show progress. Counter ("3 of 29") always visible.
+• Close button on the tour start screen — clearer way to back out without starting Simulate or Navigate.
+
+• Fixed: community visibility toggle now sticks on the first tap instead of snapping back.
+• Fixed: community tours that used to fail to load now open reliably.
+• Fixed: compact Start/End toggles on Advanced search no longer truncate in portrait.
 
 Please test:
-• Open any tour in your library → tap "Visible in Community" → toggle should switch on, show "Visible in Community" label, and not snap back
-• Toggle it off and back on a few times — no snap-backs
-• Open a tour you didn't create (from Community tab) → tap "Make it your own" → confirm a new editable copy appears in your library with "My " prefix
+• Start a Miami featured tour from your home. You should see a gold banner: "Heading to South Pointe Park · ~X min · tour begins when you arrive."
+• Drive toward the first stop. Follow-up narrations should play roughly every 4-6 min with different openers.
+• When you cross within ~400m of the first stop, the tour narration takes over.
+• Tap the ⋯ menu during navigation to open the segment list. Tap segment 4 to jump to it.
+• Tap "Make it your own" on any featured tour. Confirm a "My..." copy appears in your library.

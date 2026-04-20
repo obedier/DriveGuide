@@ -101,21 +101,22 @@ function extractFirstPhrase(text: string): string {
 
 function extractJson(text: string): string {
   const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch) return fenceMatch[1].trim();
-  const first = text.indexOf('{');
-  const last = text.lastIndexOf('}');
-  if (first !== -1 && last > first) return text.slice(first, last + 1);
-  return text;
+  let raw = fenceMatch ? fenceMatch[1].trim() : text;
+  const first = raw.indexOf('{');
+  const last = raw.lastIndexOf('}');
+  if (first !== -1 && last > first) raw = raw.slice(first, last + 1);
+  // Strip trailing commas before closing brackets/braces — Gemini occasionally emits them.
+  return raw.replace(/,(\s*[}\]])/g, '$1');
 }
 
 // ── Narration style guide reused by every sub-prompt.
 const STYLE_GUIDE = `
 NARRATION STYLE — CRITICAL:
 - Energetic, warm, conversational. Like a best friend who happens to be a historian.
-- Do NOT open with any of these banned phrases or close paraphrases:
+- Do NOT open with any of these banned phrases or close paraphrases (THIS APPLIES TO INTRO TOO — no "Welcome to…" openings):
   "alright folks/friends/drivers/now", "okay so", "now then", "here we go",
   "let me tell you", "let's talk about", "you're going to love",
-  "get ready for", "coming up on", "buckle up", "welcome to" (reserve for the INTRO only),
+  "get ready for", "coming up on", "buckle up", "welcome to",
   "folks,", "so,", "well,", "listen up".
 - Rotate openings between segments: a sensory detail, a question, a historical
   hook, a pop-culture tie-in, a surprising stat, a direct imperative, a short
@@ -168,17 +169,30 @@ TASK: Produce the TOUR FRAME only. Return strict JSON, no markdown:
   "title": "A compelling title (under 60 chars)",
   "description": "2-3 sentence hook that makes someone open the tour right now",
   "story_arc_summary": "One sentence describing the narrative journey",
-  "intro_narration": "90-120 second intro (220-300 words). Set the scene, build excitement. MAY open with 'Welcome to…' since this is the intro.",
-  "outro_narration": "45-60 second outro (110-160 words). Callback to the intro hook, suggest what's next. MUST NOT start with 'Welcome', 'Alright', or 'Well'."
+  "intro_narration": "90-120 second intro (220-300 words). Set the scene, build excitement. MUST NOT open with 'Welcome', 'Alright', 'Hey', 'Hello', or any greeting — start with a sensory detail, a surprising fact, a question, or a historical hook.",
+  "outro_narration": "45-60 second outro (110-160 words). Callback to the intro hook, suggest what's next. MUST NOT start with 'Welcome', 'Alright', 'Well', 'That's', or 'There'."
 }`;
 
-  const frameRes = await model.generateContent(framePrompt);
+  let frameRes = await model.generateContent(framePrompt);
   callCount++;
   addUsage(frameRes.response);
-  const frame = JSON.parse(extractJson(frameRes.response.text())) as {
+  let frame = JSON.parse(extractJson(frameRes.response.text())) as {
     title: string; description: string; story_arc_summary: string;
     intro_narration: string; outro_narration: string;
   };
+
+  // Retry the frame if either intro or outro opened with a banned phrase.
+  // Previously we only gated per-stop narration, so "Welcome to Miami!"-style
+  // intros still leaked through.
+  if (hasBannedOpener(frame.intro_narration) || hasBannedOpener(frame.outro_narration)) {
+    const frameRetryPrompt = `${framePrompt}
+
+ATTEMPT 1 FAILED — your intro or outro opened with a BANNED phrase ("Welcome", "Alright", "Well", etc.). Rewrite BOTH intro_narration and outro_narration. Each must start with a completely different structural device (sensory observation, surprising fact, question, historical hook, or punchy declarative statement). Same JSON shape.`;
+    frameRes = await model.generateContent(frameRetryPrompt);
+    callCount++;
+    addUsage(frameRes.response);
+    frame = JSON.parse(extractJson(frameRes.response.text())) as typeof frame;
+  }
 
   // Track opener signatures to prevent repetition.
   const usedOpeners: string[] = [];

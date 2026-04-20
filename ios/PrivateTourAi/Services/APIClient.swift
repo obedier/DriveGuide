@@ -158,6 +158,9 @@ final class APIClient: Sendable {
     /// sort: "top" | "recent" | "trending"
     struct PublicTourItem: Decodable, Identifiable, Sendable {
         let id: String
+        /// Share ID used by `getSharedTour(shareId:)`. Falls back to the tour's
+        /// `id` if the backend omits it so the UI can still try a deep-link.
+        let shareId: String?
         let title: String
         let description: String
         let durationMinutes: Int
@@ -166,7 +169,11 @@ final class APIClient: Sendable {
         let metroArea: String?
         let avgRating: Double
         let ratingCount: Int
+        let isFeatured: Bool
         let createdAt: String
+
+        /// Use this instead of `id` for any `/tours/shared/:x` lookup.
+        var resolvableShareId: String { shareId ?? id }
     }
 
     struct PublicToursResponse: Decodable { let tours: [PublicTourItem]; let total: Int }
@@ -195,6 +202,40 @@ final class APIClient: Sendable {
         let rating: Double?
         let rating_count: Int?
         let created_at: String?
+        /// Curated / pre-generated showcase tours get a gold treatment on
+        /// the community card. Decoded flexibly because SQLite returns 0/1 ints.
+        let is_featured: Bool
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            title = try c.decode(String.self, forKey: .title)
+            description = try c.decode(String.self, forKey: .description)
+            location = (try? c.decode(String.self, forKey: .location)) ?? ""
+            duration_minutes = (try? c.decode(Int.self, forKey: .duration_minutes)) ?? 60
+            transport_mode = (try? c.decode(String.self, forKey: .transport_mode)) ?? "car"
+            center_lat = try? c.decodeIfPresent(Double.self, forKey: .center_lat)
+            center_lng = try? c.decodeIfPresent(Double.self, forKey: .center_lng)
+            distance_km = try? c.decodeIfPresent(Double.self, forKey: .distance_km)
+            share_id = try? c.decodeIfPresent(String.self, forKey: .share_id)
+            rating = try? c.decodeIfPresent(Double.self, forKey: .rating)
+            rating_count = try? c.decodeIfPresent(Int.self, forKey: .rating_count)
+            created_at = try? c.decodeIfPresent(String.self, forKey: .created_at)
+            if let b = try? c.decodeIfPresent(Bool.self, forKey: .is_featured) {
+                is_featured = b
+            } else if let i = try? c.decodeIfPresent(Int.self, forKey: .is_featured) {
+                is_featured = i != 0
+            } else {
+                is_featured = false
+            }
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id, title, description, location
+            case duration_minutes, transport_mode
+            case center_lat, center_lng, distance_km
+            case share_id, rating, rating_count, created_at, is_featured
+        }
     }
 
     struct CommunityResponse: Decodable {
@@ -290,6 +331,54 @@ final class APIClient: Sendable {
         struct Response: Decodable { let ratings: [RatingItem] }
         let response: Response = try await get("/tours/\(tourId)/ratings")
         return response.ratings
+    }
+
+    // MARK: - Bridge Narration (2.16 — "drive-to" intro for far-from-first-stop)
+
+    struct BridgeNarrationResponse: Decodable, Sendable {
+        let narrationText: String
+        let audioUrl: String
+        let contentHash: String
+        let durationSeconds: Int
+        let distanceKm: Double
+        let etaMinutes: Int
+
+        enum CodingKeys: String, CodingKey {
+            case narrationText = "narration_text"
+            case audioUrl = "audio_url"
+            case contentHash = "content_hash"
+            case durationSeconds = "duration_seconds"
+            case distanceKm = "distance_km"
+            case etaMinutes = "eta_minutes"
+        }
+    }
+
+    /// Fetch an on-the-fly drive-to narration when the user is far from the
+    /// first stop. Gemini-authored + Google-TTS-synthesized on the server.
+    /// `kind` controls opener vs follow-up prompting; `previousOpeners` lets
+    /// the server steer Gemini away from repeating phrasing across multiple
+    /// bridges during the same trip.
+    func getBridgeNarration(
+        tourId: String,
+        userLat: Double,
+        userLng: Double,
+        etaMinutes: Int?,
+        kind: String = "opener",
+        previousOpeners: [String] = []
+    ) async throws -> BridgeNarrationResponse {
+        struct Body: Encodable {
+            let user_lat: Double
+            let user_lng: Double
+            let eta_minutes: Int?
+            let kind: String
+            let previous_openers: [String]
+        }
+        return try await post(
+            "/tours/\(tourId)/bridge",
+            body: Body(user_lat: userLat, user_lng: userLng, eta_minutes: etaMinutes,
+                       kind: kind, previous_openers: previousOpeners),
+            timeout: 60  // includes Gemini + TTS round-trip
+        )
     }
 
     // MARK: - Per-Segment Audio (for progressive buffering)

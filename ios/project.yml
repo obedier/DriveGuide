@@ -103,8 +103,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        MARKETING_VERSION: "2.13"
-        CURRENT_PROJECT_VERSION: 23
+        MARKETING_VERSION: "2.16"
+        CURRENT_PROJECT_VERSION: 29
         CODE_SIGN_ENTITLEMENTS: PrivateTourAi/PrivateTourAi.entitlements
 
   PrivateTourAiTests:

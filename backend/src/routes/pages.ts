@@ -7,24 +7,10 @@ function wrap(title: string, body: string): string {
 }
 
 export async function pageRoutes(app: FastifyInstance): Promise<void> {
-  // Apple App Site Association — enables Universal Links so
-  // https://waipoint.o11r.com/tour/<id> and /passenger/<id> deep-link
-  // into the iOS app. Must be served at this exact path with
-  // Content-Type: application/json and no redirect.
-  app.get('/.well-known/apple-app-site-association', async (_req, reply) => {
-    reply.type('application/json');
-    return {
-      applinks: {
-        apps: [],
-        details: [
-          {
-            appID: 'U3972W2GDJ.com.privatetourai.app',
-            paths: ['/tour/*', '/passenger/*']
-          }
-        ]
-      }
-    };
-  });
+  // NOTE: The Apple App Site Association route lives in server.ts (lines ~40)
+  // and already authorises /tour/* — it's extended there to also cover
+  // /passenger/* for 2.9 Passenger Mode. Defining it here again caused a
+  // FST_ERR_DUPLICATED_ROUTE crash on Cloud Run startup.
 
   app.get('/privacy', async (_req, reply) => {
     reply.type('text/html');

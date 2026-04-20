@@ -30,6 +30,7 @@ import {
   type FeaturedTourRequest,
 } from '../src/services/tour/featured.js';
 import { synthesizeWithKokoro } from '../src/services/audio/kokoro.js';
+import { synthesizeOrCache } from '../src/services/audio/tts.js';
 
 const FEATURED_OWNER = 'waipoint-featured-system';
 const METRO_MIAMI = 'Miami';
@@ -232,7 +233,7 @@ function persistTour(
   const db = getDb();
   const tourId = `featured-${tour.key}`;
   const language = 'en';
-  const voice = 'kokoro-af-bella';
+  const voice = process.env.FEATURED_VOICE ?? 'en-US-Journey-D';
 
   const totalStayMinutes = content.stops.reduce((s, x) => s + x.recommended_stay_minutes, 0);
 
@@ -367,9 +368,9 @@ interface CostSummary {
   sampleAudioUrls: string[];
 }
 
-async function generateAudio(tourId: string): Promise<{ segments: number; chars: number; seconds: number; samples: string[] }> {
+async function generateAudio(tourId: string): Promise<{ segments: number; chars: number; seconds: number; samples: string[]; errors: number }> {
   if (process.env.SKIP_TTS === '1') {
-    return { segments: 0, chars: 0, seconds: 0, samples: [] };
+    return { segments: 0, chars: 0, seconds: 0, samples: [], errors: 0 };
   }
   const db = getDb();
   type Row = { id: string; narration_text: string; content_hash: string; language: string; segment_type: string; sequence_order: number };
@@ -380,29 +381,46 @@ async function generateAudio(tourId: string): Promise<{ segments: number; chars:
 
   const totalChars = rows.reduce((s, r) => s + r.narration_text.length, 0);
 
-  // Kokoro batch supports up to ~50 segments in 5 min timeout; split if larger.
-  const CHUNK = 15;
+  // Google Cloud TTS via synthesizeOrCache — uploads each segment to GCS AND
+  // persists a row in audio_files keyed by content_hash. Engine picked per
+  // 2.13 pilot: Journey voices are the most natural-sounding premium option
+  // and Google TTS persistence is already wired (Kokoro returned URLs but
+  // never wrote to audio_files, so iOS never saw the audio).
+  //
+  // Bounded concurrency — 4 parallel segments — keeps total wall-clock low
+  // without hammering the TTS quota.
+  const voiceName = process.env.FEATURED_VOICE ?? 'en-US-Journey-D';
+  const CONCURRENCY = 4;
   const samples: string[] = [];
   let totalSeconds = 0;
+  let errors = 0;
 
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const batch = rows.slice(i, i + CHUNK).map((r) => ({
-      id: r.id,
-      narration_text: r.narration_text,
-      content_hash: r.content_hash,
-      language: r.language,
-    }));
-    const res = await synthesizeWithKokoro(batch, 'af_bella', 0.95);
-    totalSeconds += res.total_duration_seconds;
-    // Pick 1-2 samples from each batch — prefer intro, at_stop types.
-    for (const s of res.segments) {
-      if (samples.length < 5 && !samples.includes(s.audio_url)) {
-        samples.push(s.audio_url);
+  const synthesizeOne = async (row: Row): Promise<void> => {
+    try {
+      const start = Date.now();
+      const res = await synthesizeOrCache(
+        row.narration_text,
+        row.content_hash,
+        row.language ?? 'en',
+        voiceName,
+      );
+      totalSeconds += res.duration_seconds;
+      if (samples.length < 5 && res.public_url && !samples.includes(res.public_url)) {
+        samples.push(res.public_url);
       }
+      console.log(`    tts ${row.segment_type.padEnd(12)} seq ${String(row.sequence_order).padStart(2)} → ${res.duration_seconds}s (${Date.now() - start}ms)`);
+    } catch (err) {
+      errors++;
+      console.error(`    tts FAILED seq ${row.sequence_order}: ${(err as Error).message}`);
     }
+  };
+
+  // Pool of up to CONCURRENCY workers pulling from the rows queue
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    await Promise.all(rows.slice(i, i + CONCURRENCY).map(synthesizeOne));
   }
 
-  return { segments: rows.length, chars: totalChars, seconds: Math.round(totalSeconds), samples };
+  return { segments: rows.length, chars: totalChars, seconds: Math.round(totalSeconds), samples, errors };
 }
 
 async function runPilot(): Promise<void> {
@@ -412,7 +430,10 @@ async function runPilot(): Promise<void> {
   const dryRun = process.env.DRY_RUN === '1';
   const summaries: CostSummary[] = [];
 
-  for (const tour of miamiTours) {
+  const onlyKey = process.env.ONLY_KEY;
+  const tours = onlyKey ? miamiTours.filter((t) => t.key === onlyKey) : miamiTours;
+
+  for (const tour of tours) {
     console.log(`\n━━━ ${tour.key}: "${tour.tourTitleHint}" (${tour.stops.length} stops) ━━━`);
 
     const t0 = Date.now();
@@ -492,19 +513,19 @@ async function runPilot(): Promise<void> {
 
   // Gemini 2.5 Flash pricing (Apr 2025): $0.30 / 1M input, $2.50 / 1M output.
   const costGemini = (totals.geminiPromptTokens / 1e6) * 0.30 + (totals.geminiCandidatesTokens / 1e6) * 2.50;
-  // Kokoro on Cloud Run GPU: approximate at ~$0.00024/sec audio produced (L4).
-  // Very rough; we will true this up with actual gcloud billing export.
+  // Google Cloud TTS premium (Journey voices): $16 / 1M characters.
+  // Neural2 (standard premium): $16 / 1M characters — same tier.
+  const costTts = (totals.ttsChars / 1e6) * 16.0;
   const audioSeconds = summaries.reduce((s, x) => s + x.ttsAudioSeconds, 0);
-  const costKokoro = audioSeconds * 0.00024;
   // Places Photos: $7 per 1000 textsearch + $7 per 1000 details + $7 per 1000 photo lookups.
   const costPlaces = (totals.photos * 3 * 0.007);
 
   console.log(`\n── Per-metro totals ──`);
   console.log(`  Gemini tokens: ${totals.geminiTokens} (in ${totals.geminiPromptTokens} / out ${totals.geminiCandidatesTokens})  →  ~$${costGemini.toFixed(3)}`);
-  console.log(`  Kokoro TTS seconds: ${audioSeconds}  →  ~$${costKokoro.toFixed(3)}`);
+  console.log(`  Google TTS chars: ${totals.ttsChars} (~${audioSeconds}s audio)  →  ~$${costTts.toFixed(3)}`);
   console.log(`  Places photo fetches: ${totals.photos} (×3 API calls each)  →  ~$${costPlaces.toFixed(3)}`);
-  console.log(`  TOTAL EST: ~$${(costGemini + costKokoro + costPlaces).toFixed(3)} per Miami pair`);
-  console.log(`  Extrapolated to 50 metros: ~$${((costGemini + costKokoro + costPlaces) * 50).toFixed(2)}`);
+  console.log(`  TOTAL EST: ~$${(costGemini + costTts + costPlaces).toFixed(3)} per Miami pair`);
+  console.log(`  Extrapolated to 50 metros: ~$${((costGemini + costTts + costPlaces) * 50).toFixed(2)}`);
   console.log('==================================================\n');
 }
 

@@ -49,6 +49,20 @@ struct TourDetailView: View {
 
                     // Tour info
                     VStack(alignment: .leading, spacing: 12) {
+                        if tour.isFeatured {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles").font(.caption2)
+                                Text("wAIpoint Featured").font(.caption2.bold()).tracking(0.6)
+                            }
+                            .foregroundStyle(.brandNavy)
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(
+                                LinearGradient(colors: [.brandGold, Color(red: 0.96, green: 0.85, blue: 0.55)],
+                                               startPoint: .leading, endPoint: .trailing),
+                                in: Capsule()
+                            )
+                        }
+
                         Text(tour.title)
                             .font(.title2.bold())
 

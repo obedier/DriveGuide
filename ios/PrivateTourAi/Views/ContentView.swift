@@ -336,9 +336,12 @@ struct LibraryView: View {
                     PublicTourCard(item: item) {
                         Task {
                             do {
-                                let tour = try await APIClient.shared.getSharedTour(shareId: item.id)
+                                // The `/tours/public` response returns both `id` and
+                                // `shareId`. `/tours/shared/:x` only accepts share IDs,
+                                // not tour IDs — passing the tour id 404s.
+                                let tour = try await APIClient.shared.getSharedTour(shareId: item.resolvableShareId)
                                 tourVM.currentTour = tour
-                                tourVM.showTourDetail = true
+                                selectedTour = tour
                             } catch {
                                 tourVM.communityMessage = "Failed to load tour"
                             }
@@ -416,7 +419,10 @@ struct LibraryView: View {
                                         do {
                                             let tour = try await APIClient.shared.getSharedTour(shareId: shareId)
                                             tourVM.currentTour = tour
-                                            tourVM.showTourDetail = true
+                                            // LibraryView's sheet is bound to $selectedTour, NOT
+                                            // tourVM.showTourDetail — setting the latter doesn't
+                                            // surface the sheet from the Tours tab.
+                                            selectedTour = tour
                                         } catch {
                                             tourVM.communityMessage = "Failed to load tour"
                                         }
@@ -516,6 +522,19 @@ struct PublicTourCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
+                if item.isFeatured {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles").font(.caption2)
+                        Text("Featured").font(.caption2.bold()).tracking(0.6)
+                    }
+                    .foregroundStyle(.brandNavy)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(
+                        LinearGradient(colors: [.brandGold, Color(red: 0.96, green: 0.85, blue: 0.55)],
+                                       startPoint: .leading, endPoint: .trailing),
+                        in: Capsule()
+                    )
+                }
                 HStack(spacing: 8) {
                     Text(item.title)
                         .font(.headline)
@@ -548,7 +567,22 @@ struct PublicTourCard: View {
                 .font(.caption).foregroundStyle(.white.opacity(0.5))
             }
             .padding(14)
-            .background(Color.brandNavy.opacity(0.95), in: RoundedRectangle(cornerRadius: 16))
+            .background(
+                item.isFeatured
+                    ? AnyShapeStyle(LinearGradient(
+                        colors: [Color.brandGold.opacity(0.18), Color.brandNavy.opacity(0.95)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                      ))
+                    : AnyShapeStyle(Color.brandNavy.opacity(0.95)),
+                in: RoundedRectangle(cornerRadius: 16)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        item.isFeatured ? Color.brandGold.opacity(0.55) : Color.clear,
+                        lineWidth: item.isFeatured ? 1.5 : 0
+                    )
+            )
         }
         .buttonStyle(.plain)
     }
@@ -575,6 +609,22 @@ struct CommunityTourCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
+                if item.is_featured {
+                    // Small gold "Featured" pill — subtle signal this is a
+                    // curated / gold-standard showcase tour rather than a
+                    // user-published one.
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles").font(.caption2)
+                        Text("Featured").font(.caption2.bold()).tracking(0.6)
+                    }
+                    .foregroundStyle(.brandNavy)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(
+                        LinearGradient(colors: [.brandGold, Color(red: 0.96, green: 0.85, blue: 0.55)],
+                                       startPoint: .leading, endPoint: .trailing),
+                        in: Capsule()
+                    )
+                }
                 HStack {
                     Text(item.title).font(.headline).foregroundStyle(.brandGold).multilineTextAlignment(.leading)
                     Spacer()
@@ -615,8 +665,23 @@ struct CommunityTourCard: View {
                 .font(.caption2).foregroundStyle(.white.opacity(0.35))
             }
             .padding(16)
-            .background(Color.brandGreen.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brandGold.opacity(0.1)))
+            .background(
+                // Featured tours get a slightly warmer gold-tinted background.
+                item.is_featured
+                    ? AnyShapeStyle(LinearGradient(
+                        colors: [Color.brandGold.opacity(0.18), Color.brandGreen.opacity(0.2)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                      ))
+                    : AnyShapeStyle(Color.brandGreen.opacity(0.2)),
+                in: RoundedRectangle(cornerRadius: 16)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        item.is_featured ? Color.brandGold.opacity(0.55) : Color.brandGold.opacity(0.1),
+                        lineWidth: item.is_featured ? 1.5 : 1
+                    )
+            )
         }
         .buttonStyle(.plain)
     }

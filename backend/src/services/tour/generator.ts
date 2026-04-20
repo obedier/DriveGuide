@@ -425,7 +425,27 @@ export function loadTour(tourId: string): Tour {
   if (!tourRow) throw new Error(`Tour not found: ${tourId}`);
 
   const stops = db.prepare('SELECT * FROM tour_stops WHERE tour_id = ? ORDER BY sequence_order').all(tourId) as TourStop[];
-  const segments = db.prepare('SELECT * FROM narration_segments WHERE tour_id = ? ORDER BY sequence_order').all(tourId) as NarrationSegment[];
+  // Surface a ready-to-play audio_url on every narration segment that has
+  // already been synthesized (audio_files row present). We do NOT synthesize
+  // URLs for segments without an audio_files row — iOS treats an empty URL as
+  // "generate on demand" and synthesizes via /audio/generate. If we emitted
+  // a URL for un-synthesized audio, iOS would try to download it, 404, and
+  // fall through to a broken state.
+  const bucket = process.env.GCS_AUDIO_CACHE_BUCKET || 'driveguide-audio-cache';
+  const segmentRows = db.prepare(`
+    SELECT ns.*, af.gcs_path AS _audio_gcs_path
+    FROM narration_segments ns
+    LEFT JOIN audio_files af ON af.content_hash = ns.content_hash AND af.language = ns.language
+    WHERE ns.tour_id = ?
+    ORDER BY ns.sequence_order
+  `).all(tourId) as Array<NarrationSegment & { _audio_gcs_path?: string | null }>;
+  const segments = segmentRows.map((row) => {
+    const { _audio_gcs_path, ...seg } = row;
+    if (_audio_gcs_path) {
+      return { ...seg, audio_url: `https://storage.googleapis.com/${bucket}/${_audio_gcs_path}` };
+    }
+    return seg;
+  });
 
   return {
     ...tourRow,

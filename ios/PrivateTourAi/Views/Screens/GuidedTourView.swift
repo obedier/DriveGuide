@@ -133,6 +133,14 @@ struct GuidedTourView: View {
                         Spacer()
                     }
 
+                    // 2.16: Bridge / drive-to banner.
+                    if let bridge = playback.bridgeState {
+                        BridgeStatusBanner(state: bridge)
+                            .padding(.horizontal)
+                            .padding(.top, 4)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
                     Spacer()
 
                     // Audio player
@@ -166,7 +174,10 @@ struct GuidedTourView: View {
                                 if useFerrostar {
                                     ferrostarNav.startNavigation(targetStopIndex: 0)
                                     showTurnByTurn = true
-                                    playback.startTour()
+                                    // 2.16: Use awareness variant so far-from-first-stop
+                                    // tours get a dynamic "drive-to" intro instead of
+                                    // immediately playing segment 0.
+                                    playback.startTourWithAwareness(userLocation: activeUserLocation)
                                     // 2.11: Arrivals auto-trigger the matching narration segment.
                                     routeAware.attach(ferrostarNav)
                                 } else {
@@ -183,17 +194,29 @@ struct GuidedTourView: View {
         .task {
             guard !hasPrepared else { return }
             hasPrepared = true
-            // Calculate routes and prepare audio in parallel
-            if useFerrostar {
-                async let routeCalc: () = ferrostarNav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
-                async let audioPrepare: () = playback.prepareTour(tour)
-                _ = await (routeCalc, audioPrepare)
-            } else {
-                async let routeCalc: () = nav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
-                async let audioPrepare: () = playback.prepareTour(tour)
-                _ = await (routeCalc, audioPrepare)
-            }
+            // Audio first — for pre-generated tours this is near-instant because
+            // every segment already has an audio_url from the server. The map
+            // route can continue computing in the background without blocking
+            // the "ready to start" UI.
+            await playback.prepareTour(tour)
             isPreparing = false
+            // Route calc continues in background so the map populates while
+            // the user reads the ready-to-start card.
+            Task {
+                if useFerrostar {
+                    await ferrostarNav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
+                } else {
+                    await nav.calculateRoutes(for: tour.stops, transportMode: tour.transportMode ?? "car")
+                }
+            }
+        }
+        // 2.16: Feed user location into the playback coordinator so the
+        // bridge narration knows when to hand off to the pre-gen segment 0.
+        .onChange(of: ferrostarNav.userLocation?.latitude) { _, _ in
+            if let loc = ferrostarNav.userLocation { playback.observeLocation(loc) }
+        }
+        .onChange(of: nav.userLocation?.latitude) { _, _ in
+            if let loc = nav.userLocation { playback.observeLocation(loc) }
         }
         .onChange(of: playback.currentStopIndex) { _, newIdx in
             guard !isBoatTour, newIdx >= 0, newIdx < tour.stops.count else { return }
@@ -422,18 +445,59 @@ struct PreparingAudioCard: View {
 struct AudioOnlyCard: View {
     @ObservedObject var playback: TourPlaybackService
     let onStop: () -> Void
+    @State private var showSegmentList = false
+
+    private var total: Int { playback.audioPlayer.totalSegments }
+    private var current: Int { playback.audioPlayer.currentSegmentIndex }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(playback.segmentLabel)
-                .font(.caption.bold())
-                .foregroundStyle(.brandGold)
+        VStack(spacing: 10) {
+            // Header row — segment title + counter + photo thumb
+            HStack(spacing: 10) {
+                if let stop = playback.currentStop, let photoUrl = stop.photoUrl, let url = URL(string: photoUrl) {
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color(.systemGray5)
+                    }
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
 
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(playback.segmentLabel)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text("\(current + 1) of \(total)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Spacer()
+
+                // Expand into full segment list
+                Button { showSegmentList = true } label: {
+                    Image(systemName: "list.bullet")
+                        .font(.subheadline)
+                        .foregroundStyle(.brandGold)
+                        .frame(width: 36, height: 36)
+                        .background(Color.brandGold.opacity(0.12), in: Circle())
+                }
+                .accessibilityLabel("Show all segments")
+            }
+
+            // Playback progress
+            ProgressView(value: Double(current + 1), total: Double(max(total, 1)))
+                .tint(.brandGold)
+
+            // Transport controls
             HStack(spacing: 20) {
                 Button { playback.previousSegment() } label: {
                     Image(systemName: "backward.fill").font(.title3)
                 }
-                .disabled(playback.audioPlayer.currentSegmentIndex == 0)
+                .disabled(current == 0)
 
                 Button { playback.togglePlayPause() } label: {
                     Image(systemName: playback.audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -444,7 +508,7 @@ struct AudioOnlyCard: View {
                 Button { playback.nextSegment() } label: {
                     Image(systemName: "forward.fill").font(.title3)
                 }
-                .disabled(playback.audioPlayer.currentSegmentIndex >= playback.audioPlayer.totalSegments - 1)
+                .disabled(current >= total - 1)
 
                 Spacer()
 
@@ -456,9 +520,112 @@ struct AudioOnlyCard: View {
             }
             .foregroundStyle(.primary)
         }
-        .padding(16)
+        .padding(14)
         .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 20))
         .padding()
+        .sheet(isPresented: $showSegmentList) {
+            SegmentListSheet(playback: playback)
+                .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+/// Scrollable list of all segments with a tap-to-skip affordance. Surfaced
+/// from the in-tour player's ⋯ button so the user can see where they are in
+/// the arc and jump to a specific stop without scrubbing through audio.
+struct SegmentListSheet: View {
+    @ObservedObject var playback: TourPlaybackService
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(0..<playback.audioPlayer.totalSegments, id: \.self) { index in
+                    let segment = playback.audioPlayer.segments.first(where: { $0.sequenceOrder == index })
+                    let isCurrent = index == playback.audioPlayer.currentSegmentIndex
+                    let isPast = index < playback.audioPlayer.currentSegmentIndex
+
+                    Button {
+                        playback.audioPlayer.playSegment(at: index)
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(isCurrent ? Color.brandGold : isPast ? Color.green.opacity(0.5) : Color.brandGold.opacity(0.15))
+                                    .frame(width: 28, height: 28)
+                                if isPast {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white)
+                                } else {
+                                    Text("\(index + 1)")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(isCurrent ? .brandNavy : .brandGold)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(segmentLabel(for: index))
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                if let seg = segment {
+                                    Text(seg.narrationText.prefix(80) + (seg.narrationText.count > 80 ? "…" : ""))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+
+                            Spacer()
+
+                            if isCurrent && playback.audioPlayer.isPlaying {
+                                Image(systemName: "waveform")
+                                    .foregroundStyle(.brandGold)
+                                    .symbolEffect(.variableColor.iterative)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(isCurrent ? Color.brandGold.opacity(0.1) : Color.clear)
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle("Tour Segments")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func segmentLabel(for index: Int) -> String {
+        guard let segment = playback.audioPlayer.segments.first(where: { $0.sequenceOrder == index }) else {
+            return "Segment \(index + 1)"
+        }
+        switch segment.segmentType {
+        case "intro": return "Welcome"
+        case "outro": return "Tour Complete"
+        case "between_stops": return "On the road"
+        default:
+            // at_stop / approach / departure — show the stop name
+            if let stopId = segment.toStopId,
+               let stop = playback.currentTour?.stops.first(where: { $0.id == stopId }) {
+                let prefix: String = {
+                    switch segment.segmentType {
+                    case "approach": return "Approaching "
+                    case "departure": return "Departing "
+                    default: return ""
+                    }
+                }()
+                return "\(prefix)\(stop.name)"
+            }
+            return segment.segmentType.capitalized
+        }
     }
 }
 
@@ -618,6 +785,16 @@ struct TourControlCard: View {
                 }
                 .padding(.horizontal, 16)
 
+                // Close — dismiss without starting. The top-left xmark icon
+                // does the same thing but it's easy to miss on the busy map.
+                Button(action: onStop) {
+                    Text("Close").font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                }
+                .accessibilityIdentifier("closeTourReadyButton")
+
                 // Voice picker
                 Menu {
                     Button {
@@ -647,5 +824,52 @@ struct TourControlCard: View {
         .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal)
         .padding(.bottom, 4)
+    }
+}
+
+/// Banner shown during the "drive-to" phase — when the user started a tour
+/// far from the first stop and the app is playing a dynamic bridge narration
+/// to fill the travel time. Switches off the moment they're close enough for
+/// segment 0 to take over.
+struct BridgeStatusBanner: View {
+    let state: TourPlaybackService.BridgeState
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: state.isPlaying ? "waveform" : "car.fill")
+                .foregroundStyle(.brandGold)
+                .font(.title3)
+                .symbolEffect(.variableColor.iterative, isActive: state.isPlaying)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.isPlaying ? "Warming up…" : "Heading to \(state.firstStopName)")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text("\(formatDistance(km: state.distanceKm)) · ~\(state.etaMinutes) min · tour begins when you arrive")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.brandGold.opacity(0.5), lineWidth: 1)
+        )
+    }
+
+    private func formatDistance(km: Double) -> String {
+        let miles = km * 0.621371
+        if miles >= 1 {
+            return String(format: "%.1f mi away", miles)
+        } else {
+            let feet = Int(miles * 5280)
+            return "\(feet) ft away"
+        }
     }
 }

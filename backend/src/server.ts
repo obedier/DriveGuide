@@ -45,7 +45,7 @@ async function start(): Promise<void> {
         apps: [],
         details: [{
           appID: 'U3972W2GDJ.com.privatetourai.app',
-          paths: ['/tour/*'],
+          paths: ['/tour/*', '/passenger/*'],
         }],
       },
     };

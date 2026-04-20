@@ -380,6 +380,220 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     return { status: 'published', share_id: shareId };
   });
 
+  // POST /tours/:id/bridge — "drive-to" intro narration for when a user
+  // starts a tour but is still far from the first stop. See bridge.ts for
+  // details on the prompt + synthesis.
+  app.post<{
+    Params: { id: string };
+    Body: {
+      user_lat: number;
+      user_lng: number;
+      eta_minutes?: number;
+      kind?: 'opener' | 'follow_up';
+      previous_openers?: string[];
+    };
+  }>('/tours/:id/bridge', async (request, reply) => {
+    const { id } = request.params;
+    const { user_lat, user_lng, eta_minutes, kind, previous_openers } = request.body;
+    if (typeof user_lat !== 'number' || typeof user_lng !== 'number') {
+      return reply.code(400).send({ error: { code: 'INVALID_INPUT', message: 'user_lat/user_lng required' } });
+    }
+
+    const db = getDb();
+    const tour = db.prepare(`SELECT id, title, description, themes, transport_mode, language
+      FROM tours WHERE id = ?`).get(id) as
+      | { id: string; title: string; description: string; themes: string | null; transport_mode: string | null; language: string | null }
+      | undefined;
+    if (!tour) {
+      return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Tour not found' } });
+    }
+
+    const firstStop = db.prepare(`SELECT name, description, latitude, longitude
+      FROM tour_stops WHERE tour_id = ? ORDER BY sequence_order LIMIT 1`).get(id) as
+      | { name: string; description: string; latitude: number; longitude: number }
+      | undefined;
+    if (!firstStop) {
+      return reply.code(400).send({ error: { code: 'NO_STOPS', message: 'Tour has no stops' } });
+    }
+
+    // Haversine distance in km — server recompute so clients can't lie.
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(firstStop.latitude - user_lat);
+    const dLng = toRad(firstStop.longitude - user_lng);
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(toRad(user_lat)) * Math.cos(toRad(firstStop.latitude)) * Math.sin(dLng / 2) ** 2;
+    const distanceKm = 2 * R * Math.asin(Math.sqrt(a));
+
+    // Prefer Google Directions' real ETA over a Haversine-derived estimate.
+    // Falls back cleanly when the API fails, is over quota, or the user
+    // didn't send a request we should trust.
+    const transportSpeedKph = (tour.transport_mode === 'walk') ? 5
+      : (tour.transport_mode === 'bike') ? 16 : 45;
+    const haversineEta = Math.max(1, Math.round((distanceKm / transportSpeedKph) * 60));
+    const { fetchDirectionsEta } = await import('../services/tour/directions.js');
+    const googleEta = await fetchDirectionsEta({
+      originLat: user_lat, originLng: user_lng,
+      destLat: firstStop.latitude, destLng: firstStop.longitude,
+      transportMode: tour.transport_mode ?? 'car',
+    });
+    const etaWithDirections = googleEta ?? eta_minutes ?? haversineEta;
+
+    const { generateBridgeNarration } = await import('../services/tour/bridge.js');
+    try {
+      const result = await generateBridgeNarration({
+        tourTitle: tour.title,
+        tourDescription: tour.description,
+        tourThemes: tour.themes ? JSON.parse(tour.themes) : [],
+        transportMode: tour.transport_mode ?? 'car',
+        firstStopName: firstStop.name,
+        firstStopHookLine: firstStop.description,
+        distanceKm,
+        etaMinutes: etaWithDirections,
+        language: tour.language ?? 'en',
+        kind,
+        previousOpeners: previous_openers,
+      });
+      return {
+        narration_text: result.narrationText,
+        audio_url: result.audioUrl,
+        content_hash: result.contentHash,
+        duration_seconds: result.durationSeconds,
+        distance_km: distanceKm,
+        eta_minutes: etaWithDirections,
+        eta_source: googleEta !== null ? 'google_directions' : 'haversine',
+      };
+    } catch (err) {
+      request.log.error({ err }, 'bridge narration failed');
+      return reply.code(500).send({ error: { code: 'BRIDGE_FAILED', message: (err as Error).message } });
+    }
+  });
+
+  // POST /tours/featured/mark — small UPDATE-only variant used when the tour
+  // rows already exist and we just need to set is_featured=1. Avoids the heavier
+  // DELETE+INSERT of /tours/featured/seed, which GCS Fuse chokes on when other
+  // writers are active.
+  app.post<{ Body: { tour_ids: string[] } }>('/tours/featured/mark', async (request, reply) => {
+    const expected = process.env.FEATURED_SEED_SECRET;
+    const got = request.headers['x-admin-secret'];
+    if (!expected || got !== expected) {
+      return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Admin secret required' } });
+    }
+    const db = getDb();
+    const ids = request.body.tour_ids ?? [];
+    const stmt = db.prepare('UPDATE tours SET is_featured = 1 WHERE id = ?');
+    const updated: string[] = [];
+    for (const id of ids) {
+      const info = stmt.run(id);
+      if (info.changes > 0) updated.push(id);
+    }
+    return { status: 'marked', updated, count: updated.length };
+  });
+
+  // POST /tours/featured/seed — one-shot admin-only ingest for pre-generated
+  // featured tours. Accepts a full tour payload without requiring user auth;
+  // instead gates on the X-Admin-Secret header matching FEATURED_SEED_SECRET.
+  // TODO(cleanup): remove once the featured-tours rollout pipeline moves
+  // into a proper Cloud Run job. Until then this is how we push curated
+  // content (is_public = 1, system-owned) into production.
+  app.post<{ Body: {
+    tour: {
+      id: string; title: string; description: string; location_query?: string;
+      center_lat?: number | null; center_lng?: number | null;
+      duration_minutes: number; themes?: string[]; language?: string;
+      transport_mode?: string | null; story_arc_summary?: string | null;
+      total_distance_km?: number | null; total_duration_minutes?: number | null;
+      share_id?: string | null; metro_area?: string | null;
+      stops: Array<{
+        id: string; sequence_order: number; name: string; description: string;
+        category: string; latitude: number; longitude: number;
+        recommended_stay_minutes: number; is_optional: boolean;
+        approach_narration: string; at_stop_narration: string; departure_narration: string;
+        google_place_id?: string | null; photo_url?: string | null;
+      }>;
+      narration_segments: Array<{
+        id: string; segment_type: string; sequence_order: number;
+        narration_text: string; content_hash: string;
+        estimated_duration_seconds: number; trigger_lat?: number | null;
+        trigger_lng?: number | null; trigger_radius_meters: number; language: string;
+        from_stop_id?: string | null; to_stop_id?: string | null;
+      }>;
+    };
+  } }>('/tours/featured/seed', async (request, reply) => {
+    const expected = process.env.FEATURED_SEED_SECRET;
+    const got = request.headers['x-admin-secret'];
+    if (!expected || got !== expected) {
+      return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'Admin secret required' } });
+    }
+    const db = getDb();
+    const t = request.body.tour;
+    const systemUser = 'waipoint-featured-system';
+
+    db.prepare(`INSERT OR IGNORE INTO users (id, email, created_at, updated_at)
+      VALUES (?, 'featured@waipoint.app', datetime('now'), datetime('now'))`).run(systemUser);
+
+    const txn = db.transaction(() => {
+      db.prepare('DELETE FROM narration_segments WHERE tour_id = ?').run(t.id);
+      db.prepare('DELETE FROM tour_stops WHERE tour_id = ?').run(t.id);
+      db.prepare('DELETE FROM tours WHERE id = ?').run(t.id);
+
+      db.prepare(`INSERT INTO tours (
+        id, user_id, title, description, location_query, center_lat, center_lng,
+        duration_minutes, themes, language, status, transport_mode, custom_prompt,
+        maps_directions_url, total_distance_km, total_duration_minutes, story_arc_summary,
+        share_id, metro_area, is_public, is_featured
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, NULL, NULL, ?, ?, ?, ?, ?, 1, 1)`)
+        .run(t.id, systemUser, t.title, t.description,
+          t.location_query ?? null,
+          t.center_lat ?? null, t.center_lng ?? null,
+          t.duration_minutes, JSON.stringify(t.themes ?? []),
+          t.language ?? 'en', t.transport_mode ?? null,
+          t.total_distance_km ?? null, t.total_duration_minutes ?? null,
+          t.story_arc_summary ?? null, t.share_id ?? null,
+          t.metro_area ?? null);
+
+      for (const s of t.stops) {
+        db.prepare(`INSERT INTO tour_stops (
+          id, tour_id, sequence_order, name, description, category, latitude, longitude,
+          recommended_stay_minutes, is_optional, approach_narration, at_stop_narration,
+          departure_narration, google_place_id, photo_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(s.id, t.id, s.sequence_order, s.name, s.description, s.category,
+            s.latitude, s.longitude, s.recommended_stay_minutes,
+            s.is_optional ? 1 : 0, s.approach_narration, s.at_stop_narration,
+            s.departure_narration, s.google_place_id ?? null, s.photo_url ?? null);
+      }
+
+      for (const seg of t.narration_segments) {
+        db.prepare(`INSERT INTO narration_segments (
+          id, tour_id, segment_type, sequence_order, narration_text, content_hash,
+          estimated_duration_seconds, trigger_lat, trigger_lng, trigger_radius_meters,
+          language, from_stop_id, to_stop_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(seg.id, t.id, seg.segment_type, seg.sequence_order,
+            seg.narration_text, seg.content_hash,
+            seg.estimated_duration_seconds,
+            seg.trigger_lat ?? null, seg.trigger_lng ?? null,
+            seg.trigger_radius_meters, seg.language,
+            seg.from_stop_id ?? null, seg.to_stop_id ?? null);
+
+        // Also register the canonical audio_files row for this segment so
+        // loadTour() can emit an audio_url. The MP3 must already exist in
+        // `gs://driveguide-audio-cache/audio/<contentHash>.mp3` (our seed
+        // pipeline puts it there). `INSERT OR IGNORE` so re-runs are safe.
+        const gcsPath = `audio/${seg.content_hash}.mp3`;
+        const audioId = `af-${seg.content_hash.slice(0, 16)}`;
+        db.prepare(`INSERT OR IGNORE INTO audio_files (
+          id, content_hash, language, voice_name, gcs_path, format
+        ) VALUES (?, ?, ?, ?, ?, 'mp3')`)
+          .run(audioId, seg.content_hash, seg.language, 'en-US-Journey-D', gcsPath);
+      }
+    });
+    txn();
+
+    return { status: 'seeded', tour_id: t.id, stops: t.stops.length, segments: t.narration_segments.length };
+  });
+
   // POST /tours/:id/publish — publish existing server tour to community (legacy)
   app.post<{ Params: { id: string } }>('/tours/:id/publish', {
     preHandler: requireAuth,
@@ -439,11 +653,11 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
       rows = db.prepare(`
         SELECT id, title, description, location_query, duration_minutes, transport_mode,
                center_lat, center_lng, total_distance_km, share_id,
-               community_rating, community_rating_count, created_at
+               community_rating, community_rating_count, created_at, is_featured
         FROM tours
         WHERE is_public = 1 AND status = 'ready'
         AND center_lat BETWEEN ? AND ? AND center_lng BETWEEN ? AND ?
-        ORDER BY community_rating_count DESC, created_at DESC
+        ORDER BY is_featured DESC, community_rating_count DESC, created_at DESC
         LIMIT ? OFFSET ?
       `).all(lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta, limit, offset) as Array<Record<string, unknown>>;
     } else {
@@ -451,10 +665,10 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
       rows = db.prepare(`
         SELECT id, title, description, location_query, duration_minutes, transport_mode,
                center_lat, center_lng, total_distance_km, share_id,
-               community_rating, community_rating_count, created_at
+               community_rating, community_rating_count, created_at, is_featured
         FROM tours
         WHERE is_public = 1 AND status = 'ready'
-        ORDER BY community_rating_count DESC, created_at DESC
+        ORDER BY is_featured DESC, community_rating_count DESC, created_at DESC
         LIMIT ? OFFSET ?
       `).all(limit, offset) as Array<Record<string, unknown>>;
     }
@@ -474,6 +688,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
         rating: r.community_rating,
         rating_count: r.community_rating_count,
         created_at: r.created_at,
+        is_featured: r.is_featured === 1,
       })),
       pagination: { total, page, limit, has_more: offset + limit < total },
     };
@@ -552,6 +767,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     stop_count: number;
     transport_mode: string | null;
     metro_area: string | null;
+    share_id: string | null;
     community_rating: number | null;
     community_rating_count: number;
     is_featured: number;
@@ -565,6 +781,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
 
   const serializeCommunityTour = (row: CommunityTourRow): {
     id: string;
+    shareId: string | null;
     title: string;
     description: string;
     durationMinutes: number;
@@ -577,6 +794,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
     createdAt: string;
   } => ({
     id: row.id,
+    shareId: row.share_id,
     title: row.title,
     description: row.description,
     durationMinutes: row.duration_minutes,
@@ -665,6 +883,7 @@ export async function tourRoutes(app: FastifyInstance): Promise<void> {
         t.duration_minutes,
         t.transport_mode,
         t.metro_area,
+        t.share_id,
         t.community_rating,
         t.community_rating_count,
         t.is_featured,
